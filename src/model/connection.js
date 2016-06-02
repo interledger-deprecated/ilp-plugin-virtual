@@ -1,5 +1,8 @@
-const eventEmitter = require('events');
+const EventEmitter = require('events');
 const log = require('../controllers/log');
+
+// this is a very basic placeholder version of a connection class,
+// that just sends messages between two variables
 
 var conns = [null, null];
 var connCount = 0;
@@ -7,6 +10,8 @@ var connCount = 0;
 class Connection extends EventEmitter {
 
   constructor(config) {
+    super();
+
     this.config = config;
     this.conn = connCount++;
 
@@ -14,18 +19,21 @@ class Connection extends EventEmitter {
 
     if (connCount > 2) {
       log.error("Too many connections!");
+      throw Error("Too Many Connections!");
     }
   }
 
-  function connect() {
+  connect() {
     return Promise.resolve(null);
   }
 
-  function disconnect() {
+  disconnect() {
     return Promise.resolve(null);
   }
 
-  function send(msg) {
+  send(msg) {
     conns[(this.conn + 1) % 2].emit('receive', msg);
   }
 }
+
+exports.Connection = Connection;

@@ -16,38 +16,38 @@ class PluginVirtual extends EventEmitter {
     this.otherAccount = "2";
   }
 
-  function connect() {
+  connect() {
     // TODO: implement this
     this.emit('connect');
   }
   
-  function disconnect() {
+  disconnect() {
     // TODO: implement this
     this.emit('disconnect');
   }
   
-  function isConnected() {
+  isConnected() {
     return this.connected;
   }
 
-  function getBalance() {
+  getBalance() {
     return this.store.get(this.myAccount);
   }
 
-  function getConnectors() {
+  getConnectors() {
     // TODO: implement this
   }
 
-  function send(outgoingTransfer) {
+  send(outgoingTransfer) {
     // TODO: implement this
   }
   
   /* Add these once UTP and ATP are introduced
-  function fullfillCondition(transferId, fullfillment) {
+  fullfillCondition(transferId, fullfillment) {
     // TODO: implement this
   }
 
-  function replyToTransfer(transferId, replyMessage) {
+  replyToTransfer(transferId, replyMessage) {
     // TODO: implement this
   }
   */

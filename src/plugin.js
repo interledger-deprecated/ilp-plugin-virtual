@@ -26,8 +26,10 @@ class PluginVirtual extends EventEmitter {
     this.limit = opts.limit
     this.transferLog = new TransferLog(this.store)
 
+    this.connectionOptions = opts.other
+
     this.connectionConfig = {} // no need for a config right now
-    this.connection = new Connection({})
+    this.connection = new Connection(opts.other)
     
     this.connection.on('receive', (msg) => {
       // supress error emitted by error, so others can bind to 'error' event
@@ -42,6 +44,7 @@ class PluginVirtual extends EventEmitter {
   connect () {
     // as of right now, there is no need to connect
     this.emit('connect')
+    this.connection.connect()
     this.connected = true;
     return Promise.resolve(null)
   }
@@ -49,6 +52,7 @@ class PluginVirtual extends EventEmitter {
   disconnect () {
     // as of right now, there is no need to disconnect
     this.emit('disconnect')
+    this.connection.disconnect()
     this.connected = false;
     return Promise.resolve(null)
   }

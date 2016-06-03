@@ -1,45 +1,52 @@
 const EventEmitter = require('events');
 const log = require('../controllers/log');
+const SimplePeer = require('simple-peer');
 
-// this is a very basic placeholder version of a connection class,
-// that just sends messages between two variables
-
-var conns = [null, null];
-var connCount = 0;
+/* uses the webrtc package, simple-peer. does not yet have signaling */
 
 class Connection extends EventEmitter {
 
   constructor(config) {
     super();
 
+    /*
+      config = {
+        initiator: bool
+        peer: SimplePeer
+      }
+    */
     this.config = config;
-    this.conn = connCount++;
-
-    conns[this.conn] = this;
-
-    if (connCount > 2) {
-      log.error("Too many connections!");
-      throw Error("Too Many Connections!");
-    }
+    this.initiator = config.initiator
+    this.peer = null;
+    this.other = config.peer
   }
 
   connect() {
-    return Promise.resolve(null);
+    this.peer = SimplePeer({initiator: this.initiator})
+    this.peer.on('signal', (data) => {
+      this.other.signal(data)
+    })
+    this.peer.on('data', (data) => {
+      this.emit('receive', data)
+    })
   }
 
   disconnect() {
+    // TODO: make this thing disconnect sometime
     return Promise.resolve(null);
   }
 
   send(msg) {
-    var receiver = conns[(this.conn + 1) % 2]
-    receiver.emit.apply(receiver, ['receive', msg]);
-    return Promise.resolve(null)
+    this.peer.send(msg)
+  }
+
+  _getPeer () {
+    return this.peer
   }
 
   static reset () {
-    conns = [null, null];
-    connCount = 0;
+    return
+    // TODO: remove this entirely
   }
 }
 

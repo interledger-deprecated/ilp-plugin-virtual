@@ -29,9 +29,12 @@ class PluginVirtual extends EventEmitter {
     this.connectionConfig = {} // no need for a config right now
     this.connection = new Connection({})
     
-    var pv = this;
     this.connection.on('receive', (msg) => {
-      pv._receive(msg).catch((err) => this._error(err))
+      // supress error emitted by error, so others can bind to 'error' event
+      this._receive(msg).catch((err) => {
+        log.error(err) 
+        this.emit('error', err) 
+      })
     });
     
   }
@@ -152,7 +155,7 @@ class PluginVirtual extends EventEmitter {
         if (storedTransfer && storedTransfer.id === transfer.id) {
           return pv._addBalance(pv.myAccount, -1 * transfer.amount)
         } else {
-          return pv._error(new Error("Recieved false acknowledge for tid: " + transfer.id))
+          throw new Error("Recieved false acknowledge for tid: " + transfer.id)
         }
       })
   }
@@ -190,12 +193,6 @@ class PluginVirtual extends EventEmitter {
     log.log(this.auth.account + ": " + msg)
   }
 
-  _error (err) {
-    log.error(err) 
-// TODO: figure out why emitting creates two messages
-//       even though commenting out log.error removes all messages here
-//    this.emit('error', err) 
-  }
 }
 
 exports.PluginVirtual = PluginVirtual

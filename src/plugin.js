@@ -35,12 +35,14 @@ class PluginVirtual extends EventEmitter {
   connect () {
     // as of right now, there is no need to connect
     this.emit('connect')
+    this.connected = true;
     return Promise.resolve(null)
   }
 
   disconnect () {
     // as of right now, there is no need to disconnect
     this.emit('disconnect')
+    this.connected = false;
     return Promise.resolve(null)
   }
 

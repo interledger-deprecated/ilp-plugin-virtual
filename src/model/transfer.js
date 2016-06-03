@@ -1,22 +1,22 @@
 class Transfer {
 
   constructor (opts) {
-    this.opts = opts;
+    this.opts = opts
   }
-  
+
   get id () {
-    return this.opts.id;
+    return this.opts.id
   }
   get account () {
-    return this.opts.account;
+    return this.opts.account
   }
   get amount () {
-    return this.opts.amount;
+    return this.opts.amount
   }
   get data () {
-    return this.opts.data;
+    return this.opts.data
   }
-  
+
   serialize () {
     return {
       id: this.id,
@@ -27,7 +27,7 @@ class Transfer {
       executionCondition: '',
       cancellationCondition: '',
       expiresAt: '',
-      custom: {} 
+      custom: {}
     }
   }
 }

@@ -1,7 +1,7 @@
-const log = require('../controllers/log')
+// const log = require('../controllers/log')
 
 class TransferLog {
-  
+
   constructor (store) {
     this._get = store.get
     this._put = store.put
@@ -25,7 +25,7 @@ class TransferLog {
   store (transfer) {
     return (this._put('t' + transfer.id, JSON.stringify(transfer)))
   }
-  
+
   exists (transfer) {
     return this.get(transfer).then((storedTransfer) => {
       return Promise.resolve(storedTransfer !== undefined)
@@ -33,8 +33,8 @@ class TransferLog {
   }
 
   del (transfer) {
-    return this._del('t' + transfer.id);
-  } 
+    return this._del('t' + transfer.id)
+  }
 }
 
 exports.TransferLog = TransferLog

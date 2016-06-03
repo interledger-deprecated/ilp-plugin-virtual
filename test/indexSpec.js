@@ -2,7 +2,7 @@
 
 const plugin = require('../src/plugin')
 const PluginVirtual = plugin.PluginVirtual
-const Connection = plugin.Connection
+// const Connection = plugin.Connection
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 
@@ -23,13 +23,20 @@ describe('PluginVirtual', function () {
   var s1store = {get: s1get, put: s1put, del: s1del}
   var s2store = {get: s2get, put: s2put, del: s2del}
 
-  var pv1 = new PluginVirtual({store: s1store, auth: {account: "plugin 1"}, limit: 300})
-  var pv2 = new PluginVirtual({store: s2store, auth: {account: "plugin 2"}, limit: 300})
+  var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'}, limit: 300,
+    other: {initiator: false}
+  })
+  var pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'}, limit: 300,
+    other: {initiator: false, peer: pv1}
+  })
+  pv1.connection.other = pv2.connection
+  pv1.connect()
+  pv2.connect()
 
   it('should construct non-null objects', () => {
     assert(pv1 && pv2)
   })
-  
+
   var pv1b, pv2b
 
   pv1.on('_balanceChanged', () => {
@@ -46,7 +53,6 @@ describe('PluginVirtual', function () {
   })
 
   it('should create a connect event on connect', (done) => {
-
     pv1.on('connect', () => { done() })
     pv1.connect()
     pv2.connect()
@@ -75,7 +81,7 @@ describe('PluginVirtual', function () {
 
   it('should reject invalid acknowledgements', (done) => {
     pv1.on('error', () => {
-      done() 
+      done()
     })
     p.then(() => {
       return pv2._acceptTransfer(new Transfer({
@@ -88,7 +94,6 @@ describe('PluginVirtual', function () {
   })
 
   it('should finish with the correct balances', (done) => {
-
     setTimeout(() => {
       assert(pv1b === 100 && pv2b === -100, 'balances should be correct')
       done()

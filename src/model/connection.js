@@ -1,13 +1,13 @@
-const EventEmitter = require('events');
-const log = require('../controllers/log');
-const SimplePeer = require('simple-peer');
+const EventEmitter = require('events')
+// const log = require('../controllers/log')
+const SimplePeer = require('simple-peer')
 
 /* uses the webrtc package, simple-peer. does not yet have signaling */
 
 class Connection extends EventEmitter {
 
-  constructor(config) {
-    super();
+  constructor (config) {
+    super()
 
     /*
       config = {
@@ -15,13 +15,13 @@ class Connection extends EventEmitter {
         peer: SimplePeer
       }
     */
-    this.config = config;
+    this.config = config
     this.initiator = config.initiator
-    this.peer = null;
+    this.peer = null
     this.other = config.peer
   }
 
-  connect() {
+  connect () {
     this.peer = SimplePeer({initiator: this.initiator})
     this.peer.on('signal', (data) => {
       this.other.signal(data)
@@ -31,12 +31,12 @@ class Connection extends EventEmitter {
     })
   }
 
-  disconnect() {
+  disconnect () {
     // TODO: make this thing disconnect sometime
-    return Promise.resolve(null);
+    return Promise.resolve(null)
   }
 
-  send(msg) {
+  send (msg) {
     this.peer.send(msg)
   }
 
@@ -50,4 +50,4 @@ class Connection extends EventEmitter {
   }
 }
 
-exports.Connection = Connection;
+exports.Connection = Connection

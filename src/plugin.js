@@ -30,22 +30,21 @@ class PluginVirtual extends EventEmitter {
 
     this.connectionConfig = {} // no need for a config right now
     this.connection = new Connection(opts.other)
-    
+
     this.connection.on('receive', (msg) => {
       // supress error emitted by error, so others can bind to 'error' event
       this._receive(msg).catch((err) => {
-        log.error(err) 
-        this.emit('error', err) 
+        log.error(err)
+        this.emit('error', err)
       })
-    });
-    
+    })
   }
 
   connect () {
     // as of right now, there is no need to connect
     this.emit('connect')
     this.connection.connect()
-    this.connected = true;
+    this.connected = true
     return Promise.resolve(null)
   }
 
@@ -53,7 +52,7 @@ class PluginVirtual extends EventEmitter {
     // as of right now, there is no need to disconnect
     this.emit('disconnect')
     this.connection.disconnect()
-    this.connected = false;
+    this.connected = false
     return Promise.resolve(null)
   }
 
@@ -62,14 +61,14 @@ class PluginVirtual extends EventEmitter {
   }
 
   getBalance () {
-    return this.store.get("a" + this.myAccount).then((balance) => {
-      //TODO: figure out what the store does when a key doesn't exist
+    return this.store.get('a' + this.myAccount).then((balance) => {
+      // TODO: figure out what the store does when a key doesn't exist
       if (!balance) {
-        return this.store.put("a" + this.myAccount, 0).then(() => {
+        return this.store.put('a' + this.myAccount, 0).then(() => {
           return Promise.resolve(0)
         })
       }
-      return Promise.resolve(balance);
+      return Promise.resolve(balance)
     })
   }
 
@@ -79,7 +78,7 @@ class PluginVirtual extends EventEmitter {
   }
 
   send (outgoingTransfer) {
-    this._log("sending out a Transfer with tid: " + outgoingTransfer.id);
+    this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
     return this.connection.send({
       type: 'transfer',
       transfer: outgoingTransfer
@@ -94,7 +93,7 @@ class PluginVirtual extends EventEmitter {
   }
   */
 
-  replyToTransfer(transferId, replyMessage) {
+  replyToTransfer (transferId, replyMessage) {
     return this.transferLog.getId(transferId).then((storedTransfer) => {
       // TODO: should this send a different type from this?
       return this.connection.send({
@@ -108,40 +107,38 @@ class PluginVirtual extends EventEmitter {
   /* Private Functions */
   _receive (obj) {
     // TODO: remove this debug message
-    //this._log(JSON.stringify(obj));
+    // this._log(JSON.stringify(obj));
 
+    /* eslint-disable padded-blocks */
     if (obj.type === 'transfer') {
 
-      this._log("received a Transfer with tid: " + obj.transfer.id);
+      this._log('received a Transfer with tid: ' + obj.transfer.id)
       this.emit('incoming', obj.transfer)
       return this._handleTransfer(new Transfer(obj.transfer))
 
-    } else if (obj.type == 'acknowledge') {
+    } else if (obj.type === 'acknowledge') {
 
-      this._log("received a ACK on tid: " + obj.transfer.id);
+      this._log('received a ACK on tid: ' + obj.transfer.id)
       this.emit('reply', obj.transfer, obj.message) // TODO: can obj.message be null?
       return this._handleAcknowledge(new Transfer(obj.transfer))
-     
-    } else if (obj.type == 'reject') {
 
-      this._log("received a reject on tid: " + obj.transfer.id);
+    } else if (obj.type === 'reject') {
+
+      this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, obj.message)
       return Promise.resolve(null)
-
     }
+    /* eslint-enable padded-blocks */
   }
 
   _handleTransfer (transfer) {
     return this.transferLog.store(transfer).then(() => {
       return this.getBalance()
     }).then((balance) => {
-
       if (balance + (transfer.amount | 0) <= this.limit) {
-
         return this._addBalance(this.myAccount, transfer.amount).then(() => {
           return this._acceptTransfer(transfer)
         })
-
       } else {
         return this._rejectTransfer(transfer, 'credit limit exceeded').then(() => {
           return this.transferLog.del(transfer)
@@ -149,26 +146,25 @@ class PluginVirtual extends EventEmitter {
       }
     })
   }
-  
-  _handleAcknowledge (transfer) {
 
-      // subtract the transfer amount because it's acklowledging a sent transaction
-      var pv = this
-      return this.transferLog.get(transfer).then((storedTransfer) => {
-        // TODO: compare better
-        if (storedTransfer && storedTransfer.id === transfer.id) {
-          return pv._addBalance(pv.myAccount, -1 * transfer.amount)
-        } else {
-          throw new Error("Recieved false acknowledge for tid: " + transfer.id)
-        }
-      })
+  _handleAcknowledge (transfer) {
+    // subtract the transfer amount because it's acklowledging a sent transaction
+    var pv = this
+    return this.transferLog.get(transfer).then((storedTransfer) => {
+      // TODO: compare better
+      if (storedTransfer && storedTransfer.id === transfer.id) {
+        return pv._addBalance(pv.myAccount, -1 * transfer.amount)
+      } else {
+        throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
+      }
+    })
   }
 
   _addBalance (account, amt) {
     return this.getBalance().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
-      this._log(balance + " changed by " + amt)
-      return this.store.put("a" + account, (balance | 0) + (amt | 0) + "")
+      this._log(balance + ' changed by ' + amt)
+      return this.store.put('a' + account, (balance | 0) + (amt | 0) + '')
     }).then(() => {
       // event for debugging
       this.emit('_balanceChanged')
@@ -176,16 +172,16 @@ class PluginVirtual extends EventEmitter {
     })
   }
 
-  _acceptTransfer(transfer) {
-    this._log('sending out an ACK for tid: ' + transfer.id);
+  _acceptTransfer (transfer) {
+    this._log('sending out an ACK for tid: ' + transfer.id)
     return this.connection.send({
       type: 'acknowledge',
       transfer: transfer.serialize(),
       message: new Buffer('transfer accepted')
     })
   }
-  _rejectTransfer(transfer, reason) {
-    this._log('sending out a reject for tid: ' + transfer.id);
+  _rejectTransfer (transfer, reason) {
+    this._log('sending out a reject for tid: ' + transfer.id)
     return this.connection.send({
       type: 'reject',
       transfer: transfer.serialize(),
@@ -194,7 +190,7 @@ class PluginVirtual extends EventEmitter {
   }
 
   _log (msg) {
-    log.log(this.auth.account + ": " + msg)
+    log.log(this.auth.account + ': ' + msg)
   }
 
 }

@@ -4,12 +4,12 @@ const plugin = require('../src/plugin')
 const PluginVirtual = plugin.PluginVirtual
 const Connection = plugin.Connection
 const assert = require('chai').assert
+const Transfer = require('../src/model/transfer').Transfer
 
 describe('PluginVirtual', function () {
 /*  it('should be an object', function () {
     assert.isObject(PluginVirtual)
   })*/
-
   it('should go through the proper channels for a transaction', function() {
 
     /* this is going to be in the code pretty briefly so no need to make it too nice */
@@ -24,41 +24,59 @@ describe('PluginVirtual', function () {
     var s1store = {get: s1get, put: s1put, del: s1del}
     var s2store = {get: s2get, put: s2put, del: s2del}
 
-    var pv1 = new PluginVirtual({store: s1store, auth: {account: "plugin 1"}})
-    var pv2 = new PluginVirtual({store: s2store, auth: {account: "plugin 2"}})
+    var pv1 = new PluginVirtual({store: s1store, auth: {account: "plugin 1"}, limit: 300})
+    var pv2 = new PluginVirtual({store: s2store, auth: {account: "plugin 2"}, limit: 300})
 
     // TODO: make this async once the connection class needs that
     pv1.connect()
     pv2.connect()
 
     pv1.send({
-      id: 'thing number 1',
+      id: 'onehundred',
       account: 'doesnt really matter',
       amount: '100',
       data: new Buffer('')
     }).then(() => {
       return pv2.send({
-        id: 'thing numba 2',
+        id: 'twohundred',
         account: 'doesnt really matter here either',
         amount: '200',
         data: new Buffer('')
       })
     }).then(() => {
-      return pv1.getBalance()
-    }).then((balance) => {
-      console.log("pv1 balance: " + balance)
-      return Promise.resolve(null)
+      return pv2.send({
+        id: 'rejectthis',
+        account: 'this should get rejected',
+        amount: '400',
+        data: new Buffer('')
+      })
     }).then(() => {
-      return pv2.getBalance()
-    }).then((balance) => {
-      console.log("pv2 balance: " + balance)
-      return Promise.resolve(null)
-    }).then(() => {
-      return pv1.getBalance()
-    }).then((balance) => {
-      console.log("pv1 balance: " + balance)
-      return Promise.resolve(null)
+      return pv2._acceptTransfer(new Transfer({
+        id: 'thisdoesntexist',
+        account: 'this should get rejected',
+        amount: '400',
+        data: new Buffer('')
+      }))
     })
-    assert(true);
+
+ 
+    var pv1b, pv2b
+
+    pv1.on('_balanceChanged', () => {
+      pv1.getBalance().then((balance) => {
+        pv1b = balance
+        pv1._log(balance)
+      })
+    })
+    pv2.on('_balanceChanged', () => {
+      pv2.getBalance().then((balance) => {
+        pv2b = balance
+        pv2._log(balance)
+      })
+    })
+
+    setTimeout(() => {
+      assert(pv1b === 100 && pv2b == -100)
+    }, 2000)
   })
 })

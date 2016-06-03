@@ -32,7 +32,14 @@ class Connection extends EventEmitter {
   }
 
   send(msg) {
-    conns[(this.conn + 1) % 2].emit('receive', msg);
+    var receiver = conns[(this.conn + 1) % 2]
+    receiver.emit.apply(receiver, ['receive', msg]);
+    return Promise.resolve(null)
+  }
+
+  static reset () {
+    conns = [null, null];
+    connCount = 0;
   }
 }
 

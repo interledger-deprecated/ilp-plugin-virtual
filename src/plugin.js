@@ -2,6 +2,7 @@ const EventEmitter = require('events')
 
 const Connection = require('./model/connection').Connection
 const Transfer = require('./model/transfer').Transfer
+const TransferLog = require('./model/transferlog').TransferLog
 const log = require('./controllers/log')
 
 class PluginVirtual extends EventEmitter {
@@ -21,13 +22,16 @@ class PluginVirtual extends EventEmitter {
 
     this.myAccount = '1'
     this.otherAccount = '2'
+    // TODO: is opts.limit the right place to get this?
+    this.limit = opts.limit
+    this.transferLog = new TransferLog(this.store)
 
     this.connectionConfig = {} // no need for a config right now
     this.connection = new Connection({})
     
     var pv = this;
-    this.connection.on('receive', function(msg) {
-      pv._receive(msg).catch(function(err) { log.error(err) })
+    this.connection.on('receive', (msg) => {
+      pv._receive(msg).catch((err) => this._error(err))
     });
     
   }
@@ -51,10 +55,10 @@ class PluginVirtual extends EventEmitter {
   }
 
   getBalance () {
-    return this.store.get(this.myAccount).then((balance) => {
+    return this.store.get("a" + this.myAccount).then((balance) => {
       //TODO: figure out what the store does when a key doesn't exist
       if (!balance) {
-        return this.store.put(this.myAccount, 0).then(() => {
+        return this.store.put("a" + this.myAccount, 0).then(() => {
           return Promise.resolve(0)
         })
       }
@@ -68,56 +72,129 @@ class PluginVirtual extends EventEmitter {
   }
 
   send (outgoingTransfer) {
-    log.log(this.auth.account + ": sending out a Transfer");
+    this._log("sending out a Transfer with tid: " + outgoingTransfer.id);
     return this.connection.send({
       type: 'transfer',
-      data: outgoingTransfer
-    })
+      transfer: outgoingTransfer
+    }).then(() => {
+      return this.transferLog.store(outgoingTransfer)
+    }).catch(this._error)
   }
 
   /* Add these once UTP and ATP are introduced
   fullfillCondition(transferId, fullfillment) {
     // TODO: implement this
   }
+  */
 
   replyToTransfer(transferId, replyMessage) {
-    // TODO: implement this
+    return this.transferLog.getId(transferId).then((storedTransfer) => {
+      // TODO: should this send a different type from this?
+      return this.connection.send({
+        type: 'message',
+        transfer: storedTransfer,
+        message: replyMessage
+      })
+    })
   }
-  */
 
   /* Private Functions */
   _receive (obj) {
     // TODO: remove this debug message
-    log.log(this.auth.account + ': ' + JSON.stringify(obj));
+    //this._log(JSON.stringify(obj));
 
     if (obj.type === 'transfer') {
-      log.log(this.auth.account + ": received a Transfer");
-      return this._handleTransfer(new Transfer(obj.data))
+
+      this._log("received a Transfer with tid: " + obj.transfer.id);
+      this.emit('incoming', obj.transfer)
+      return this._handleTransfer(new Transfer(obj.transfer))
+
     } else if (obj.type == 'acknowledge') {
-      log.log(this.auth.account + ": received an ACK");
-      var transfer = new Transfer(obj.data) 
-      // subtract the transfer amount because it's acklowledging a sent transaction
-      return this._addBalance(this.myAccount, -1 * transfer.amount)
+
+      this._log("received a ACK on tid: " + obj.transfer.id);
+      this.emit('reply', obj.transfer, obj.message) // TODO: can obj.message be null?
+      return this._handleAcknowledge(new Transfer(obj.transfer))
+     
+    } else if (obj.type == 'reject') {
+
+      this._log("received a reject on tid: " + obj.transfer.id);
+      this.emit('reject', obj.transfer, obj.message)
+      return Promise.resolve(null)
+
     }
   }
 
   _handleTransfer (transfer) {
-    // TODO: reject when the credit is maxed out
-    return this._addBalance(this.myAccount, transfer.amount).then(() => {
-      log.log(this.auth.account + ": sending out an ACK");
-      return this.connection.send({
-        type: 'acknowledge',
-        data: transfer.serialize()
-      })
+    return this.transferLog.store(transfer).then(() => {
+      return this.getBalance()
+    }).then((balance) => {
+
+      if (balance + (transfer.amount | 0) <= this.limit) {
+
+        return this._addBalance(this.myAccount, transfer.amount).then(() => {
+          return this._acceptTransfer(transfer)
+        })
+
+      } else {
+        return this._rejectTransfer(transfer, 'credit limit exceeded').then(() => {
+          return this.transferLog.del(transfer)
+        })
+      }
     })
+  }
+  
+  _handleAcknowledge (transfer) {
+
+      // subtract the transfer amount because it's acklowledging a sent transaction
+      var pv = this
+      return this.transferLog.get(transfer).then((storedTransfer) => {
+        // TODO: compare better
+        if (storedTransfer && storedTransfer.id === transfer.id) {
+          return pv._addBalance(pv.myAccount, -1 * transfer.amount)
+        } else {
+          return pv._error(new Error("Recieved false acknowledge for tid: " + transfer.id))
+        }
+      })
   }
 
   _addBalance (account, amt) {
     return this.getBalance().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
-      log.log(this.auth.account + ": " + balance + " changed by " + amt)
-      return this.store.put(account, (balance | 0) + (amt | 0) + "")
+      this._log(balance + " changed by " + amt)
+      return this.store.put("a" + account, (balance | 0) + (amt | 0) + "")
+    }).then(() => {
+      // event for debugging
+      this.emit('_balanceChanged')
+      return Promise.resolve(null)
     })
+  }
+
+  _acceptTransfer(transfer) {
+    this._log('sending out an ACK for tid: ' + transfer.id);
+    return this.connection.send({
+      type: 'acknowledge',
+      transfer: transfer.serialize(),
+      message: new Buffer('transfer accepted')
+    })
+  }
+  _rejectTransfer(transfer, reason) {
+    this._log('sending out a reject for tid: ' + transfer.id);
+    return this.connection.send({
+      type: 'reject',
+      transfer: transfer.serialize(),
+      message: new Buffer(reason)
+    })
+  }
+
+  _log (msg) {
+    log.log(this.auth.account + ": " + msg)
+  }
+
+  _error (err) {
+    log.error(err) 
+// TODO: figure out why emitting creates two messages
+//       even though commenting out log.error removes all messages here
+//    this.emit('error', err) 
   }
 }
 

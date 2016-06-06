@@ -28,8 +28,8 @@ class PluginVirtual extends EventEmitter {
 
     this.connectionOptions = opts.other
 
-    this.connectionConfig = {} // no need for a config right now
-    this.connection = new Connection(opts.other)
+    this.connectionConfig = opts.other // technically auth holds ledger-specific info
+    this.connection = new Connection(this.connectionConfig)
 
     this.connection.on('receive', (msg) => {
       // supress error emitted by error, so others can bind to 'error' event

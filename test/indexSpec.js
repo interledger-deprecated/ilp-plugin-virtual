@@ -24,14 +24,17 @@ describe('PluginVirtual', function () {
   var s2store = {get: s2get, put: s2put, del: s2del}
 
   var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'}, limit: 300,
-    other: {initiator: false}
+    other: {initiator: true}
   })
   var pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'}, limit: 300,
-    other: {initiator: false, peer: pv1}
+    other: {initiator: false}
   })
-  pv1.connection.other = pv2.connection
-  pv1.connect()
+
+  pv1.connectPeer(pv2)
+  pv2.connectPeer(pv1)
+
   pv2.connect()
+  pv1.connect()
 
   it('should construct non-null objects', () => {
     assert(pv1 && pv2)

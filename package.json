@@ -39,6 +39,7 @@
     "ghooks": "^1.2.1",
     "istanbul": "^0.4.3",
     "mocha": "^2.5.3",
+    "simple-peer": "^6.0.4",
     "validate-commit-msg": "^2.6.1",
     "wrtc": "0.0.60"
   },

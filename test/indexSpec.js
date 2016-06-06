@@ -26,27 +26,40 @@ describe('PluginVirtual', function () {
     var s2store = {get: s2get, put: s2put, del: s2del}
 
     var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'}, limit: 300,
-      other: {initiator: true}
+      other: {initiator: false}
     })
     var pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'}, limit: 300,
-      other: {initiator: false}
+      other: {initiator: true}
     })
 
     pv1.connection.connectPeer(pv2.connection)
     pv2.connection.connectPeer(pv1.connection)
+
     var pv1c = new Promise((resolve) => {
-//      pv1.on('connect', () => { resolve() })
+      pv1.on('connect', () => { resolve() })
     })
     var pv2c = new Promise((resolve) => {
-//      pv2.on('connect', () => { resolve() })
+      pv2.on('connect', () => { resolve() })
+    })
+
+    var pv1o = new Promise((resolve) => {
+      pv1.connection.on('open', () => { resolve() })
+    })
+    var pv2o = new Promise((resolve) => {
+      pv2.connection.on('open', () => { resolve() })
     })
   
-    pv2.connect().then(() => {
-      return pv1.connect()
+    pv1.connect().then(() => {
+      console.log('connection 1 connected')
+      return pv2.connect()
     }).then(() => {
+      console.log('waiting on Promise.all now for connect')
       return Promise.all([pv1c, pv2c])
     }).then(() => {
-
+      console.log('waiting on Promise.all now for open')
+      return Promise.all([pv1o, pv2o])
+    }).then(() => {
+      
       it('should construct non-null objects', () => {
         assert(pv1 && pv2)
       })
@@ -108,7 +121,9 @@ describe('PluginVirtual', function () {
         }, 100)
       })
     }).then(() => {
-      done()
+      setTimeout(done, 5000)
+    }).catch((err) => {
+      console.error(err)
     })
   })
 })

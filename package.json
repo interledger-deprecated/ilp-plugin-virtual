@@ -39,7 +39,8 @@
     "ghooks": "^1.2.1",
     "istanbul": "^0.4.3",
     "mocha": "^2.5.3",
-    "validate-commit-msg": "^2.6.1"
+    "validate-commit-msg": "^2.6.1",
+    "wrtc": "0.0.60"
   },
   "config": {
     "ghooks": {

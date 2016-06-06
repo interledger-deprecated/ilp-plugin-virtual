@@ -22,6 +22,12 @@ class Connection extends EventEmitter {
     var datachannelConstraints = {
       audio: false,
       video: false,
+      optional: [
+        {
+          RtpDataChannels: true,
+          DlsSrtpKeyAgreement: false
+        }
+      ],
       mandatory: {
         OfferToReceiveAudio: false,
         OfferToReceiveVideo: false
@@ -39,75 +45,85 @@ class Connection extends EventEmitter {
 
   connectPeer(peerInfo) {
     // for now just connect within one instance of node
+
+    this._log("received other")
     this.other = peerInfo.peer
+    this.otherConnection = peerInfo
   }
 
-  connect () {
-
-    var has_candidate = false
-    this.peer.onicecandidate = (event) => {
-      if (!has_candidate) {
-        var candidate = event.candidate || event // used in webrtc tests
-        this.other.addIceCandidate(candidate)
-        has_candidate = true
-      }
-    }
+  connect () { 
+    return new Promise((resolve) => {
     
-    // result of unfolding a 7-layer callback chain
-    this.peer.onnegotiationneeded = () => {
-      new Promise((resolve) => {
-        this.peer.createOffer((sdp) => { resolve(sdp) })
-      }).then((sdp) => {
-        return new Promise((resolve) => {
-          this.peer.setLocalDescription(sdp, () => { resolve(sdp) })
-        })
-      }).then((sdp) => {
-        return new Promise((resolve) => {
-          this.other.setRemoteDescription(sdp, () => { resolve() })
-        })
-      }).then(() => {
-        return new Promise((resolve) => {
-          this.other.createAnswer((sdp) => { resolve(sdp) })
-        })
-      }).then((sdp) => {
-        return new Promise((resolve) => {
-          this.other.setLocalDescription(sdp, () => { resolve(sdp) })
-        })
-      }).then((sdp) => {
-        this.peer.setRemoteDescription(sdp, () => {
-          this._log("Connected to peer")        
-          this.emit('connect')       
-        })
-      })
-    }
+      this._log("running this, at least")
+
+      var has_candidate = false
+      this.peer.onicecandidate = (event) => {
+
+        this._log("ice candidate") 
+
+        if (!has_candidate) {
+          var candidate = event.candidate || event // used in webrtc tests
+          this.other.addIceCandidate(candidate)
+          has_candidate = true
+        }
+      }
+      
+      // TODO: change to promises
+      this.peer.onnegotiationneeded = () => {      
+        this.peer.createOffer((sdp) => {        
+          this.peer.setLocalDescription(sdp, () => {
+            this.other.setRemoteDescription(sdp, () => { 
+              this.other.createAnswer((sdp) => {
+                this.other.setLocalDescription(sdp, () => {
+                  this.peer.setRemoteDescription(sdp, () => {
+                    this.emit('connect')       
+                    this.otherConnection.emit('connect')       
+                  });
+                });
+              });
+            });  
+          });
+        });
+      };
+      this.on('connect', () => {this._log('connected!')})
+
+      this.peer.ondatachannel = (event) => {
+
+        var channel = event.channel || event;
+        if (!channel) {
+          return false 
+        }
+        this._channel = channel
+        this._log("Connected to datachannel")      
     
-    this.peer.ondatachannel = (event) => {
+        channel.onopen = () => {
+          this.emit('open') 
+        }      
 
-      var channel = event.channel || event;
-      if (!channel) {
-        return false 
+        channel.onmessage = (event) => {
+          this._log(event.data)
+          this.emit('receive', event.data)
+        }
+
+        channel.onclose = () => {
+          this.emit('close')
+        }
+
+        this._log("sent out probe")
+        this.emit('bloop')
       }
-      this._channel = channel
-      this._log("Connected to datachannel")      
-  
-      channel.onopen = () => {
-        this.emit('open') 
-      }      
 
-      channel.onmessage = (event) => {
-        this.emit('receive', event.data)
-      }
+//      this.on('connect', () => {
+        this.on('bloop', () => {console.log('bloop') ; this._channel.send('message!')})
+        if (this.initiator) {
+          this.peer.ondatachannel(
+            this.peer.createDataChannel('connection', this.dataChannelConfig)
+          )
+        }
+//      })
 
-      channel.onclose = () {
-        this.emit('close')
-      }
-    }
-
-    if (this.initiator) {
-      this.peer.ondatachannel(
-        this.peer.createDataChannel('connection', this.dataChannelConfig)
-      )
-    }
+      resolve()
+    })
   }
 
   disconnect () {
@@ -129,7 +145,8 @@ class Connection extends EventEmitter {
   }
     
   _log (msg) {
-    log.log(msg)
+    var name = this.initiator? "sender" : "recver";
+    log.log(name + ": " + msg)
   } 
 }
 

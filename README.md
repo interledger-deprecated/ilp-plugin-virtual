@@ -10,6 +10,8 @@ npm install --save ilp-plugin-virtual
 
 ## Usage
 
+For now, you can test out the ledger plugin by running `npm test`.
+
 ``` js
 // TODO
 ```

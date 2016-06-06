@@ -26,14 +26,12 @@ class PluginVirtual extends EventEmitter {
     this.limit = opts.limit
     this.transferLog = new TransferLog(this.store)
 
-    this.connectionOptions = opts.other
-
     this.connectionConfig = opts.other // technically auth holds ledger-specific info
     this.connection = new Connection(this.connectionConfig)
 
     this.connection.on('receive', (msg) => {
-      // supress error emitted by error, so others can bind to 'error' event
-      this._receive(msg).catch((err) => {
+      var obj = JSON.parse(msg) 
+      this._receive(obj).catch((err) => {
         log.error(err)
         this.emit('error', err)
       })
@@ -41,15 +39,15 @@ class PluginVirtual extends EventEmitter {
   }
 
   connect () {
-    this.emit('connect')
     return this.connection.connect().then(() => {
+      this.emit('connect')
       this.connected = true
     })
   }
 
   disconnect () {
-    this.emit('disconnect')
     return this.connection.disconnect().then(() => {
+      this.emit('disconnect')
       this.connected = false
     })
   }
@@ -82,7 +80,9 @@ class PluginVirtual extends EventEmitter {
       transfer: outgoingTransfer
     }).then(() => {
       return this.transferLog.store(outgoingTransfer)
-    }).catch(this._error)
+    }).catch((err) => {
+      console.log('there was an error') 
+    })
   }
 
   /* Add these once UTP and ATP are introduced
@@ -124,6 +124,11 @@ class PluginVirtual extends EventEmitter {
 
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, obj.message)
+      return Promise.resolve(null)
+
+    } else {
+
+  //    throw new Error("Invalid message received")
       return Promise.resolve(null)
     }
     /* eslint-enable padded-blocks */
@@ -190,7 +195,6 @@ class PluginVirtual extends EventEmitter {
   _log (msg) {
     log.log(this.auth.account + ': ' + msg)
   }
-
 }
 
 exports.PluginVirtual = PluginVirtual

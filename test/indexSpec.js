@@ -5,13 +5,16 @@ const PluginVirtual = plugin.PluginVirtual
 // const Connection = plugin.Connection
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
+const server = require('../src/signalling/server')
 
 describe('PluginVirtual', function () {
   it('should terminate', function (done)  {
-    this.timeout(10000)
+    this.timeout(5000)
     /* it('should be an object', function () {
       assert.isObject(PluginVirtual)
     })*/
+
+    server.run()
 
     /* this is going to be in the code pretty briefly so no need to make it too nice */
     var s1 = {}
@@ -26,38 +29,24 @@ describe('PluginVirtual', function () {
     var s2store = {get: s2get, put: s2put, del: s2del}
 
     var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'}, limit: 300,
-      other: {initiator: false}
+      other: {initiator: false, host: 'http://localhost:8080', room: 'test'}
     })
     var pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'}, limit: 300,
-      other: {initiator: true}
+      other: {initiator: true, host: 'http://localhost:8080', room: 'test'}
     })
-
-    pv1.connection.connectPeer(pv2.connection)
-    pv2.connection.connectPeer(pv1.connection)
 
     var pv1c = new Promise((resolve) => {
-      pv1.on('connect', () => { resolve() })
+      pv1.connect()
+      pv1.connection.on('connect', () => { resolve() })
     })
     var pv2c = new Promise((resolve) => {
-      pv2.on('connect', () => { resolve() })
+      pv2.connect()
+      pv2.connection.on('connect', () => { resolve() })
     })
 
-    var pv1o = new Promise((resolve) => {
-      pv1.connection.on('open', () => { resolve() })
-    })
-    var pv2o = new Promise((resolve) => {
-      pv2.connection.on('open', () => { resolve() })
-    })
-  
-    pv1.connect().then(() => {
-      console.log('connection 1 connected')
-      return pv2.connect()
-    }).then(() => {
+    new Promise(() => { 
       console.log('waiting on Promise.all now for connect')
       return Promise.all([pv1c, pv2c])
-    }).then(() => {
-      console.log('waiting on Promise.all now for open')
-      return Promise.all([pv1o, pv2o])
     }).then(() => {
       
       it('should construct non-null objects', () => {

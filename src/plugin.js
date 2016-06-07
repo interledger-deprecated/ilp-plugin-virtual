@@ -29,8 +29,7 @@ class PluginVirtual extends EventEmitter {
     this.connectionConfig = opts.other // technically auth holds ledger-specific info
     this.connection = new Connection(this.connectionConfig)
 
-    this.connection.on('receive', (msg) => {
-      var obj = JSON.parse(msg) 
+    this.connection.on('receive', (obj) => {
       this._receive(obj).catch((err) => {
         log.error(err)
         this.emit('error', err)

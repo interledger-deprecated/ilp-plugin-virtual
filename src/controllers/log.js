@@ -3,5 +3,5 @@ exports.error = function (msg) {
 }
 
 exports.log = function (msg) {
-  console.log(">>>>>>>>>    " + msg)
+  console.log(msg)
 }

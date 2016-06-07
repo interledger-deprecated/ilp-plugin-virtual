@@ -1,9 +1,10 @@
 'use strict'
 const EventEmitter = require('events')
 const log = require('../controllers/log')
-const socket_io_client = require('socket.io-client')
+const socketIoClient = require('socket.io-client')
 // const SimplePeer = require('simple-peer')
 const wrtc = require('wrtc')
+/* eslint-disable padded-blocks */
 
 /* uses the webrtc package, simple-peer. does not yet have signaling */
 
@@ -26,7 +27,7 @@ class Connection extends EventEmitter {
     this.peerConfig = {
       iceServers: [{url: 'stun:stun.l.google.com:19302'}]
     }
-    this.peer = new wrtc.RTCPeerConnection(this.peerConfig);
+    this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
     this.other = null
     this.channel = null
   }
@@ -35,7 +36,7 @@ class Connection extends EventEmitter {
     this.emit('_answer', answer)
   }
   setOffer (offer) {
-    this.emit('_offer', offer) 
+    this.emit('_offer', offer)
   }
   getOffer () {
     return this.offer
@@ -49,7 +50,6 @@ class Connection extends EventEmitter {
 
     // start by getting the ice information
     return new Promise((resolve, reject) => {
-
       let channel = this.channel = peer.createDataChannel('test_' + this.initiator, {reliable: true})
       channel.onopen = () => {
         this._log('connected to channel')
@@ -57,7 +57,7 @@ class Connection extends EventEmitter {
       }
       channel.onmessage = (event) => {
         let data = JSON.parse(event.data)
-        this.emit('receive', data) 
+        this.emit('receive', data)
       }
       channel.onerror = (err) => {
         log.error(err)
@@ -77,15 +77,15 @@ class Connection extends EventEmitter {
           this.emit('ice', this.ice)
           resolve()
         }
-      } 
+      }
 
     }).then(() => {
       this._log('connecting socket')
-      conn = socket_io_client.connect(host)
+      conn = socketIoClient.connect(host)
       return new Promise((resolve, reject) => {
         conn.on('connect', () => { resolve() })
         conn.on('connect_error', (err) => {
-          this._log('there was a connection error') 
+          this._log('there was a connection error')
           log.error(err)
           reject(err)
         })
@@ -96,7 +96,7 @@ class Connection extends EventEmitter {
         this._log('connected to signaling server')
         conn.on('offer', (offer) => { resolve([true, offer.offer]) })
         conn.on('completeWithAnswer', (answer) => { resolve([false, answer.answer]) })
-        conn.emit('startWithOffer', {room: room, offer: this.ice })
+        conn.emit('startWithOffer', { room: room, offer: this.ice })
         this._log('sent my offer')
       })
 
@@ -104,7 +104,7 @@ class Connection extends EventEmitter {
       let isAnswerer = args[0]
       let offerOrAnswer = args[1]
       // this._log('got: ' + isAnswerer + " and " + JSON.stringify(offerOrAnswer))
-      this._log('got: ' + isAnswerer + " and " + offerOrAnswer)
+      this._log('got: ' + isAnswerer + ' and ' + offerOrAnswer)
 
       if (isAnswerer) {
         // we want to make a new peer to get new ICE info
@@ -125,7 +125,7 @@ class Connection extends EventEmitter {
               answer: this.answer
             })
           }
-        } 
+        }
 
         peer.ondatachannel = (event) => {
           this._log('on data channel active')
@@ -136,7 +136,7 @@ class Connection extends EventEmitter {
           }
           channel.onmessage = (event) => {
             let data = JSON.parse(event.data)
-            this.emit('receive', data) 
+            this.emit('receive', data)
           }
           channel.onerror = (err) => {
             log.error(err)
@@ -148,33 +148,32 @@ class Connection extends EventEmitter {
           this._log('set the remote description')
           peer.createAnswer((answer) => {
             this._log('created my answer')
-            this.answer = answer;
+            this.answer = answer
             peer.setLocalDescription(answer, () => {
               this._log('set my local description')
-            }, () => {}) 
+            }, () => {})
           }, () => {})
         }, () => {})
 
         return new Promise((resolve) => {
           conn.on('completeWithAnswer', (msg) => {
             this._log('now I`m resolving')
-            resolve() 
+            resolve()
           })
         })
 
       } else {
-
         return new Promise((resolve, reject) => {
           this._log('setting the remote description')
           let answer = this.answer = new wrtc.RTCSessionDescription(offerOrAnswer)
           this._log('I created a sessiondescription: ' + answer)
 
-          peer.setRemoteDescription(answer, () => { 
+          peer.setRemoteDescription(answer, () => {
             this._log('resolving my promise')
             this._log('channel: ' + this.channel.readyState)
-            resolve() 
+            resolve()
           }, (err) => {
-            log.error(err) 
+            log.error(err)
             reject(err)
           })
         })
@@ -202,7 +201,7 @@ class Connection extends EventEmitter {
 
   _log (msg) {
     let name = this.initiator ? 'sender' : 'receiver'
-    log.log(name + ": " + msg)
+    log.log(name + ': ' + msg)
   }
 }
 

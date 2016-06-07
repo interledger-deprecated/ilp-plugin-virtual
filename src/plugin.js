@@ -80,7 +80,7 @@ class PluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.store(outgoingTransfer)
     }).catch((err) => {
-      console.log('there was an error') 
+      log.error(err)
     })
   }
 

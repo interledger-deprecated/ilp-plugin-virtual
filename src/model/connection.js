@@ -46,7 +46,7 @@ class Connection extends EventEmitter {
   _handleError (err) {
     log.error(err)
   }
-  
+
   _makeDataChannel () {
     let channel = this.channel = this.peer.createDataChannel('test_' + this.initiator, {reliable: true})
     this._log('cid: ' + channel.label)
@@ -64,16 +64,15 @@ class Connection extends EventEmitter {
     }
   }
 
-//-- cleared
   connect () {
-    this._log('initializing the connection negotiation') 
-    
+    this._log('initializing the connection negotiation')
+
     // start by making a peer; this may or may not be deleted
     let peer = this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
 
     // create a datachannel; this may or may not be deleted
     this._makeDataChannel()
-    
+
     // get your connection info and use it to set local info
     peer.createOffer((desc) => {
       peer.setLocalDescription(desc, () => {
@@ -87,7 +86,7 @@ class Connection extends EventEmitter {
         this.ice = peer.localDescription
         this._log('created ice')
         this.emit('ice', this.ice)
-        
+
         // proceed to connection phase only when an offer is ready
         this._connectionPhase()
       }
@@ -98,7 +97,6 @@ class Connection extends EventEmitter {
     this._log('connecting socket')
     let host = this.host
     let conn = this.conn = socketIoClient.connect(host)
-    let room = this.room
 
     // only proceed if connection is successful
     conn.on('connect', () => { this._getRole() })
@@ -115,13 +113,13 @@ class Connection extends EventEmitter {
     // complete. undecided ensures only one path is traversed
     let undecided = true
     conn.on('offer', (offer) => {
-      if (undecided) { 
+      if (undecided) {
         undecided = false
-        this._respondToOffer(offer.offer) 
+        this._respondToOffer(offer.offer)
       }
     })
     conn.on('completeWithAnswer', (answer) => {
-      if (undecided) { 
+      if (undecided) {
         undecided = false
         this._respondToAnswer(answer.answer)
       }
@@ -132,7 +130,6 @@ class Connection extends EventEmitter {
     this._log('sent my offer')
   }
 
-//-- cleared (except previous closing)
   _respondToOffer (objOffer) {
     // because we're the responder now, we can shut down the data connection
     // that we started. we'll respond to the incoming data connection instead
@@ -140,10 +137,9 @@ class Connection extends EventEmitter {
     this.channel.close()
     this.peer.close()
     this._log('closed old connection')
-//-- the previous peer might have some residual effects...
     this.offer = new wrtc.RTCSessionDescription(objOffer)
     this.answer = null
-  
+
     // create a new peer now
     let peer = this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
 
@@ -162,7 +158,7 @@ class Connection extends EventEmitter {
         })
       }
     }
-    
+
     // we just wait for the real connection on here
     this._handleDataChannels()
 
@@ -172,7 +168,6 @@ class Connection extends EventEmitter {
     }, this._handleError)
   }
 
-//-- cleared
   _handleDataChannels () {
     let peer = this.peer
 
@@ -196,10 +191,8 @@ class Connection extends EventEmitter {
     this._log('registered datachannel events')
   }
 
-//-- cleared
   _createAnswer () {
     let peer = this.peer
-    let offer = this.offer
 
     // set up the descriptions and create the answer. This will in turn trigger
     // the onicecandidate from earlier now that the network information exists
@@ -213,7 +206,6 @@ class Connection extends EventEmitter {
     }, this._handleError)
   }
 
-//-- cleared
   _respondToAnswer (objAnswer) {
     let peer = this.peer
     this._log('setting the remote description')

@@ -8,7 +8,7 @@ const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
 
 describe('PluginVirtual', function () {
-  it('should terminate', function (done)  {
+  it('should terminate', function (done) {
     this.timeout(5000)
     /* it('should be an object', function () {
       assert.isObject(PluginVirtual)
@@ -38,20 +38,19 @@ describe('PluginVirtual', function () {
     var pv1c = new Promise((resolve) => {
       pv1.connect()
       pv1.connection.on('connect', () => { resolve() })
-    }).catch((err) => {console.error(err)})
+    }).catch((err) => { console.error(err) })
     var pv2c = new Promise((resolve) => {
       pv2.connect()
       pv2.connection.on('connect', () => { resolve() })
-    }).catch((err) => {console.error(err)})
+    }).catch((err) => { console.error(err) })
 
     console.log('waiting on Promise.all now for connect')
     Promise.all([pv1c, pv2c]).then(() => {
-      
       it('should construct non-null objects', () => {
         assert(pv1 && pv2)
       })
 
-      var pv1b, pv2b
+      let pv1b, pv2b
 
       pv1.on('_balanceChanged', () => {
         pv1.getBalance().then((balance) => {

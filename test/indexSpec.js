@@ -38,16 +38,14 @@ describe('PluginVirtual', function () {
     var pv1c = new Promise((resolve) => {
       pv1.connect()
       pv1.connection.on('connect', () => { resolve() })
-    })
+    }).catch((err) => {console.error(err)})
     var pv2c = new Promise((resolve) => {
       pv2.connect()
       pv2.connection.on('connect', () => { resolve() })
-    })
+    }).catch((err) => {console.error(err)})
 
-    new Promise(() => { 
-      console.log('waiting on Promise.all now for connect')
-      return Promise.all([pv1c, pv2c])
-    }).then(() => {
+    console.log('waiting on Promise.all now for connect')
+    Promise.all([pv1c, pv2c]).then(() => {
       
       it('should construct non-null objects', () => {
         assert(pv1 && pv2)
@@ -110,7 +108,7 @@ describe('PluginVirtual', function () {
         }, 100)
       })
     }).then(() => {
-      setTimeout(done, 5000)
+      setTimeout(done, 100)
     }).catch((err) => {
       console.error(err)
     })

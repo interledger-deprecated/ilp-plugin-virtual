@@ -38,10 +38,10 @@ class PluginVirtual extends EventEmitter {
   }
 
   connect () {
-    return this.connection.connect().then(() => {
+    this.connection.on('connect', () => {
       this.emit('connect')
-      this.connected = true
     })
+    return this.connection.connect()
   }
 
   disconnect () {

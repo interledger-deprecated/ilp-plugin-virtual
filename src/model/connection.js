@@ -27,9 +27,10 @@ class Connection extends EventEmitter {
     this.peerConfig = {
       iceServers: [{url: 'stun:stun.l.google.com:19302'}]
     }
-    this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
+    this.peer = null
     this.other = null
     this.channel = null
+    this.conn = null
   }
 
   setAnswer (answer) {
@@ -42,15 +43,143 @@ class Connection extends EventEmitter {
     return this.offer
   }
 
-  connect () {
-    let peer = this.peer
-    let host = this.host
-    let room = this.room
-    let conn = null
+  _handleError (err) {
+    log.error(err)
+  }
+  
+  _makeDataChannel () {
+    let channel = this.channel = this.peer.createDataChannel('test_' + this.initiator, {reliable: true})
+    this._log('cid: ' + channel.label)
+    channel.onopen = () => {
+      this._log('connected to channel')
+      this.emit('connect')
+    }
+    channel.onmessage = (event) => {
+      let data = JSON.parse(event.data)
+      this.emit('receive', data)
+    }
+    channel.onerror = (err) => {
+      log.error(err)
+      throw err
+    }
+  }
 
-    // start by getting the ice information
-    return new Promise((resolve, reject) => {
-      let channel = this.channel = peer.createDataChannel('test_' + this.initiator, {reliable: true})
+//-- cleared
+  connect () {
+    this._log('initializing the connection negotiation') 
+    
+    // start by making a peer; this may or may not be deleted
+    let peer = this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
+
+    // create a datachannel; this may or may not be deleted
+    this._makeDataChannel()
+    
+    // get your connection info and use it to set local info
+    peer.createOffer((desc) => {
+      peer.setLocalDescription(desc, () => {
+        this._log('created offer')
+      }, this._handleError)
+    }, this._handleError)
+
+    // once the offer is made, onicecandidate will run
+    peer.onicecandidate = (candidate) => {
+      if (candidate.candidate == null) {
+        this.ice = peer.localDescription
+        this._log('created ice')
+        this.emit('ice', this.ice)
+        
+        // proceed to connection phase only when an offer is ready
+        this._connectionPhase()
+      }
+    }
+  }
+
+  _connectionPhase () {
+    this._log('connecting socket')
+    let host = this.host
+    let conn = this.conn = socketIoClient.connect(host)
+    let room = this.room
+
+    // only proceed if connection is successful
+    conn.on('connect', () => { this._getRole() })
+    conn.on('connect_error', this._handleError)
+  }
+
+  _getRole () {
+    let peer = this.peer
+    let conn = this.conn
+    let room = this.room
+    this._log('connected to signaling server')
+
+    // offer triggers the responder role otherwise wait for the responder to
+    // complete. undecided ensures only one path is traversed
+    let undecided = true
+    conn.on('offer', (offer) => {
+      if (undecided) { 
+        undecided = false
+        this._respondToOffer(offer.offer) 
+      }
+    })
+    conn.on('completeWithAnswer', (answer) => {
+      if (undecided) { 
+        undecided = false
+        this._respondToAnswer(answer.answer)
+      }
+    })
+
+    // send in your offer then wait for your response
+    conn.emit('startWithOffer', { room: room, offer: peer.localDescription })
+    this._log('sent my offer')
+  }
+
+//-- cleared (except previous closing)
+  _respondToOffer (objOffer) {
+    // because we're the responder now, we can shut down the data connection
+    // that we started. we'll respond to the incoming data connection instead
+    this._log('I`m responder')
+    this.channel.close()
+    this.peer.close()
+    this._log('closed old connection')
+//-- the previous peer might have some residual effects...
+    this.offer = new wrtc.RTCSessionDescription(objOffer)
+    this.answer = null
+  
+    // create a new peer now
+    let peer = this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
+
+    // respond with an answer once ICE candidates come in
+    peer.onicecandidate = (candidate) => {
+      if (candidate.candidate == null) {
+        this.emit('answer', this.answer)
+        this._log('I have the ice candidate and I`m sending')
+
+        // this will trigger the signalling server to send out a
+        // completewithanswer message, which will trigger the offerer to move
+        // on
+        this.conn.emit('respondWithAnswer', {
+          room: this.room,
+          answer: this.peer.localDescription
+        })
+      }
+    }
+    
+    // we just wait for the real connection on here
+    this._handleDataChannels()
+
+    // finalize the network information
+    peer.setRemoteDescription(this.offer, () => {
+      this._createAnswer()
+    }, this._handleError)
+  }
+
+//-- cleared
+  _handleDataChannels () {
+    let peer = this.peer
+
+    // register all the events for once actual connection happens
+    peer.ondatachannel = (event) => {
+      this._log('on data channel active')
+      let channel = this.channel = event.channel
       channel.onopen = () => {
         this._log('connected to channel')
         this.emit('connect')
@@ -63,124 +192,38 @@ class Connection extends EventEmitter {
         log.error(err)
         throw err
       }
-      this._log('cid: ' + channel.label)
+    }
+    this._log('registered datachannel events')
+  }
 
-      peer.createOffer((desc) => {
-        peer.setLocalDescription(desc, () => {
-          this._log('created offer')
-        }, () => {})
-      }, () => {})
-      peer.onicecandidate = (candidate) => {
-        if (candidate.candidate == null) {
-          this._log('created ice')
-          this.ice = peer.localDescription
-          this.emit('ice', this.ice)
-          resolve()
-        }
-      }
+//-- cleared
+  _createAnswer () {
+    let peer = this.peer
+    let offer = this.offer
 
-    }).then(() => {
-      this._log('connecting socket')
-      conn = socketIoClient.connect(host)
-      return new Promise((resolve, reject) => {
-        conn.on('connect', () => { resolve() })
-        conn.on('connect_error', (err) => {
-          this._log('there was a connection error')
-          log.error(err)
-          reject(err)
-        })
-      })
+    // set up the descriptions and create the answer. This will in turn trigger
+    // the onicecandidate from earlier now that the network information exists
+    this._log('set the remote description')
+    peer.createAnswer((answer) => {
+      this._log('created my answer')
+      this.answer = answer
+      peer.setLocalDescription(answer, () => {
+        this._log('set my local description')
+      }, this._handleError)
+    }, this._handleError)
+  }
 
-    }).then(() => {
-      return new Promise((resolve, reject) => {
-        this._log('connected to signaling server')
-        conn.on('offer', (offer) => { resolve([true, offer.offer]) })
-        conn.on('completeWithAnswer', (answer) => { resolve([false, answer.answer]) })
-        conn.emit('startWithOffer', { room: room, offer: this.ice })
-        this._log('sent my offer')
-      })
+//-- cleared
+  _respondToAnswer (objAnswer) {
+    let peer = this.peer
+    this._log('setting the remote description')
+    let answer = this.answer = new wrtc.RTCSessionDescription(objAnswer)
+    this._log('I created a session description: ' + answer)
 
-    }).then((args) => {
-      let isAnswerer = args[0]
-      let offerOrAnswer = args[1]
-      // this._log('got: ' + isAnswerer + " and " + JSON.stringify(offerOrAnswer))
-      this._log('got: ' + isAnswerer + ' and ' + offerOrAnswer)
-
-      if (isAnswerer) {
-        // we want to make a new peer to get new ICE info
-        this._log('I`m answerer')
-        this.peer.close()
-        this._log('closed old connection')
-        this._log('channel: ' + this.channel.readyState)
-        let offer = this.offer = new wrtc.RTCSessionDescription(offerOrAnswer)
-        this._log('my offer is: ' + offer)
-        let peer = this.peer = new wrtc.RTCPeerConnection(this.peerConfig)
-
-        peer.onicecandidate = (candidate) => {
-          if (candidate.candidate == null) {
-            this.emit('answer', this.answer)
-            this._log('I have the ice candidate and I`m sending')
-            conn.emit('respondWithAnswer', {
-              room: room,
-              answer: this.answer
-            })
-          }
-        }
-
-        peer.ondatachannel = (event) => {
-          this._log('on data channel active')
-          let channel = this.channel = event.channel
-          channel.onopen = () => {
-            this._log('connected to channel')
-            this.emit('connect')
-          }
-          channel.onmessage = (event) => {
-            let data = JSON.parse(event.data)
-            this.emit('receive', data)
-          }
-          channel.onerror = (err) => {
-            log.error(err)
-            throw err
-          }
-        }
-
-        peer.setRemoteDescription(offer, () => {
-          this._log('set the remote description')
-          peer.createAnswer((answer) => {
-            this._log('created my answer')
-            this.answer = answer
-            peer.setLocalDescription(answer, () => {
-              this._log('set my local description')
-            }, () => {})
-          }, () => {})
-        }, () => {})
-
-        return new Promise((resolve) => {
-          conn.on('completeWithAnswer', (msg) => {
-            this._log('now I`m resolving')
-            resolve()
-          })
-        })
-
-      } else {
-        return new Promise((resolve, reject) => {
-          this._log('setting the remote description')
-          let answer = this.answer = new wrtc.RTCSessionDescription(offerOrAnswer)
-          this._log('I created a sessiondescription: ' + answer)
-
-          peer.setRemoteDescription(answer, () => {
-            this._log('resolving my promise')
-            this._log('channel: ' + this.channel.readyState)
-            resolve()
-          }, (err) => {
-            log.error(err)
-            reject(err)
-          })
-        })
-      }
-    }).catch((err) => {
-      log.error(err)
-    })
+    // after registering the remote description, the data channel should be opened automatically
+    peer.setRemoteDescription(answer, () => {
+      this._log('channel: ' + this.channel.readyState)
+    }, this._handleError)
   }
 
   disconnect () {
@@ -200,7 +243,7 @@ class Connection extends EventEmitter {
   }
 
   _log (msg) {
-    let name = this.initiator ? 'sender' : 'receiver'
+    let name = this.initiator ? 'alice    ' : 'bob      '
     log.log(name + ': ' + msg)
   }
 }

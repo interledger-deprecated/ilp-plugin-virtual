@@ -25,8 +25,7 @@ function _die (msg) {
 
 let pluginOptions = {
   store: newObjStore(),
-  auth: { account: 'plugin' },
-  other: null
+  auth: null
 }
 let plugin = null
 

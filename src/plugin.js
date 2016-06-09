@@ -24,10 +24,10 @@ class PluginVirtual extends EventEmitter {
     this.myAccount = '1'
     this.otherAccount = '2'
     // TODO: Q is opts.limit the right place to get this?
-    this.limit = opts.other.limit
+    this.limit = opts.auth.limit
     this.transferLog = new TransferLog(this.store)
 
-    this.connectionConfig = opts.other // technically auth holds ledger-specific info
+    this.connectionConfig = opts.auth // technically auth holds ledger-specific info
     this.connection = new Connection(this.connectionConfig)
 
     this.connection.on('receive', (obj) => {

@@ -26,11 +26,13 @@ describe('PluginVirtual', function (doneDescribe) {
 
   it('should create objects with the constructor', () => {
 
-    pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'},
-      other: {host: 'http://localhost:8080', room: 'test', limit: 300}
+    pv1 = new PluginVirtual({store: s1store, auth: {
+        account: 'plugin 1', host: 'http://localhost:8080', room: 'test', limit: 300
+      }
     })
-    pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'},
-      other: {host: 'http://localhost:8080', room: 'test', limit: 300}
+    pv2 = new PluginVirtual({store: s2store, auth: {
+        account: 'plugin 2', host: 'http://localhost:8080', room: 'test', limit: 300
+      }
     })
 
     assert.isObject(pv1)

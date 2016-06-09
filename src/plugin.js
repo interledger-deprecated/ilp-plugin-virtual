@@ -22,7 +22,7 @@ class PluginVirtual extends EventEmitter {
 
     this.myAccount = '1'
     this.otherAccount = '2'
-    // TODO: is opts.limit the right place to get this?
+    // TODO: Q is opts.limit the right place to get this?
     this.limit = opts.other.limit
     this.transferLog = new TransferLog(this.store)
 
@@ -38,7 +38,7 @@ class PluginVirtual extends EventEmitter {
   }
 
   static canConnectToLedger (auth) {
-    // TODO: test the server
+    // TODO: Q test the server?
     return true
   }
 
@@ -67,18 +67,24 @@ class PluginVirtual extends EventEmitter {
 
   getBalance () {
     return this.store.get('a' + this.myAccount).then((balance) => {
-      // TODO: figure out what the store does when a key doesn't exist
+      // TODO: Q figure out what the store does when a key doesn't exist
       if (!balance) {
         return this.store.put('a' + this.myAccount, 0).then(() => {
           return Promise.resolve(0)
         })
       }
+      return Promise.resolve(balance + "")
+    })
+  }
+  _getBalanceFloat () {
+    return this.getBalance().then((balance) => {
       return Promise.resolve(parseFloat(balance))
     })
   }
 
   getConnectors () {
-    // the connection is only between two plugins for now
+    // the connection is only between two plugins for now, so the connector
+    // name can be literally anything
     return Promise.resolve([this.otherAccount])
   }
 
@@ -86,11 +92,22 @@ class PluginVirtual extends EventEmitter {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
     return this.connection.send({
       type: 'transfer',
-      transfer: outgoingTransfer
+      transfer: (new Transfer(outgoingTransfer)).serialize()
     }).then(() => {
       return this.transferLog.store(outgoingTransfer)
     }).catch((err) => {
       log.error(err)
+    })
+  }
+
+  getInfo () {
+    return Promise.resolve({
+      /* placeholder values */
+      // TODO: Q what should these be
+      precision: '52 bits',
+      scale: '11 bits',
+      currencyCode: 'GBP',
+      currencySymbol: '$' 
     })
   }
 
@@ -102,9 +119,8 @@ class PluginVirtual extends EventEmitter {
 
   replyToTransfer (transferId, replyMessage) {
     return this.transferLog.getId(transferId).then((storedTransfer) => {
-      // TODO: should this send a different type from this?
       return this.connection.send({
-        type: 'message',
+        type: 'reply',
         transfer: storedTransfer,
         message: replyMessage
       })
@@ -113,8 +129,6 @@ class PluginVirtual extends EventEmitter {
 
   /* Private Functions */
   _receive (obj) {
-    // TODO: remove this debug message
-    // this._log(JSON.stringify(obj));
 
     /* eslint-disable padded-blocks */
     if (obj.type === 'transfer') {
@@ -126,7 +140,8 @@ class PluginVirtual extends EventEmitter {
     } else if (obj.type === 'acknowledge') {
 
       this._log('received a ACK on tid: ' + obj.transfer.id)
-      this.emit('reply', obj.transfer, obj.message) // TODO: can obj.message be null?
+      // TODO: Q should accept be fullfill execution condition even in OTP?
+      this.emit('accept', obj.transfer, obj.message) // TODO: Q can obj.message be null?
       return this._handleAcknowledge(new Transfer(obj.transfer))
 
     } else if (obj.type === 'reject') {
@@ -134,6 +149,12 @@ class PluginVirtual extends EventEmitter {
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, obj.message)
       return this.transferLog.complete(obj.transfer)
+
+    } else if (obj.type === 'reply') {
+
+      this._log('received a reply on tid: ' + obj.transfer.id)
+      this.emit('reply', obj.transfer, obj.message)
+      return Promise.resolve(null)
 
     } else {
       throw new Error('Invalid message received')
@@ -154,15 +175,8 @@ class PluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.store(transfer)
     }).then(() => {
-      return this.getBalance()
+      return this._getBalanceFloat()
     }).then((balance) => {
-
-      /*
-      this._log('balance: ' + balance + '\n  amt: ' + (transfer.amount - 0.0) +
-      '\n total: ' + (balance + (transfer.amount - 0.0)) + '\n limit: '
-      + this.limit)
-      */
-
       // checking if transfer.amount is greater than zero is an implicit check
       // for Nan
       if ((balance + (transfer.amount - 0.0) <= this.limit) &&
@@ -177,11 +191,10 @@ class PluginVirtual extends EventEmitter {
   }
 
   _handleAcknowledge (transfer) {
-    // subtract the transfer amount because it's acklowledging a sent transaction
+    // subtract the transfer amount because it's ackowledging a sent transaction
     var pv = this
     return this.transferLog.get(transfer).then((storedTransfer) => {
-      // TODO: compare better
-      if (storedTransfer && storedTransfer.id === transfer.id) {
+      if (transfer.equals(storedTransfer)) {
         return this.transferLog.isComplete(transfer).then((isComplete) => {
           if (isComplete) {
             this._falseAcknowledge(transfer)
@@ -203,7 +216,7 @@ class PluginVirtual extends EventEmitter {
   }
 
   _addBalance (account, amt) {
-    return this.getBalance().then((balance) => {
+    return this._getBalanceFloat().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
       let newBalance = balance + parseFloat(amt)

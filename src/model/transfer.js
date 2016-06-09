@@ -30,6 +30,14 @@ class Transfer {
       custom: {}
     }
   }
+
+  equals (other) {
+    return (
+      other &&
+      other.id === this.id &&
+      other.amount === this.amount
+    )
+  }
 }
 
 exports.Transfer = Transfer

@@ -1,0 +1,6 @@
+{
+  "initiator": false,
+  "host": "http://localhost:8080",
+  "room": "test",
+  "limit": 1000
+}

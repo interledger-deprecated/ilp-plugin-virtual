@@ -14,6 +14,14 @@ function _error (err) {
 function _log (msg) {
   console.log('>> ' + msg)
 }
+function _die (msg) {
+  console.error(msg)
+  if (plugin) {
+    plugin.disconnect()
+  }
+  stdio.close()
+  process.exit(1)
+}
 
 let pluginOptions = {
   store: newObjStore(),
@@ -23,12 +31,18 @@ let pluginOptions = {
 let plugin = null
 
 function start () {
-  let q1 = '[question] Enter your config file name: '
-  stdio.question(q1, (answer) => {
-    let other = JSON.parse(fs.readFileSync(answer))
-    pluginOptions.other = other
-    connect()
-  })
+  _log('reading argv[2] for config file...')
+  let configFile = process.argv[2]
+  let other = null
+
+  try {
+    other = JSON.parse(fs.readFileSync(configFile))
+  } catch (err) {
+    _die("usage: node one-to-one.js <config JSON file>")
+  }
+
+  pluginOptions.other = other
+  connect()
 }
 
 function connect () {

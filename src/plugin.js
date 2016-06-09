@@ -132,7 +132,7 @@ class PluginVirtual extends EventEmitter {
 
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, obj.message)
-      return Promise.resolve(null)
+      return this.transferLog.complete(transfer)
 
     } else {
       throw new Error('Invalid message received')
@@ -141,7 +141,18 @@ class PluginVirtual extends EventEmitter {
   }
 
   _handleTransfer (transfer) {
-    return this.transferLog.store(transfer).then(() => {
+    return this.transferLog.get(transfer).then((storedTransfer) => {
+      if (storedTransfer) {
+        this.emit('_repeatTransfer', transfer)
+        return this._rejectTransfer(transfer, 'repeat transfer id').then(() => {
+          throw new Error('repeat transfer id')
+        })
+      } else {
+        return Promise.resolve(null) 
+      }
+    }).then(() => {
+      return this.transferLog.store(transfer)
+    }).then(() => {
       return this.getBalance()
     }).then((balance) => {
 
@@ -172,12 +183,25 @@ class PluginVirtual extends EventEmitter {
     return this.transferLog.get(transfer).then((storedTransfer) => {
       // TODO: compare better
       if (storedTransfer && storedTransfer.id === transfer.id) {
-        return pv._addBalance(pv.myAccount, -1 * transfer.amount)
+        return this.transferLog.isComplete(transfer).then((isComplete) => {
+          console.log('adioawmdoiamwodaiwmo')
+          if (isComplete) {
+            this._falseAcknowledge(transfer)
+          } else {
+            return this.transferLog.complete(transfer).then(() => {
+              return pv._addBalance(pv.myAccount, -1 * transfer.amount)
+            })
+          }
+        })
       } else {
-        this.emit('_falseAcknowledge', transfer)
-        throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
+        this._falseAcknowledge(transfer)
       }
     })
+  }
+
+  _falseAcknowledge (transfer) {
+    this.emit('_falseAcknowledge', transfer)
+    throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
   }
 
   _addBalance (account, amt) {

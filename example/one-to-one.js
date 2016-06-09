@@ -94,16 +94,7 @@ function submit (transaction) {
 }
 
 function next () {
-  let q = '[question] Send another transaction? [Y/n] \n'
-  stdio.question(q, (answer) => {
-    answer += ' '
-    if (answer[0] !== 'n' && answer[0] !== 'N') {
-      transaction()
-    } else {
-      plugin.disconnect()
-      stdio.close()
-    }
-  })
+  setTimeout(transaction, 1000)
 }
 
 start()

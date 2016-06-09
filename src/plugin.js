@@ -170,9 +170,7 @@ class PluginVirtual extends EventEmitter {
           return this._acceptTransfer(transfer)
         })
       } else {
-        return this._rejectTransfer(transfer, 'credit limit exceeded').then(() => {
-          return this.transferLog.del(transfer)
-        })
+        return this._rejectTransfer(transfer, 'credit limit exceeded')
       }
     })
   }
@@ -229,6 +227,7 @@ class PluginVirtual extends EventEmitter {
   }
   _rejectTransfer (transfer, reason) {
     this._log('sending out a reject for tid: ' + transfer.id)
+    this.transferLog.complete(transfer)
     return this.connection.send({
       type: 'reject',
       transfer: transfer.serialize(),

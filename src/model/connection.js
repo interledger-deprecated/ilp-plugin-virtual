@@ -33,16 +33,6 @@ class Connection extends EventEmitter {
     this.conn = null
   }
 
-  setAnswer (answer) {
-    this.emit('_answer', answer)
-  }
-  setOffer (offer) {
-    this.emit('_offer', offer)
-  }
-  getOffer () {
-    return this.offer
-  }
-
   _handleError (err) {
     log.error(err)
   }

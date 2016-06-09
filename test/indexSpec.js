@@ -4,6 +4,7 @@ const PluginVirtual = require('..')
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
+const newObjStore = require('../src/model/objStore')
 
 describe('PluginVirtual', function () {
   it('should terminate', function (done) {
@@ -14,17 +15,8 @@ describe('PluginVirtual', function () {
 
     server.run()
 
-    /* this is going to be in the code pretty briefly so no need to make it too nice */
-    var s1 = {}
-    var s2 = {}
-    var s1get = function (k) { return Promise.resolve(s1[k]) }
-    var s2get = function (k) { return Promise.resolve(s2[k]) }
-    var s1put = function (k, v) { s1[k] = v; return Promise.resolve(null) }
-    var s2put = function (k, v) { s2[k] = v; return Promise.resolve(null) }
-    var s1del = function (k) { s1[k] = undefined; return Promise.resolve(null) }
-    var s2del = function (k) { s2[k] = undefined; return Promise.resolve(null) }
-    var s1store = {get: s1get, put: s1put, del: s1del}
-    var s2store = {get: s2get, put: s2put, del: s2del}
+    var s1store = newObjStore()
+    var s2store = newObjStore()
 
     var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'}, limit: 300,
       other: {initiator: false, host: 'http://localhost:8080', room: 'test'}
@@ -33,14 +25,8 @@ describe('PluginVirtual', function () {
       other: {initiator: true, host: 'http://localhost:8080', room: 'test'}
     })
 
-    var pv1c = new Promise((resolve) => {
-      pv1.connect()
-      pv1.connection.on('connect', () => { resolve() })
-    }).catch((err) => { console.error(err) })
-    var pv2c = new Promise((resolve) => {
-      pv2.connect()
-      pv2.connection.on('connect', () => { resolve() })
-    }).catch((err) => { console.error(err) })
+    var pv1c = pv1.connect().catch((err) => { console.error(err) })
+    var pv2c = pv2.connect().catch((err) => { console.error(err) })
 
     console.log('waiting on Promise.all now for connect')
     Promise.all([pv1c, pv2c]).then(() => {

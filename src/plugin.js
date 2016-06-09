@@ -184,7 +184,6 @@ class PluginVirtual extends EventEmitter {
       // TODO: compare better
       if (storedTransfer && storedTransfer.id === transfer.id) {
         return this.transferLog.isComplete(transfer).then((isComplete) => {
-          console.log('adioawmdoiamwodaiwmo')
           if (isComplete) {
             this._falseAcknowledge(transfer)
           } else {

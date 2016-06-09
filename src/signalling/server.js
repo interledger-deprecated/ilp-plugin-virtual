@@ -1,8 +1,9 @@
 /* this signaling server is meant to be run on its own as a script */
-var socketIo = require('socket.io')
+const socketIo = require('socket.io')
+const log = require('../controllers/log')
 
 function _log (msg) {
-  console.log('signaling: ' + msg)
+  log.log('signaling: ' + msg)
 }
 
 function runServer () {
@@ -68,7 +69,7 @@ function runServer () {
     })
 
     socket.on('error', (err) => {
-      console.error(err)
+      log.error(err)
     })
   })
 }

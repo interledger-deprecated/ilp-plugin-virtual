@@ -175,9 +175,12 @@ class PluginVirtual extends EventEmitter {
       // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
       return this.store.put('a' + account, (balance - 0.0) + (amt - 0.0) + '')
-    }).then(() => {
+      .then(() => {
+        return Promise.resolve(balance)
+      })
+    }).then((balance) => {
       // event for debugging
-      this.emit('_balanceChanged')
+      this.emit('_balanceChanged', (balance - 0.0) + (amt - 0.0))
       return Promise.resolve(null)
     })
   }

@@ -1,4 +1,3 @@
 'use strict'
 
-// TODO: Implement module
-console.log('hello world')
+module.exports = require('./src/plugin.js').PluginVirtual

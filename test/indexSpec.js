@@ -1,8 +1,6 @@
 'use strict'
 
-const plugin = require('../src/plugin')
-const PluginVirtual = plugin.PluginVirtual
-// const Connection = plugin.Connection
+const PluginVirtual = require('..')
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')

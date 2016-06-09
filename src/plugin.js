@@ -32,7 +32,6 @@ class PluginVirtual extends EventEmitter {
 
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch((err) => {
-        log.error(err)
         this.emit('error', err)
       })
     })
@@ -97,7 +96,7 @@ class PluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.store(outgoingTransfer)
     }).catch((err) => {
-      log.error(err)
+      this.emit('error', err)
     })
   }
 
@@ -158,7 +157,7 @@ class PluginVirtual extends EventEmitter {
       return Promise.resolve(null)
 
     } else {
-      throw new Error('Invalid message received')
+      this.emit('error', new Error('Invalid message received'))
     }
     /* eslint-enable padded-blocks */
   }
@@ -189,6 +188,8 @@ class PluginVirtual extends EventEmitter {
       } else {
         return this._rejectTransfer(transfer, 'credit limit exceeded')
       }
+    }).catch((err) => {
+      this.emit('error', err)
     })
   }
 
@@ -214,7 +215,10 @@ class PluginVirtual extends EventEmitter {
 
   _falseAcknowledge (transfer) {
     this.emit('_falseAcknowledge', transfer)
-    throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
+    this.emit(
+      'error', 
+      new Error('Recieved false acknowledge for tid: ' + transfer.id)
+    )
   }
 
   _addBalance (account, amt) {

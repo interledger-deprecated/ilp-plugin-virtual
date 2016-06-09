@@ -38,7 +38,7 @@ function runServer () {
         })
       } else {
         // if both roles have been filled then give an error
-        socket.emit('_error', { msg: 'this room is full; use another' })
+        socket.emit('error', { msg: 'this room is full; use another' })
       }
     })
 
@@ -51,7 +51,7 @@ function runServer () {
       if (!(room in rooms &&
             'answerer' in rooms[room] &&
             'offerer' in rooms[room])) {
-        socket.emit('_error', {
+        socket.emit('error', {
           msg: 'premature answer; first use setOffer or getOffer'
         })
       } else if (socket === rooms[room].answerer) {
@@ -64,7 +64,7 @@ function runServer () {
         // clear the room after it is successful
         delete rooms[room]
       } else {
-        socket.emit('_error', { msg: 'you are not the answerer in this room' })
+        socket.emit('error', { msg: 'you are not the answerer in this room' })
       }
     })
 

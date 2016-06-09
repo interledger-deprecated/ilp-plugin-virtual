@@ -174,6 +174,7 @@ class PluginVirtual extends EventEmitter {
       if (storedTransfer && storedTransfer.id === transfer.id) {
         return pv._addBalance(pv.myAccount, -1 * transfer.amount)
       } else {
+        this.emit('_falseAcknowledge', transfer)
         throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
       }
     })

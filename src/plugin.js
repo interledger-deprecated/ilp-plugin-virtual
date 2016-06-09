@@ -23,7 +23,7 @@ class PluginVirtual extends EventEmitter {
     this.myAccount = '1'
     this.otherAccount = '2'
     // TODO: is opts.limit the right place to get this?
-    this.limit = opts.limit
+    this.limit = opts.other.limit
     this.transferLog = new TransferLog(this.store)
 
     this.connectionConfig = opts.other // technically auth holds ledger-specific info
@@ -36,8 +36,8 @@ class PluginVirtual extends EventEmitter {
       })
     })
   }
-  
-  static canConnectToLedger(auth) {
+
+  static canConnectToLedger (auth) {
     // TODO: test the server
     return true
   }
@@ -135,8 +135,7 @@ class PluginVirtual extends EventEmitter {
       return Promise.resolve(null)
 
     } else {
-
-      throw new Error("Invalid message received")
+      throw new Error('Invalid message received')
     }
     /* eslint-enable padded-blocks */
   }
@@ -145,7 +144,8 @@ class PluginVirtual extends EventEmitter {
     return this.transferLog.store(transfer).then(() => {
       return this.getBalance()
     }).then((balance) => {
-      if (balance + (transfer.amount | 0) <= this.limit) {
+      if ((balance + (transfer.amount - 0.0) <= this.limit) &&
+          (transfer.amount > 0)) {
         return this._addBalance(this.myAccount, transfer.amount).then(() => {
           return this._acceptTransfer(transfer)
         })
@@ -174,7 +174,7 @@ class PluginVirtual extends EventEmitter {
     return this.getBalance().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
-      return this.store.put('a' + account, (balance | 0) + (amt | 0) + '')
+      return this.store.put('a' + account, (balance - 0.0) + (amt - 0.0) + '')
     }).then(() => {
       // event for debugging
       this.emit('_balanceChanged')

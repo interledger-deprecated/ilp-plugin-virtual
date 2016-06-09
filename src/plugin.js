@@ -132,7 +132,7 @@ class PluginVirtual extends EventEmitter {
 
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, obj.message)
-      return this.transferLog.complete(transfer)
+      return this.transferLog.complete(obj.transfer)
 
     } else {
       throw new Error('Invalid message received')

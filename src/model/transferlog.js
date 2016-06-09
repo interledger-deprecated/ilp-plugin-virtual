@@ -35,6 +35,17 @@ class TransferLog {
   del (transfer) {
     return this._del('t' + transfer.id)
   }
+
+  complete (transfer) {
+    // TODO: more efficient way of doing this
+    return this._put('c' + transfer.id, 'complete')
+  }
+  
+  isComplete (transfer) {
+    return this._get('c' + transfer.id).then((data) => {
+      return Promise.resolve(data !== undefined)
+    })
+  }
 }
 
 exports.TransferLog = TransferLog

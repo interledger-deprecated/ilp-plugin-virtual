@@ -72,7 +72,7 @@ class PluginVirtual extends EventEmitter {
           return Promise.resolve(0)
         })
       }
-      return Promise.resolve(balance)
+      return Promise.resolve(parseFloat(balance))
     })
   }
 
@@ -144,6 +144,15 @@ class PluginVirtual extends EventEmitter {
     return this.transferLog.store(transfer).then(() => {
       return this.getBalance()
     }).then((balance) => {
+
+      /*
+      this._log('balance: ' + balance + '\n  amt: ' + (transfer.amount - 0.0) +
+      '\n total: ' + (balance + (transfer.amount - 0.0)) + '\n limit: '
+      + this.limit)
+      */
+
+      // checking if transfer.amount is greater than zero is an implicit check
+      // for Nan
       if ((balance + (transfer.amount - 0.0) <= this.limit) &&
           (transfer.amount > 0)) {
         return this._addBalance(this.myAccount, transfer.amount).then(() => {
@@ -174,13 +183,14 @@ class PluginVirtual extends EventEmitter {
     return this.getBalance().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
-      return this.store.put('a' + account, (balance - 0.0) + (amt - 0.0) + '')
+      let newBalance = balance + parseFloat(amt)
+      return this.store.put('a' + account, (balance + parseFloat(amt)) + '')
       .then(() => {
-        return Promise.resolve(balance)
+        return Promise.resolve(newBalance)
       })
-    }).then((balance) => {
+    }).then((newBalance) => {
       // event for debugging
-      this.emit('_balanceChanged', (balance - 0.0) + (amt - 0.0))
+      this.emit('_balanceChanged', newBalance)
       return Promise.resolve(null)
     })
   }

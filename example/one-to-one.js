@@ -8,10 +8,10 @@ const stdio = readline.createInterface({
   output: process.stdout
 })
 
-function _error(err) {
+function _error (err) {
   console.error(err)
 }
-function _log(msg) {
+function _log (msg) {
   console.log('>> ' + msg)
 }
 
@@ -22,7 +22,7 @@ let pluginOptions = {
 }
 let plugin = null
 
-function start () { 
+function start () {
   let q1 = '[question] Enter your config file name: '
   stdio.question(q1, (answer) => {
     let other = JSON.parse(fs.readFileSync(answer))
@@ -34,7 +34,6 @@ function start () {
 function connect () {
   plugin = new PluginVirtual(pluginOptions)
   plugin.connect().then(() => {
-        
     plugin.on('_balanceChanged', (balance) => {
       _log('balance set to ' + balance)
     })
@@ -58,10 +57,10 @@ function transaction () {
 }
 
 function id (transaction) {
-  let q = '[question] Enter your transaction id: \n' 
+  let q = '[question] Enter your transaction id: \n'
   stdio.question(q, (answer) => {
     transaction.id = answer
-    amount(transaction)    
+    amount(transaction)
   })
 }
 
@@ -75,7 +74,7 @@ function amount (transaction) {
 
 function submit (transaction) {
   plugin.send(transaction).then(() => {
-    next()    
+    next()
     return Promise.resolve(null)
   }).catch(_error)
 }
@@ -85,7 +84,7 @@ function next () {
   stdio.question(q, (answer) => {
     answer += ' '
     if (answer[0] !== 'n' && answer[0] !== 'N') {
-      transaction() 
+      transaction()
     } else {
       plugin.disconnect()
       stdio.close()

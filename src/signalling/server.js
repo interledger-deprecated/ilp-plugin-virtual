@@ -61,7 +61,7 @@ function runServer () {
         rooms[room].offerer.emit('completeWithAnswer', msg)
         rooms[room].answerer.emit('completeWithAnswer', msg)
         // clear the room after it is successful
-        rooms[room] = undefined
+        delete rooms[room]
       } else {
         socket.emit('_error', { msg: 'you are not the answerer in this room' })
       }

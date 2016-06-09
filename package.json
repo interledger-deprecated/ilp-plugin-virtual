@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/interledger/ilp-plugin-virtual#readme",
   "devDependencies": {
+    "bignumber.js": "^2.3.0",
     "chai": "^3.5.0",
     "cz-conventional-changelog": "^1.1.6",
     "eslint": "^2.11.1",

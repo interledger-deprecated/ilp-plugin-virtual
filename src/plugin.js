@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const BigNumber = require('bignumber.js')
 
 const Connection = require('./model/connection').Connection
 const Transfer = require('./model/transfer').Transfer
@@ -69,16 +70,16 @@ class PluginVirtual extends EventEmitter {
     return this.store.get('a' + this.myAccount).then((balance) => {
       // TODO: Q figure out what the store does when a key doesn't exist
       if (!balance) {
-        return this.store.put('a' + this.myAccount, 0).then(() => {
-          return Promise.resolve(0)
+        return this.store.put('a' + this.myAccount, '0').then(() => {
+          return Promise.resolve('0')
         })
       }
-      return Promise.resolve(balance + "")
+      return Promise.resolve(balance)
     })
   }
   _getBalanceFloat () {
     return this.getBalance().then((balance) => {
-      return Promise.resolve(parseFloat(balance))
+      return Promise.resolve(new BigNumber(balance))
     })
   }
 
@@ -104,8 +105,8 @@ class PluginVirtual extends EventEmitter {
     return Promise.resolve({
       /* placeholder values */
       // TODO: Q what should these be
-      precision: '52 bits',
-      scale: '11 bits',
+      precision: 'inf',
+      scale: 'inf',
       currencyCode: 'GBP',
       currencySymbol: '$' 
     })
@@ -173,14 +174,15 @@ class PluginVirtual extends EventEmitter {
         return Promise.resolve(null) 
       }
     }).then(() => {
-      return this.transferLog.store(transfer)
+      return this.transferLog.store(transfer.serialize())
     }).then(() => {
       return this._getBalanceFloat()
     }).then((balance) => {
-      // checking if transfer.amount is greater than zero is an implicit check
-      // for Nan
-      if ((balance + (transfer.amount - 0.0) <= this.limit) &&
-          (transfer.amount > 0)) {
+      if (transfer.amount.isNaN()) {
+        return this._rejectTransfer(transfer, 'amount is not a number')
+      } else if (transfer.amount.lte(new BigNumber(0))) {
+        return this._rejectTransfer(transfer, 'invalid amount')
+      } else if ((balance.add(transfer.amount).lessThanOrEqualTo(this.limit))) {
         return this._addBalance(this.myAccount, transfer.amount).then(() => {
           return this._acceptTransfer(transfer)
         })
@@ -194,13 +196,13 @@ class PluginVirtual extends EventEmitter {
     // subtract the transfer amount because it's ackowledging a sent transaction
     var pv = this
     return this.transferLog.get(transfer).then((storedTransfer) => {
-      if (transfer.equals(storedTransfer)) {
+      if (transfer.equals(new Transfer(storedTransfer))) {
         return this.transferLog.isComplete(transfer).then((isComplete) => {
           if (isComplete) {
             this._falseAcknowledge(transfer)
           } else {
             return this.transferLog.complete(transfer).then(() => {
-              return pv._addBalance(pv.myAccount, -1 * transfer.amount)
+              return pv._addBalance(pv.myAccount, transfer.amount.negated())
             })
           }
         })
@@ -219,8 +221,8 @@ class PluginVirtual extends EventEmitter {
     return this._getBalanceFloat().then((balance) => {
       // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
-      let newBalance = balance + parseFloat(amt)
-      return this.store.put('a' + account, (balance + parseFloat(amt)) + '')
+      let newBalance = balance.add(amt).toString()
+      return this.store.put('a' + account, balance.add(amt).toString())
       .then(() => {
         return Promise.resolve(newBalance)
       })

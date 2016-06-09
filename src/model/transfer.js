@@ -1,7 +1,12 @@
+const BigNumber = require('bignumber.js')
+
 class Transfer {
 
   constructor (opts) {
     this.opts = opts
+    if (!opts) {
+      this.opts = {}  
+    }
   }
 
   get id () {
@@ -11,7 +16,11 @@ class Transfer {
     return this.opts.account
   }
   get amount () {
-    return this.opts.amount
+    try {
+      return new BigNumber(this.opts.amount)
+    } catch (err) {
+      return new BigNumber(NaN)
+    }
   }
   get data () {
     return this.opts.data
@@ -35,7 +44,7 @@ class Transfer {
     return (
       other &&
       other.id === this.id &&
-      other.amount === this.amount
+      this.amount.equals(other.amount)
     )
   }
 }

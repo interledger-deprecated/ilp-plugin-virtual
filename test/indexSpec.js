@@ -76,7 +76,7 @@ describe('PluginVirtual', function (doneDescribe) {
       })
     })
     send1 = new Promise((resolve) => {
-      pv1.once('reply', (transfer) => {
+      pv1.once('accept', (transfer) => {
         assert(transfer.id == 'onehundred')
         done()
         resolve()
@@ -133,7 +133,7 @@ describe('PluginVirtual', function (doneDescribe) {
       })
     })
     send2 = new Promise((resolve) => {
-      pv2.once('reply', (transfer) => {
+      pv2.once('accept', (transfer) => {
         assert(transfer.id == 'twohundred')
         done()
         resolve()

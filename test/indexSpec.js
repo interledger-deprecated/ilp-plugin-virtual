@@ -83,9 +83,47 @@ describe('PluginVirtual', function () {
     })
   })
 
+  let repeat1 = null
+  it('should reject a transfer with a repeat id', (done) => {
+    send1.then(() => {
+      return pv1.send({
+        id: 'onehundred',
+        account: 'doesnt really matter',
+        amount: '100',
+        data: new Buffer('')
+      })
+    })
+    repeat1 = new Promise((resolve) => {
+      pv1.once('reject', (transfer) => {
+        assert(transfer.id == 'onehundred')
+        done()
+        resolve()
+      })
+    })
+  })
+
+  let repeat2 = null
+  it('should reject a repeated acknowledge', (done) => {
+    repeat1.then(() => {
+      return pv2._acceptTransfer(new Transfer({
+        id: 'onehundred',
+        account: 'doesnt really matter',
+        amount: '100',
+        data: new Buffer('')
+      }))
+    })
+    repeat2 = new Promise((resolve) => {
+      pv1.once('_falseAcknowledge', (transfer) => {
+        assert(transfer.id == 'onehundred')
+        done()
+        resolve()
+      })
+    })
+  })
+
   let send2 = null
   it('should recieve an acknowledge for a second valid transfer', (done) => {
-    send1.then(() => {
+    repeat2.then(() => {
       return pv2.send({
         id: 'twohundred',
         account: 'doesnt really matter here either',

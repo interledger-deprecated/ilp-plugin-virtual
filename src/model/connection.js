@@ -21,7 +21,7 @@ class Connection extends EventEmitter {
       }
     */
     this.config = config
-    this.initiator = config.initiator
+    this.name = 'conn'
     this.host = config.host
     this.room = config.room
     this.peerConfig = {
@@ -48,7 +48,7 @@ class Connection extends EventEmitter {
   }
 
   _makeDataChannel () {
-    let channel = this.channel = this.peer.createDataChannel('test_' + this.initiator, {reliable: true})
+    let channel = this.channel = this.peer.createDataChannel('test_' + this.name, {reliable: true})
     this._log('cid: ' + channel.label)
     channel.onopen = () => {
       this._log('connected to channel')
@@ -235,8 +235,7 @@ class Connection extends EventEmitter {
   }
 
   _log (msg) {
-    let name = this.initiator ? 'alice    ' : 'bob      '
-    log.log(name + ': ' + msg)
+    log.log(this.name + ': ' + msg)
   }
 }
 

@@ -19,10 +19,10 @@ describe('PluginVirtual', function () {
     var s2store = newObjStore()
 
     var pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'},
-      other: {initiator: false, host: 'http://localhost:8080', room: 'test', limit: 300}
+      other: {host: 'http://localhost:8080', room: 'test', limit: 300}
     })
     var pv2 = new PluginVirtual({store: s2store, auth: {account: 'plugin 2'},
-      other: {initiator: true, host: 'http://localhost:8080', room: 'test', limit: 300}
+      other: {host: 'http://localhost:8080', room: 'test', limit: 300}
     })
 
     var pv1c = pv1.connect().catch((err) => { console.error(err) })

@@ -36,12 +36,21 @@ class PluginVirtual extends EventEmitter {
       })
     })
   }
+  
+  static canConnectToLedger(auth) {
+    // TODO: test the server
+    return true
+  }
 
   connect () {
-    this.connection.on('connect', () => {
-      this.emit('connect')
+    return new Promise((resolve) => {
+      this.connection.on('connect', () => {
+        this.emit('connect')
+        this.connected = true
+        resolve(null)
+      })
+      this.connection.connect()
     })
-    return this.connection.connect()
   }
 
   disconnect () {
@@ -127,8 +136,7 @@ class PluginVirtual extends EventEmitter {
 
     } else {
 
-  //    throw new Error("Invalid message received")
-      return Promise.resolve(null)
+      throw new Error("Invalid message received")
     }
     /* eslint-enable padded-blocks */
   }

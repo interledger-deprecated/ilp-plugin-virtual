@@ -10,7 +10,7 @@ function runServer () {
   var port = 8080
   var io = socketIo(port)
   var rooms = {}
-  _log('running the server...')
+  _log('running the server on http://localhost:' + port + ' ...')
 
   io.on('connection', (socket) => {
     _log('a user connected')

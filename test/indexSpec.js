@@ -178,8 +178,38 @@ describe('PluginVirtual', function () {
     })
   })
 
-  it('should finish with the correct balances', (done) => {
+  let send5 = null
+  it('should reject a repeat ID after the original failed', (done) => {
     send4.then(() => {
+      return pv2.send({
+        id: 'repeatafterfail',
+        account: 'this should get rejected',
+        amount: '4000',
+        data: new Buffer('')
+      })
+    })
+    send5 = new Promise((resolve) => {
+      pv2.once('reject', (transfer) => {
+        console.log('** rejected once')
+        assert(transfer.id == 'repeatafterfail')
+        pv2.send({
+          id: 'repeatafterfail',
+          account: 'this should get rejected',
+          amount: '100',
+          data: new Buffer('')
+        }).then(() => {
+          pv2.once('reject', (transfer) => {
+            assert(transfer.id == 'repeatafterfail')
+            done()
+            resolve()
+          })
+        })
+      })
+    })
+  })
+
+  it('should finish with the correct balances', (done) => {
+    send5.then(() => {
       assert(pv1b === 100 && pv2b === -100, 'balances should be correct')
       done()
     })

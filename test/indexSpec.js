@@ -6,7 +6,9 @@ const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
 
-describe('PluginVirtual', function () {
+let pv1 = null, pv2 = null
+
+describe('PluginVirtual', function (doneDescribe) {
 
   it('should be a function', function () {
       assert.isFunction(PluginVirtual)
@@ -22,7 +24,6 @@ describe('PluginVirtual', function () {
     s2store = newObjStore()
   })
 
-  let pv1 = null, pv2 = null
   it('should create objects with the constructor', () => {
 
     pv1 = new PluginVirtual({store: s1store, auth: {account: 'plugin 1'},
@@ -208,10 +209,54 @@ describe('PluginVirtual', function () {
     })
   })
 
+  let send6 = null
+  it('should support the exists operation in the transferlog', (done) => {
+    send6 = send5.then(() => {
+      return pv1.transferLog.exists({id: 'onehundred'})
+    }).then((exists) => {
+      assert(exists === true)
+      return pv1.transferLog.exists({id: 'thiscertainlydoesntexist'})
+    }).then((exists) => {
+      assert(exists === false)
+      done()
+      return Promise.resolve(null)
+    })
+  })
+
+  let send7 = null
+  it('should support the delete operation in the transferlog', (done) => {
+    send7 = send6.then(() => {
+      return pv1.transferLog.store({id: 'test transaction'})
+    }).then(() => {
+      return pv1.transferLog.del({id: 'test transaction'})
+    }).then(() => {
+      return pv1.transferLog.exists({id: 'test transaction'})
+    }).then((exists) => {
+      assert(exists === false)
+      done()
+      return Promise.resolve(null)
+    })
+  })
+  
+  let disconnected = null
+  it('should disconnect', (done) => {
+    disconnected = send7.then(() => {
+      assert(pv1.isConnected() === true)
+      assert(pv2.isConnected() === true)
+      return Promise.all([pv1.disconnect(), pv2.disconnect()])
+    }).then(() => {
+      assert(pv1.isConnected() === false)
+      assert(pv2.isConnected() === false)
+      done()
+      return Promise.resolve(null)
+    })
+  })
+
   it('should finish with the correct balances', (done) => {
-    send5.then(() => {
+    disconnected.then(() => {
       assert(pv1b === 100 && pv2b === -100, 'balances should be correct')
       done()
+      doneDescribe()
     })
   })
 })

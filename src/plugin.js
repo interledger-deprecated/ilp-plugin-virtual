@@ -57,6 +57,7 @@ class PluginVirtual extends EventEmitter {
     return this.connection.disconnect().then(() => {
       this.emit('disconnect')
       this.connected = false
+      return Promise.resolve(null)
     })
   }
 

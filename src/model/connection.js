@@ -209,7 +209,7 @@ class Connection extends EventEmitter {
   }
 
   disconnect () {
-    this.peer.destroy()
+    this.peer.close()
     // return promise for when network is used
     return Promise.resolve(null)
   }

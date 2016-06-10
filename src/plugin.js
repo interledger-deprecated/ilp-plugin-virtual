@@ -42,7 +42,7 @@ class PluginVirtual extends EventEmitter {
 
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch((err) => {
-        this.emit('error', err)
+        this.emit('exception', err)
       })
     })
   }
@@ -106,7 +106,7 @@ class PluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.store(outgoingTransfer)
     }).catch((err) => {
-      this.emit('error', err)
+      this.emit('exception', err)
     })
   }
 
@@ -157,7 +157,7 @@ class PluginVirtual extends EventEmitter {
       this.emit('reply', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
     } else {
-      this.emit('error', new Error('Invalid message received'))
+      this.emit('exception', new Error('Invalid message received'))
     }
   }
 
@@ -188,7 +188,7 @@ class PluginVirtual extends EventEmitter {
         return this._rejectTransfer(transfer, 'credit limit exceeded')
       }
     }).catch((err) => {
-      this.emit('error', err)
+      this.emit('exception', err)
     })
   }
 
@@ -215,7 +215,7 @@ class PluginVirtual extends EventEmitter {
   _falseAcknowledge (transfer) {
     this.emit('_falseAcknowledge', transfer)
     this.emit(
-      'error',
+      'exception',
       new Error('Recieved false acknowledge for tid: ' + transfer.id)
     )
   }

@@ -156,7 +156,7 @@ describe('PluginVirtual', function (doneDescribe) {
       })
     })
     reply2 = new Promise((resolve) => {
-      pv1.once('error', (err) => {
+      pv1.once('exception', (err) => {
         log.error(err)
         done()
         resolve()
@@ -213,7 +213,7 @@ describe('PluginVirtual', function (doneDescribe) {
       })
     })
     repeat3 = new Promise((resolve) => {
-      pv2.once('error', (err) => {
+      pv2.once('exception', (err) => {
         log.error(err)
         done()
         resolve()

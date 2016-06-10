@@ -1,4 +1,4 @@
-// const log = require('../controllers/log')
+// const log = require('../util/log')
 
 class TransferLog {
 

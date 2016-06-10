@@ -1,6 +1,6 @@
 /* this signaling server is meant to be run on its own as a script */
 const socketIo = require('socket.io')
-const log = require('../controllers/log')
+const log = require('../util/log')
 
 function _log (msg) {
   log.log('signaling: ' + msg)

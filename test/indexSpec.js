@@ -5,7 +5,7 @@ const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
-const log = require('../src/controllers/log')
+const log = require('../src/util/log')
 
 let pv1 = null, pv2 = null
 

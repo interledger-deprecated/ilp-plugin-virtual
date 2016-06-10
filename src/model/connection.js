@@ -1,6 +1,6 @@
 'use strict'
 const EventEmitter = require('events')
-const log = require('../controllers/log')
+const log = require('../util/log')
 const socketIoClient = require('socket.io-client')
 const wrtc = require('wrtc')
 

@@ -3,7 +3,7 @@
 const Connection = require('../src/model/connection')
 const assert = require('chai').assert
 const server = require('../src/signalling/server')
-const log = require('../src/controllers/log')
+const log = require('../src/util/log')
 const socketIoClient = require('socket.io-client')
 
 describe('Signalling Server', function(doneDescribe) {
@@ -48,6 +48,7 @@ describe('Signalling Server', function(doneDescribe) {
     })
   })
   
+  let tworemain = null
   it('should not allow 3 sockets to a room', (done) => {
     connected.then(() => {
       // because we're not using webrtc here the offers can be anything
@@ -55,15 +56,40 @@ describe('Signalling Server', function(doneDescribe) {
       sock2.emit('startWithOffer', {room: 'a', offer: 'offer'})
       sock3.emit('startWithOffer', {room: 'a', offer: 'offer'})
     })
-    let handle = (err) => {
-      assert.isObject(err) 
-      assert.isString(err.msg)
-      done()
-      doneDescribe()
-    }
-    // the errors could appear in any socket
-    sock1.once('exception', handle)
-    sock2.once('exception', handle)
-    sock3.once('exception', handle)
+    
+    tworemain = new Promise((resolve) => {
+      let handle = (err) => {
+        assert.isObject(err) 
+        assert.isString(err.msg)
+        log.error(err)
+        done()
+        doneDescribe()
+        resolve() 
+      }
+      // the errors could appear in any socket
+      sock1.once('exception', (err) => { sock1 = sock3; handle(err) })
+      sock2.once('exception', (err) => { sock2 = sock3; handle(err) })
+      sock3.once('exception', handle)
+    })
   })
+
+  /* WIP
+  it('should give an exception on a premature answer', (done) => {
+    tworemain.then(() => {
+      return new Promise((resolve) => {
+        let offerAndError = (s1, s2) => {
+          s1.once('offer', () => {
+            s2.emit('respondWithAnswer', {room: 'a', answer: 'answer'})
+            s2.once('exception', (err) => {
+              done() 
+              doneDescribe()
+            })
+          })
+        }
+        offerAndError(sock1, sock2)
+        offerAndError(sock2, sock1)
+      })
+    })
+  })
+  */
 })

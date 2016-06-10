@@ -37,7 +37,7 @@ function start () {
   try {
     other = JSON.parse(fs.readFileSync(configFile))
   } catch (err) {
-    _die("usage: node one-to-one.js <config JSON file>")
+    _die('usage: node one-to-one.js <config JSON file>')
   }
 
   pluginOptions.other = other

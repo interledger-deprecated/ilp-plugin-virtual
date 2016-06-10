@@ -40,6 +40,11 @@ describe('PluginVirtual', function (doneDescribe) {
     assert.isObject(pv2)
   })
 
+  it('should return true for canConnect', () => {
+    assert(pv1.canConnectToLedger())
+    assert(pv2.canConnectToLedger())
+  })
+
   let connected = null
   it('should connect', (done) => {
 
@@ -141,9 +146,24 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
+  let reply2 = null
+  it('should emit an error on an unknown message type', (done) => {
+    reply1.then(() => {
+      return pv2.connection.send({
+        type: 'garbage'
+      })
+    })
+    reply2 = new Promise((resolve) => {
+      pv1.once('error', (err) => {
+        done()
+        resolve()
+      })
+    })
+  })
+
   let repeat0point5 = null
   it('should reject a transfer with a zero amount', (done) => {
-    reply1.then(() => {
+    reply2.then(() => {
       return pv1.send({
         id: 'zeroamount',
         account: 'doesnt really matter',

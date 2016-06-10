@@ -9,13 +9,6 @@ class Connection extends EventEmitter {
   constructor (config) {
     super()
 
-    /*
-      config = {
-        initiator: bool
-        host: string
-        room: string
-      }
-    */
     this.config = config
     this.name = config.account
     this.host = config.host

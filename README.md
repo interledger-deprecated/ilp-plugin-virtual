@@ -14,8 +14,10 @@ page](https://github.com/js-platform/node-webrtc).
 
 ## Usage
 
-You can test out the ledger plugin by running `npm test` on your machine.  If
-you want to try using it between two machines, you should use
+You can test out the ledger plugin by running `npm test` on your machine.  To
+include debug information during the test, run `npm run-script verbose-test`
+
+If you want to try sending transactions between two machines, you should use
 `examples/one-to-one.js`
 
 ### Signalling server

@@ -34,11 +34,10 @@ class PluginVirtual extends EventEmitter {
 
     this.myAccount = '1'
     this.otherAccount = '2'
-    // TODO: Q is opts.limit the right place to get this?
     this.limit = opts.auth.limit
     this.transferLog = new TransferLog(this.store)
 
-    this.connectionConfig = opts.auth // technically auth holds ledger-specific info
+    this.connectionConfig = opts.auth
     this.connection = new Connection(this.connectionConfig)
 
     this.connection.on('receive', (obj) => {
@@ -223,7 +222,6 @@ class PluginVirtual extends EventEmitter {
 
   _addBalance (account, amt) {
     return this._getBalanceFloat().then((balance) => {
-      // TODO: make sure that these numbers have the correct precision
       this._log(balance + ' changed by ' + amt)
       let newBalance = balance.add(amt).toString()
       return this.store.put('a' + account, balance.add(amt).toString())

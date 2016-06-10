@@ -15,9 +15,9 @@ class PluginVirtual extends EventEmitter {
   * @param {object} opts contains PluginOptions for PluginVirtual.
   *
   * @param {object} opts.store methods for persistance
-  * @param {function} opts.get get an element by key
-  * @param {function} opts.put store an element by key, value
-  * @param {function} opts.del delete an elemeny by key
+  * @param {function} opts.store.get get an element by key
+  * @param {function} opts.store.put store an element by key, value
+  * @param {function} opts.store.del delete an elemeny by key
   *
   * @param {object} opts.auth ledger-specific information
   * @param {string} opts.auth.account name of your PluginVirtual (can be anything)

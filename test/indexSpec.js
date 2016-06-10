@@ -5,7 +5,7 @@ const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
-const log = require('../src/util/log')
+const log = require('../src/util/log')('test')
 
 let pv1 = null, pv2 = null
 
@@ -28,11 +28,11 @@ describe('PluginVirtual', function (doneDescribe) {
   it('should create objects with the constructor', () => {
 
     pv1 = new PluginVirtual({store: s1store, auth: {
-        account: 'plugin 1', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '1', host: 'http://localhost:8080', room: 'test', limit: 300
       }
     })
     pv2 = new PluginVirtual({store: s2store, auth: {
-        account: 'plugin 2', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '2', host: 'http://localhost:8080', room: 'test', limit: 300
       }
     })
 
@@ -305,7 +305,6 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send5 = new Promise((resolve) => {
       pv2.once('reject', (transfer) => {
-        console.log('** rejected once')
         assert(transfer.id == 'repeatafterfail')
         pv2.send({
           id: 'repeatafterfail',

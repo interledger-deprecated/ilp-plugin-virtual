@@ -1,7 +1,13 @@
-exports.error = function () {
-  console.error.apply(null, arguments)
-}
+const debug = require('debug')
 
-exports.log = function () {
-  console.log.apply(null, arguments)
+module.exports = function(name) {
+  let stderr = debug(name + ':err')
+  let stdout = debug(name)
+  stdout.log = console.log.bind(console)
+
+  logFunctions = {}
+  logFunctions.log = stdout
+  logFunctions.error = stderr
+  
+  return logFunctions
 }

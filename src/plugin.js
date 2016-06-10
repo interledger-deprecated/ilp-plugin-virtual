@@ -4,7 +4,7 @@ const BigNumber = require('bignumber.js')
 const Connection = require('./model/connection').Connection
 const Transfer = require('./model/transfer').Transfer
 const TransferLog = require('./model/transferlog').TransferLog
-const log = require('./util/log')
+const log = require('./util/log')('plugin')
 
 class PluginVirtual extends EventEmitter {
 

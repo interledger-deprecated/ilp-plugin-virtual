@@ -3,7 +3,7 @@
 const Connection = require('../src/model/connection')
 const assert = require('chai').assert
 const server = require('../src/signalling/server')
-const log = require('../src/util/log')
+const log = require('../src/util/log')('test')
 const socketIoClient = require('socket.io-client')
 
 describe('Signalling Server', function(doneDescribe) {

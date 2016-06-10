@@ -17,7 +17,7 @@ class Connection extends EventEmitter {
       }
     */
     this.config = config
-    this.name = 'conn'
+    this.name = config.account
     this.host = config.host
     this.room = config.room
     this.peerConfig = {

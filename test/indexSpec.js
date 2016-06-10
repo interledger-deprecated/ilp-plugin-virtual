@@ -7,31 +7,35 @@ const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
 const log = require('../src/util/log')('test')
 
-let pv1 = null, pv2 = null
+let pv1 = null
+let pv2 = null
 
 describe('PluginVirtual', function (doneDescribe) {
-
   it('should be a function', function () {
-      assert.isFunction(PluginVirtual)
+    assert.isFunction(PluginVirtual)
   })
 
   it('should be able to start the signalling server', () => {
     server.run()
   })
 
-  let s1store = null, s2store = null
+  let s1store = null
+  let s2store = null
   it('should create the object store', () => {
     s1store = newObjStore()
     s2store = newObjStore()
   })
 
   it('should create objects with the constructor', () => {
-
-    pv1 = new PluginVirtual({store: s1store, auth: {
+    pv1 = new PluginVirtual({
+      store: s1store,
+      auth: {
         account: '1', host: 'http://localhost:8080', room: 'test', limit: 300
       }
     })
-    pv2 = new PluginVirtual({store: s2store, auth: {
+    pv2 = new PluginVirtual({
+      store: s2store,
+      auth: {
         account: '2', host: 'http://localhost:8080', room: 'test', limit: 300
       }
     })
@@ -46,7 +50,6 @@ describe('PluginVirtual', function (doneDescribe) {
 
   let connected = null
   it('should connect', (done) => {
-
     let pv1c = pv1.connect().catch((err) => { console.error(err); assert(false) })
     let pv2c = pv2.connect().catch((err) => { console.error(err); assert(false) })
     connected = Promise.all([pv1c, pv2c]).then(() => {
@@ -54,9 +57,9 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
-  let pv1b = 0, pv2b = 0
+  let pv1b = 0
+  let pv2b = 0
   it('should be an event emitter', () => {
-
     pv1.on('_balanceChanged', () => {
       pv1.getBalance().then((balance) => {
         pv1b = balance | 0
@@ -83,7 +86,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send0 = new Promise((resolve) => {
       pv1.once('reject', (transfer) => {
-        assert(transfer.id == 'invalidnumber')
+        assert(transfer.id === 'invalidnumber')
         done()
         resolve()
       })
@@ -102,7 +105,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send1 = new Promise((resolve) => {
       pv1.once('accept', (transfer) => {
-        assert(transfer.id == 'onehundred')
+        assert(transfer.id === 'onehundred')
         done()
         resolve()
       })
@@ -122,7 +125,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     repeat0 = new Promise((resolve) => {
       pv1.once('reject', (transfer) => {
-        assert(transfer.id == 'negativeamount')
+        assert(transfer.id === 'negativeamount')
         negativetransfer = transfer
         done()
         resolve()
@@ -154,6 +157,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     reply2 = new Promise((resolve) => {
       pv1.once('error', (err) => {
+        log.error(err)
         done()
         resolve()
       })
@@ -172,7 +176,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     repeat0point5 = new Promise((resolve) => {
       pv1.once('reject', (transfer) => {
-        assert(transfer.id == 'zeroamount')
+        assert(transfer.id === 'zeroamount')
         done()
         resolve()
       })
@@ -191,7 +195,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     repeat1 = new Promise((resolve) => {
       pv1.once('reject', (transfer) => {
-        assert(transfer.id == 'onehundred')
+        assert(transfer.id === 'onehundred')
         done()
         resolve()
       })
@@ -229,7 +233,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     repeat2 = new Promise((resolve) => {
       pv1.once('_falseAcknowledge', (transfer) => {
-        assert(transfer.id == 'onehundred')
+        assert(transfer.id === 'onehundred')
         done()
         resolve()
       })
@@ -248,13 +252,13 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send2 = new Promise((resolve) => {
       pv2.once('accept', (transfer) => {
-        assert(transfer.id == 'twohundred')
+        assert(transfer.id === 'twohundred')
         done()
         resolve()
       })
     })
   })
-  
+
   let send3 = null
   it('should reject a transfer that`s over the limit', (done) => {
     send2.then(() => {
@@ -267,7 +271,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send3 = new Promise((resolve) => {
       pv2.once('reject', (transfer) => {
-        assert(transfer.id == 'rejectthis')
+        assert(transfer.id === 'rejectthis')
         done()
         resolve()
       })
@@ -286,7 +290,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send4 = new Promise((resolve) => {
       pv1.once('_falseAcknowledge', (transfer) => {
-        assert(transfer.id == 'thisdoesntexist')
+        assert(transfer.id === 'thisdoesntexist')
         done()
         resolve()
       })
@@ -305,7 +309,7 @@ describe('PluginVirtual', function (doneDescribe) {
     })
     send5 = new Promise((resolve) => {
       pv2.once('reject', (transfer) => {
-        assert(transfer.id == 'repeatafterfail')
+        assert(transfer.id === 'repeatafterfail')
         pv2.send({
           id: 'repeatafterfail',
           account: 'this should get rejected',
@@ -313,7 +317,7 @@ describe('PluginVirtual', function (doneDescribe) {
           data: new Buffer('')
         }).then(() => {
           pv2.once('reject', (transfer) => {
-            assert(transfer.id == 'repeatafterfail')
+            assert(transfer.id === 'repeatafterfail')
             done()
             resolve()
           })
@@ -361,7 +365,7 @@ describe('PluginVirtual', function (doneDescribe) {
       done()
       return Promise.resolve(null)
     })
-  }) 
+  })
 
   let getinfo = null
   it('should give an object for getInfo', (done) => {
@@ -373,7 +377,7 @@ describe('PluginVirtual', function (doneDescribe) {
       return Promise.resolve(null)
     })
   })
-  
+
   let disconnected = null
   it('should disconnect', (done) => {
     disconnected = getinfo.then(() => {

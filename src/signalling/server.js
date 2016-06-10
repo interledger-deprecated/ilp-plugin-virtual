@@ -27,6 +27,7 @@ function runServer () {
           offerer: socket,
           offer: offer
         }
+        _log('rooms[' + room + '] created')
       } else if (!('answerer' in rooms[room])) {
         // if you are second to the room then you are the answerer
         // or the responder
@@ -38,7 +39,7 @@ function runServer () {
         })
       } else {
         // if both roles have been filled then give an error
-        socket.emit('error', { msg: 'this room is full; use another' })
+        socket.emit('exception', { msg: 'this room is full; use another' })
       }
     })
 
@@ -51,7 +52,7 @@ function runServer () {
       if (!(room in rooms &&
             'answerer' in rooms[room] &&
             'offerer' in rooms[room])) {
-        socket.emit('error', {
+        socket.emit('exception', {
           msg: 'premature answer; first use setOffer or getOffer'
         })
       } else if (socket === rooms[room].answerer) {
@@ -62,9 +63,11 @@ function runServer () {
         rooms[room].offerer.emit('completeWithAnswer', msg)
         rooms[room].answerer.emit('completeWithAnswer', msg)
         // clear the room after it is successful
+        rooms[room].offerer.disconnect()
+        rooms[room].answerer.disconnect()
         delete rooms[room]
       } else {
-        socket.emit('error', { msg: 'you are not the answerer in this room' })
+        socket.emit('exception', { msg: 'you are not the answerer in this room' })
       }
     })
 

@@ -87,6 +87,7 @@ class Connection extends EventEmitter {
     this._log('connecting socket')
     let host = this.host
     let conn = this.conn = socketIoClient.connect(host)
+    conn.on('exception', (err) => { this.emit('error', err) })
 
     // only proceed if connection is successful
     conn.on('connect', () => { this._getRole() })
@@ -218,10 +219,6 @@ class Connection extends EventEmitter {
     this.channel.send(JSON.stringify(msg))
     // return promise for when network is used
     return Promise.resolve(null)
-  }
-
-  _getPeer () {
-    return this.peer
   }
 
   _log (msg) {

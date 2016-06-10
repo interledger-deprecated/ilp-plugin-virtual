@@ -141,19 +141,19 @@ class PluginVirtual extends EventEmitter {
 
       this._log('received a ACK on tid: ' + obj.transfer.id)
       // TODO: Q should accept be fullfill execution condition even in OTP?
-      this.emit('accept', obj.transfer, obj.message) // TODO: Q can obj.message be null?
+      this.emit('accept', obj.transfer, new Buffer(obj.message)) // TODO: Q can obj.message be null?
       return this._handleAcknowledge(new Transfer(obj.transfer))
 
     } else if (obj.type === 'reject') {
 
       this._log('received a reject on tid: ' + obj.transfer.id)
-      this.emit('reject', obj.transfer, obj.message)
+      this.emit('reject', obj.transfer, new Buffer(obj.message))
       return this.transferLog.complete(obj.transfer)
 
     } else if (obj.type === 'reply') {
 
       this._log('received a reply on tid: ' + obj.transfer.id)
-      this.emit('reply', obj.transfer, obj.message)
+      this.emit('reply', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
 
     } else {
@@ -242,7 +242,7 @@ class PluginVirtual extends EventEmitter {
     return this.connection.send({
       type: 'acknowledge',
       transfer: transfer.serialize(),
-      message: new Buffer('transfer accepted')
+      message: 'transfer accepted'
     })
   }
   _rejectTransfer (transfer, reason) {
@@ -251,7 +251,7 @@ class PluginVirtual extends EventEmitter {
     return this.connection.send({
       type: 'reject',
       transfer: transfer.serialize(),
-      message: new Buffer(reason)
+      message: reason
     })
   }
 

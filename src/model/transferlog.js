@@ -40,7 +40,7 @@ class TransferLog {
     // TODO: more efficient way of doing this
     return this._put('c' + transfer.id, 'complete')
   }
-  
+
   isComplete (transfer) {
     return this._get('c' + transfer.id).then((data) => {
       return Promise.resolve(data !== undefined)

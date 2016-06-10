@@ -5,7 +5,7 @@ class Transfer {
   constructor (opts) {
     this.opts = opts
     if (!opts) {
-      this.opts = {}  
+      this.opts = {}
     }
   }
 

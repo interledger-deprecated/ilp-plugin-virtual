@@ -107,7 +107,7 @@ class PluginVirtual extends EventEmitter {
       precision: 'inf',
       scale: 'inf',
       currencyCode: 'GBP',
-      currencySymbol: '$' 
+      currencySymbol: '$'
     })
   }
 
@@ -129,37 +129,26 @@ class PluginVirtual extends EventEmitter {
 
   /* Private Functions */
   _receive (obj) {
-
-    /* eslint-disable padded-blocks */
     if (obj.type === 'transfer') {
-
       this._log('received a Transfer with tid: ' + obj.transfer.id)
       this.emit('incoming', obj.transfer)
       return this._handleTransfer(new Transfer(obj.transfer))
-
     } else if (obj.type === 'acknowledge') {
-
       this._log('received a ACK on tid: ' + obj.transfer.id)
       // TODO: Q should accept be fullfill execution condition even in OTP?
       this.emit('accept', obj.transfer, new Buffer(obj.message)) // TODO: Q can obj.message be null?
       return this._handleAcknowledge(new Transfer(obj.transfer))
-
     } else if (obj.type === 'reject') {
-
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, new Buffer(obj.message))
       return this.transferLog.complete(obj.transfer)
-
     } else if (obj.type === 'reply') {
-
       this._log('received a reply on tid: ' + obj.transfer.id)
       this.emit('reply', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
-
     } else {
       this.emit('error', new Error('Invalid message received'))
     }
-    /* eslint-enable padded-blocks */
   }
 
   _handleTransfer (transfer) {
@@ -170,7 +159,7 @@ class PluginVirtual extends EventEmitter {
           throw new Error('repeat transfer id')
         })
       } else {
-        return Promise.resolve(null) 
+        return Promise.resolve(null)
       }
     }).then(() => {
       return this.transferLog.store(transfer.serialize())
@@ -216,7 +205,7 @@ class PluginVirtual extends EventEmitter {
   _falseAcknowledge (transfer) {
     this.emit('_falseAcknowledge', transfer)
     this.emit(
-      'error', 
+      'error',
       new Error('Recieved false acknowledge for tid: ' + transfer.id)
     )
   }

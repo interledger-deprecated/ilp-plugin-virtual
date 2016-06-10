@@ -4,8 +4,6 @@ const log = require('../controllers/log')
 const socketIoClient = require('socket.io-client')
 // const SimplePeer = require('simple-peer')
 const wrtc = require('wrtc')
-/* eslint-disable padded-blocks */
-
 /* uses the webrtc package, simple-peer. does not yet have signaling */
 
 class Connection extends EventEmitter {

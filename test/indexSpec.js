@@ -5,6 +5,7 @@ const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
 const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
+const log = require('../src/controllers/log')
 
 let pv1 = null, pv2 = null
 
@@ -104,9 +105,64 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
+  let repeat0 = null
+  let negativetransfer = null
+  it('should reject a transfer with a negative amount', (done) => {
+    send1.then(() => {
+      return pv1.send({
+        id: 'negativeamount',
+        account: 'doesnt really matter',
+        amount: '-100',
+        data: new Buffer('')
+      })
+    })
+    repeat0 = new Promise((resolve) => {
+      pv1.once('reject', (transfer) => {
+        assert(transfer.id == 'negativeamount')
+        negativetransfer = transfer
+        done()
+        resolve()
+      })
+    })
+  })
+
+  let reply1 = null
+  it('should send and recieve reply messages', (done) => {
+    repeat0.then(() => {
+      return pv2.replyToTransfer(negativetransfer.id, 'this sucks')
+    })
+    reply1 = new Promise((resolve) => {
+      pv1.once('reply', (transfer, message) => {
+        assert(transfer.id === negativetransfer.id)
+        assert(message.equals(new Buffer('this sucks')))
+        done()
+        resolve()
+      })
+    })
+  })
+
+  let repeat0point5 = null
+  it('should reject a transfer with a zero amount', (done) => {
+    reply1.then(() => {
+      return pv1.send({
+        id: 'zeroamount',
+        account: 'doesnt really matter',
+        amount: '0',
+        data: new Buffer('')
+      })
+    })
+    repeat0point5 = new Promise((resolve) => {
+      pv1.once('reject', (transfer) => {
+        assert(transfer.id == 'zeroamount')
+        done()
+        resolve()
+      })
+    })
+  })
+
   let repeat1 = null
   it('should reject a transfer with a repeat id', (done) => {
-    send1.then(() => {
+    repeat0point5.then(() => {
       return pv1.send({
         id: 'onehundred',
         account: 'doesnt really matter',
@@ -123,9 +179,28 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
+  let repeat3 = null
+  it('should also emit an error on a transfer with a repeat id', (done) => {
+    repeat1.then(() => {
+      return pv1.send({
+        id: 'onehundred',
+        account: 'doesnt really matter',
+        amount: '100',
+        data: new Buffer('')
+      })
+    })
+    repeat3 = new Promise((resolve) => {
+      pv2.once('error', (err) => {
+        log.error(err)
+        done()
+        resolve()
+      })
+    })
+  })
+
   let repeat2 = null
   it('should reject a repeated acknowledge', (done) => {
-    repeat1.then(() => {
+    repeat3.then(() => {
       return pv2._acceptTransfer(new Transfer({
         id: 'onehundred',
         account: 'doesnt really matter',
@@ -257,10 +332,33 @@ describe('PluginVirtual', function (doneDescribe) {
       return Promise.resolve(null)
     })
   })
+
+  let getconnectors = null
+  it('should give an array of size one for getConnectors', (done) => {
+    getconnectors = send7.then(() => {
+      return pv1.getConnectors()
+    }).then((connectors) => {
+      assert.isArray(connectors)
+      assert(connectors.length === 1)
+      done()
+      return Promise.resolve(null)
+    })
+  }) 
+
+  let getinfo = null
+  it('should give an object for getInfo', (done) => {
+    getinfo = getconnectors.then(() => {
+      return pv1.getInfo()
+    }).then((info) => {
+      assert.isObject(info)
+      done()
+      return Promise.resolve(null)
+    })
+  })
   
   let disconnected = null
   it('should disconnect', (done) => {
-    disconnected = send7.then(() => {
+    disconnected = getinfo.then(() => {
       assert(pv1.isConnected() === true)
       assert(pv2.isConnected() === true)
       return Promise.all([pv1.disconnect(), pv2.disconnect()])

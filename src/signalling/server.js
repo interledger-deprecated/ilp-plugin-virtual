@@ -46,6 +46,7 @@ function runServer () {
     // no need for a `getAnswer,' because setOffer and getOffer
     // already establish the roles of the two connections
     socket.on('respondWithAnswer', (obj) => {
+      _log('got a respondWithAnswer')
       var room = obj.room
       var answer = obj.answer
 

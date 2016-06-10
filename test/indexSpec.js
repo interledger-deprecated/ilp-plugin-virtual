@@ -41,8 +41,7 @@ describe('PluginVirtual', function (doneDescribe) {
   })
 
   it('should return true for canConnect', () => {
-    assert(pv1.canConnectToLedger())
-    assert(pv2.canConnectToLedger())
+    assert(PluginVirtual.canConnectToLedger({}))
   })
 
   let connected = null

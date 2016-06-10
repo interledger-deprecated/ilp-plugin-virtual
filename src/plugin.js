@@ -10,16 +10,27 @@ class PluginVirtual extends EventEmitter {
 
   /* LedgerPlugin API */
 
+  /**
+  * Create a PluginVirtual
+  * @param {object} opts contains PluginOptions for PluginVirtual.
+  *
+  * @param {object} opts.store methods for persistance
+  * @param {function} opts.get get an element by key
+  * @param {function} opts.put store an element by key, value
+  * @param {function} opts.del delete an elemeny by key
+  *
+  * @param {object} opts.auth ledger-specific information
+  * @param {string} opts.auth.account name of your PluginVirtual (can be anything)
+  * @param {string} opts.auth.room room to connect to in signalling server
+  * @param {string} opts.auth.limit numeric string representing credit limit
+  * @param {string} opts.auth.host hostname of signalling server with port
+  */
   constructor (opts) {
     super()
 
     this.connected = false
     this.auth = opts.auth
     this.store = opts.store
-    // store contains
-    //   put(k, v) => promise.null
-    //   get(k)    => promise.string
-    //   del(k)    => promise.null
 
     this.myAccount = '1'
     this.otherAccount = '2'

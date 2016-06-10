@@ -66,10 +66,28 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
+  let send0 = null
+  it('should reject a payment with a non-numeric amount', (done) => {
+    connected.then(() => {
+      return pv1.send({
+        id: 'invalidnumber',
+        account: 'doesnt really matter',
+        amount: 'notanumber',
+        data: new Buffer('')
+      })
+    })
+    send0 = new Promise((resolve) => {
+      pv1.once('reject', (transfer) => {
+        assert(transfer.id == 'invalidnumber')
+        done()
+        resolve()
+      })
+    })
+  })
+
   let send1 = null
   it('should recieve an acknowledge for a valid transfer', (done) => {
-    
-    connected.then(() => {
+    send0.then(() => {
       return pv1.send({
         id: 'onehundred',
         account: 'doesnt really matter',

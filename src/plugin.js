@@ -176,6 +176,14 @@ class PluginVirtual extends EventEmitter {
       })
     })
   }
+
+  _validate (fulfillment, condition) {
+    try {
+      return cc.validateFulfillment(fulfillment, condition)
+    } catch (err) {
+      return false
+    }
+  }
   
   _fulfillConditionLocal(transfer, fulfillment) {
     if (!transfer) {
@@ -188,9 +196,9 @@ class PluginVirtual extends EventEmitter {
     let cancel = transfer.cancellationCondition  
     let action = Promise.resolve(null)
 
-    if (cc.validateFulfillment(fulfillment, execute)) {
+    if (this._validate(fulfillment, execute)) {
       action = this._executeTransfer(transfer, fulfillment)
-    } else if (cancel && cc.validateFulfillment(fulfillment, cancel)) {
+    } else if (cancel && this._validate(fulfillment, cancel)) {
       action = this._cancelTransfer(transfer, fulfillment)
     } else {
       throw new Error('invalid fulfillment')
@@ -222,8 +230,8 @@ class PluginVirtual extends EventEmitter {
     // balances aren't affected until it executes
     return this.transferLog.getType(transfer).then((type) => {
       if (type == this.transferLog.outgoing) {
-        return this._addEscrow(transfer.amount.negated()).then(() => {
-          return this._addBalance(transfer.amount)
+        return this._addEscrow(this.myAccount, transfer.amount.negated()).then(() => {
+          return this._addBalance(this.myAccount, transfer.amount)
         })
       }
       return Promise.resolve(null) 

@@ -124,7 +124,7 @@ class PluginVirtual extends EventEmitter {
       return this._fulfillConditionLocal(transfer, fulfillment)
     }).then(() => {
       return this._sendFulfillment(transfer, fulfillment)
-    })
+    }).catch(this._handle)
   }
 
   _validate (fulfillment, condition) {
@@ -138,26 +138,40 @@ class PluginVirtual extends EventEmitter {
   _fulfillConditionLocal(transfer, fulfillment) {
     if (!transfer) {
       throw new Error('got transfer ID for nonexistant transfer')
-    stored} else if (!transfer.executionCondition) {
+    } else if (!transfer.executionCondition) {
       throw new Error('got transfer ID for OTP transfer')        
     }
 
-    let execute = transfer.executionCondition
-    let cancel = transfer.cancellationCondition  
-    let action = Promise.resolve(null)
+    return this.transferLog.isFulfilled(transfer).then((fulfilled) => {
+      if (fulfilled) {
+        throw new Error('this transaction has already been fulfilled') 
+      } else {
+        return Promise.resolve(null)
+      }
+    }).then(() => {
+      let execute = transfer.executionCondition
+      let cancel = transfer.cancellationCondition  
+      let action = Promise.resolve(null)
+    
+      // TODO: Q should the timeout be activated automatically?
+      let time = new Date()
+      let expiresAt = new Date(transfer.expiresAt)
+      let timedOut = (time > expiresAt)
 
-    if (this._validate(fulfillment, execute)) {
-      return this._executeTransfer(transfer, fulfillment)
-    } else if (cancel && this._validate(fulfillment, cancel)) {
-      return this._cancelTransfer(transfer, fulfillment)
-    } else {
-      throw new Error('invalid fulfillment')
-    }
+      if (this._validate(fulfillment, execute) && !timedOut) {
+        return this._executeTransfer(transfer, fulfillment)
+      } else if ((cancel && this._validate(fulfillment, cancel)) || timedOut) {
+        return this._cancelTransfer(transfer, fulfillment)
+      } else {
+        throw new Error('invalid fulfillment')
+      }
+    })
   }
 
   _executeTransfer(transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
     this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
+    return this.transferLog.fulfill(transfer)
     // because there is only one balance, kept, money is not _actually_ kept
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
@@ -174,6 +188,8 @@ class PluginVirtual extends EventEmitter {
       } else if (type === this.transferLog.incoming) {
         return this.balance.sub(transfer.amount) 
       }
+    }).then(() => {
+      return this.transferLog.fulfill(transfer)
     })
   }
 

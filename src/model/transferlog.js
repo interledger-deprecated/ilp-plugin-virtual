@@ -71,6 +71,17 @@ class TransferLog {
       return Promise.resolve(data !== undefined)
     })
   }
+
+  fulfill (transfer) {
+    // TODO: more efficient way of doing this
+    return this._put('f' + transfer.id, 'complete')
+  }
+
+  isFulfilled (transfer) {
+    return this._get('f' + transfer.id).then((data) => {
+      return Promise.resolve(data !== undefined)
+    })
+  }
 }
 
 exports.TransferLog = TransferLog

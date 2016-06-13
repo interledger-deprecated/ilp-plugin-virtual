@@ -157,6 +157,52 @@ describe('UTP/ATP Transfers', function() {
     })
   })
 
+  it('should give an error if a condition is fulfilled twice', (done) => {
+    next = next.then(() => {
+      // because no network is involved, the event needs to be registered
+      // right when the fulfillCondition call goes through
+      let except = new Promise((resolve) => {
+        pv1.once('exception', (err) => {
+          log.error(err)
+          done()
+          resolve()
+        })
+      })
+      pv1.fulfillCondition('atomic_transfer', new Buffer(fulfillment))
+      return except
+    })
+  })
+
+  it('should submit a transfer with a time limit', (done) => {
+    next = next.then(() => {
+      return pv2.send({
+        id: 'timed_transfer',
+        account: 'x',
+        amount: '200',
+        data: new Buffer(''),
+        executionCondition: condition,
+        cancellationCondition: '',
+        expiresAt: (new Date()).toString() // expires immediately
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should cancel a transfer that has timed out', (done) => {
+    next = next.then(() => {
+      let cancel = new Promise((resolve) => {
+        pv1.once('fulfill_cancellation_condition', (transfer, fulfill) => {
+          assert(transfer.id === 'timed_transfer')
+          done()
+          resolve()
+        })
+      })
+      pv1.fulfillCondition('timed_transfer', new Buffer(fulfillment))
+      return cancel
+    })
+  })
+
   it('should disconnect', (done) => {
     next.then(() => {
       assert(pv1.isConnected() === true)

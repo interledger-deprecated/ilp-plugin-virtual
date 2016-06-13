@@ -165,7 +165,7 @@ class PluginVirtual extends EventEmitter {
       } else {
         throw new Error('invalid fulfillment')
       }
-    })
+    }).catch(this._handle)
   }
 
   _executeTransfer(transfer, fulfillment) {

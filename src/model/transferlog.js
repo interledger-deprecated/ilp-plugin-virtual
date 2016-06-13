@@ -27,15 +27,15 @@ class TransferLog {
   getTypeId(transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).transfer)
+        return Promise.resolve(JSON.parse(json).type)
       } else {
         return Promise.resolve(undefined)
       }
     })
   }
   
-  getType(tranfer) {
-    return getTypeId(transfer.id)
+  getType(transfer) {
+    return this.getTypeId(transfer.id)
   }
 
   store (transfer, type) {

@@ -93,8 +93,8 @@ class PluginVirtual extends EventEmitter {
   isConnected () {
     return this.connected
   }
-
-  getBalance () {
+  
+  _getAccountBalance() {
     return this.store.get(PluginVirtual.typeAccount + this.myAccount)
     .then((balance) => {
       // TODO: Q figure out what the store does when a key doesn't exist
@@ -107,8 +107,33 @@ class PluginVirtual extends EventEmitter {
       return Promise.resolve(balance)
     })
   }
-  _getBalanceFloat () {
-    return this.getBalance().then((balance) => {
+
+  _getEscrowBalance() {
+    return this.store.get(PluginVirtual.typeEscrow + this.myAccount)
+    .then((balance) => {
+      // TODO: Q figure out what the store does when a key doesn't exist
+      if (!balance) {
+        return this.store.put(PluginVirtual.typeEscrow + this.myAccount, '0')
+        .then(() => {
+          return Promise.resolve('0')
+        })
+      }
+      return Promise.resolve(balance)
+    })
+  }
+
+  getBalance (type) {
+    if (!type) {
+      type = PluginVirtual.typeAccount
+    }
+    if (type === PluginVirtual.typeEscrow) {
+      return this._getEscrowBalance()
+    } else { // otherwise get regular balance
+      return this._getAccountBalance()
+    }
+  }
+  _getBalanceFloat (type) {
+    return this.getBalance(type).then((balance) => {
       return Promise.resolve(new BigNumber(balance))
     })
   }
@@ -144,55 +169,65 @@ class PluginVirtual extends EventEmitter {
 
   fulfillCondition(transferId, fulfillmentBuffer) {
     let fulfillment = fulfillmentBuffer.toString()
+    this._log('fulfilling: ' + fulfillment)
     return this.transferLog.getId(transferId).then((transfer) => {
-      if (!transfer) {
-        throw new Error('got transfer ID for nonexistant transfer')
-      }
-      if (!transfer.executionCondition) {
-        throw new Error('got transfer ID for OTP tranfer')        
-      }
-      return Promise.resolve(transfer)
-    }).then((transfer) => {
-      let execute = transfer.executionCondition
-      let cancel = transfer.cancellationCondition  
-      let action = Promise.resolve(null)
-
-      if (cc.validateFulfillment(fulfillment, execute)) {
-        action = this._executeTranfer(transfer)
-      } else if (cancel && cc.validateFulfillment(fulfillment, cancel)) {
-        action = this._cancelTransfer(transfer)
-      } else {
-        throw new Error('invalid fulfillment')
-      }
-      return action.then(() => { sendFulfillment(transfer, fulfillment) })
+      return this._fulfillConditionLocal(transfer, fulfillment).then(() => {
+        return this._sendFulfillment(transfer, fulfillment)
+      })
     })
+  }
+  
+  _fulfillConditionLocal(transfer, fulfillment) {
+    if (!transfer) {
+      throw new Error('got transfer ID for nonexistant transfer')
+    }
+    if (!transfer.executionCondition) {
+      throw new Error('got transfer ID for OTP transfer')        
+    }
+    let execute = transfer.executionCondition
+    let cancel = transfer.cancellationCondition  
+    let action = Promise.resolve(null)
+
+    if (cc.validateFulfillment(fulfillment, execute)) {
+      action = this._executeTransfer(transfer, fulfillment)
+    } else if (cancel && cc.validateFulfillment(fulfillment, cancel)) {
+      action = this._cancelTransfer(transfer, fulfillment)
+    } else {
+      throw new Error('invalid fulfillment')
+    }
+    return action
   }
 
   _executeTransfer(transferObj, fulfillment) {
     let transfer = new Transfer(transferObj)
     let fulfillmentBuffer = new Buffer(fulfillment)
-    this.emit('fulfill_cancellation_condition', transfer, fulfillmentBuffer)
-    if (this.transferLog.getType(transfer) === this.transferLog.incoming) {
-      // money goes through to your account now
-      return this._addBalance(transfer.amount)
-    } else if (this.transferLog.getType(transfer) === this.transfer.log.outgoing
-    ) {
-      // removes the escrowed money because it's gone now
-      return this._addEscrow(transfer.amount.negated())
-    }
+    this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
+
+    return this.transferLog.getType(transfer).then((type) => {
+      if (type === this.transferLog.incoming) {
+        // money goes through to your account now
+        return this._addBalance(this.myAccount, transfer.amount)
+      } else if (type === this.transferLog.outgoing) {
+        // removes the escrowed money because it's gone now
+        return this._addEscrow(this.myAccount, transfer.amount.negated())
+      }
+    })
   }
 
   _cancelTransfer (transferObj, fulfillment) {
     let transfer = new Transfer(transferObj)
     let fulfillmentBuffer = new Buffer(fulfillment)
-    this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
+    this.emit('fulfill_cancellation_condition', transfer, fulfillmentBuffer)
     // if the transfer was incoming, then a cancellation means nothing because
     // balances aren't affected until it executes
-    if (this.transferLog.getType(transfer) == this.transferLog.outgoing) {
-      return this._addEscrow(transfer.amount.negated()).then(() => {
-        return this._addBalance(transfer.amount)
-      })
-    } 
+    return this.transferLog.getType(transfer).then((type) => {
+      if (type == this.transferLog.outgoing) {
+        return this._addEscrow(transfer.amount.negated()).then(() => {
+          return this._addBalance(transfer.amount)
+        })
+      }
+      return Promise.resolve(null) 
+    })
   }
 
   _sendFulfillment(transfer, fulfillment) {
@@ -235,7 +270,7 @@ class PluginVirtual extends EventEmitter {
     } else if (obj.type === 'fulfillment') {
       this._log('received a fulfillment for tid: ' + obj.transfer.id)
       this.emit('fulfillment', obj.transfer, new Buffer(obj.fulfillment))
-      return this.fulfillCondition(obj.transfer.id, obj.fulfillment)
+      return this._fulfillConditionLocal(obj.transfer, obj.fulfillment)
     } else {
       this.emit('exception', new Error('Invalid message received'))
     }
@@ -278,7 +313,6 @@ class PluginVirtual extends EventEmitter {
     // in them then 
     let type = PluginVirtual.getType(transfer)
     let changeBalance = Promise.resolve(null)
-    this._log('4')
     
     // the balance is only added to your account when the type is
     // OTP; when it's an escrowed transfer then you wait for the fulfillment
@@ -352,7 +386,7 @@ class PluginVirtual extends EventEmitter {
       // escrow then the account will be a typeEscrow
       type = PluginVirtual.typeAccount
     }
-    return this._getBalanceFloat().then((balance) => {
+    return this._getBalanceFloat(type).then((balance) => {
       this._log(balance + ' changed by ' + amt)
       let newBalance = balance.add(amt).toString()
       return this.store.put(type + account, balance.add(amt).toString())

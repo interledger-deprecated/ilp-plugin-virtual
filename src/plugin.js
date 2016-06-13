@@ -260,7 +260,7 @@ class PluginVirtual extends EventEmitter {
   _receive (obj) {
     if (obj.type === 'transfer') {
       this._log('received a Transfer with tid: ' + obj.transfer.id)
-      this.emit('incoming', obj.transfer)
+      this.emit('receive', obj.transfer)
       return this._handleTransfer(new Transfer(obj.transfer))
     } else if (obj.type === 'acknowledge') {
       this._log('received a ACK on tid: ' + obj.transfer.id)

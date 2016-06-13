@@ -25,6 +25,12 @@ class Transfer {
   get data () {
     return this.opts.data
   }
+  get executionCondition () {
+    return this.opts.executionCondition
+  }
+  get cancellationCondition () {
+    return this.opts.cancellationCondition
+  }
 
   serialize () {
     return {
@@ -32,9 +38,9 @@ class Transfer {
       account: this.account,
       amount: this.amount,
       data: this.data,
-      noteToSelf: new Buffer(''),
-      executionCondition: '',
-      cancellationCondition: '',
+      noteToSelf: '',
+      executionCondition: this.executionCondition,
+      cancellationCondition: this.cancellationCondition,
       expiresAt: '',
       custom: {}
     }

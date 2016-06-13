@@ -6,12 +6,14 @@ class TransferLog {
     this._get = store.get
     this._put = store.put
     this._del = store.del
+    this.incoming = 'i'
+    this.outgoing = 'o'
   }
 
   getId (transferId) {
-    return this._get('t' + transferId).then((jsonTransfer) => {
-      if (jsonTransfer) {
-        return Promise.resolve(JSON.parse(jsonTransfer))
+    return this._get('t' + transferId).then((json) => {
+      if (json) {
+        return Promise.resolve(JSON.parse(json).transfer)
       } else {
         return Promise.resolve(undefined)
       }
@@ -21,9 +23,32 @@ class TransferLog {
   get (transfer) {
     return this.getId(transfer.id)
   }
+  
+  getTypeId(transferId) {
+    return this._get('t' + transferId).then((json) => {
+      if (json) {
+        return Promise.resolve(JSON.parse(json).transfer)
+      } else {
+        return Promise.resolve(undefined)
+      }
+    })
+  }
+  
+  getType(tranfer) {
+    return getTypeId(transfer.id)
+  }
 
-  store (transfer) {
-    return (this._put('t' + transfer.id, JSON.stringify(transfer)))
+  store (transfer, type) {
+    return (this._put('t' + transfer.id, JSON.stringify({
+      transfer: transfer,
+      type: type
+    })))
+  }
+  storeOutgoing (transfer) {
+    return this.store(transfer, this.outgoing)
+  }
+  storeIncoming (transfer) {
+    return this.store(transfer, this.incoming)
   }
 
   exists (transfer) {

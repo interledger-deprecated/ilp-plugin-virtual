@@ -24,13 +24,15 @@ describe('UTP/ATP Transfers', function() {
     pv1 = new PluginVirtual({
       store: s1store,
       auth: {
-        account: '1', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '1', host: 'http://localhost:8080', room: 'test',
+        limit: 300, max: 300
       }
     })
     pv2 = new PluginVirtual({
       store: s2store,
       auth: {
-        account: '2', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '2', host: 'http://localhost:8080', room: 'test',
+        limit: 300, max: 300
       }
     })
 
@@ -46,27 +48,14 @@ describe('UTP/ATP Transfers', function() {
 
   let pv1b = 0
   let pv2b = 0
-  // two variables to hold escrowed amount
-  let pv1e = 0
-  let pv2e = 0
   it('should be an event emitter', () => {
-    pv1.on('_balanceChanged', (balance, type) => {
-      if (type === PluginVirtual.typeEscrow) {
-        pv1e = balance | 0
-        pv1._log('escrow: ' + balance)
-      } else {
-        pv1b = balance | 0
-        pv1._log('balance: ' + balance)
-      }
+    pv1.on('_balanceChanged', (balance) => {
+      pv1b = balance | 0
+      pv1._log('balance: ' + balance)
     })
-    pv2.on('_balanceChanged', (balance, type) => {
-      if (type === PluginVirtual.typeEscrow) {
-        pv2e = balance | 0
-        pv2._log('escrow: ' + balance)
-      } else {
-        pv2b = balance | 0
-        pv2._log('balance: ' + balance)
-      }
+    pv2.on('_balanceChanged', (balance) => {
+      pv2b = balance | 0
+      pv2._log('balance: ' + balance)
     })
   })
 
@@ -98,9 +87,7 @@ describe('UTP/ATP Transfers', function() {
   it('should hold the proper amounts in escrow', (done) => {
     next = next.then(() => {
       assert(pv1b === -100) 
-      assert(pv2b === 0) 
-      assert(pv1e === 100) 
-      assert(pv2e === 0)
+      assert(pv2b === 100) 
       done()
     })
   })
@@ -123,8 +110,6 @@ describe('UTP/ATP Transfers', function() {
     next = next.then(() => {
       assert(pv1b === -100)
       assert(pv2b === 100)
-      assert(pv1e === 0)
-      assert(pv2e === 0)
       done()
     })
   })
@@ -168,8 +153,6 @@ describe('UTP/ATP Transfers', function() {
     next = next.then(() => {
       assert(pv1b === -100)
       assert(pv2b === 100)
-      assert(pv1e === 0)
-      assert(pv2e === 0)
       done()
     })
   })

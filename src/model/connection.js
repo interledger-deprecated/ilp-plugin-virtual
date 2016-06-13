@@ -70,6 +70,7 @@ class Connection extends EventEmitter {
         this._connectionPhase()
       }
     }
+    return Promise.resolve(null)
   }
 
   _connectionPhase () {

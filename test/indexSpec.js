@@ -30,13 +30,15 @@ describe('PluginVirtual', function (doneDescribe) {
     pv1 = new PluginVirtual({
       store: s1store,
       auth: {
-        account: '1', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '1', host: 'http://localhost:8080', room: 'test',
+        limit: 300, max: 300
       }
     })
     pv2 = new PluginVirtual({
       store: s2store,
       auth: {
-        account: '2', host: 'http://localhost:8080', room: 'test', limit: 300
+        account: '2', host: 'http://localhost:8080', room: 'test',
+        limit: 300, max: 300
       }
     })
 
@@ -60,17 +62,13 @@ describe('PluginVirtual', function (doneDescribe) {
   let pv1b = 0
   let pv2b = 0
   it('should be an event emitter', () => {
-    pv1.on('_balanceChanged', () => {
-      pv1.getBalance().then((balance) => {
-        pv1b = balance | 0
-        pv1._log(balance)
-      })
+    pv1.on('_balanceChanged', (balance) => {
+      pv1b = balance | 0
+      pv1._log(balance)
     })
-    pv2.on('_balanceChanged', () => {
-      pv2.getBalance().then((balance) => {
-        pv2b = balance | 0
-        pv2._log(balance)
-      })
+    pv2.on('_balanceChanged', (balance) => {
+      pv2b = balance | 0
+      pv2._log(balance)
     })
   })
 
@@ -224,12 +222,12 @@ describe('PluginVirtual', function (doneDescribe) {
   let repeat2 = null
   it('should reject a repeated acknowledge', (done) => {
     repeat3.then(() => {
-      return pv2._acceptTransfer(new Transfer({
+      return pv2._acceptTransfer({
         id: 'onehundred',
         account: 'doesnt really matter',
         amount: '100',
         data: new Buffer('')
-      }))
+      })
     })
     repeat2 = new Promise((resolve) => {
       pv1.once('_falseAcknowledge', (transfer) => {
@@ -281,12 +279,12 @@ describe('PluginVirtual', function (doneDescribe) {
   let send4 = null
   it('should reject a false acknowledgement', (done) => {
     send3.then(() => {
-      return pv2._acceptTransfer(new Transfer({
+      return pv2._acceptTransfer({
         id: 'thisdoesntexist',
         account: 'this should get rejected',
         amount: '400',
         data: new Buffer('')
-      }))
+      })
     })
     send4 = new Promise((resolve) => {
       pv1.once('_falseAcknowledge', (transfer) => {

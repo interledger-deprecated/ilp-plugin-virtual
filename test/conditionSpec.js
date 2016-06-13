@@ -129,6 +129,51 @@ describe('UTP/ATP Transfers', function() {
     })
   })
 
+  it('should submit an ATP transfer', (done) => {
+    next = next.then(() => {
+      return pv2.send({
+        id: 'atomic_transfer',
+        account: 'x',
+        amount: '200',
+        data: new Buffer(''),
+        executionCondition: 'this is garbage',
+        cancellationCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        pv2.once('accept', (transfer) => {
+          assert(transfer.id === 'atomic_transfer')
+          done()
+          resolve()
+        })
+      })
+    })
+  })
+
+  it('should cancel an ATP transfer', (done) => {
+    next = next.then(() => {
+      return pv1.fulfillCondition('atomic_transfer', new Buffer(fulfillment))
+    }).then(() => {
+      return new Promise((resolve) => {
+        pv2.on('fulfill_cancellation_condition', (transfer, fulfill) => {
+          assert(transfer.id === 'atomic_transfer')
+          resolve()
+          done()
+        }) 
+      })
+    }).catch((err) => {console.error(err)})
+  })
+
+  it('should have previous balances after a cancelled transfer', (done) => {
+    next = next.then(() => {
+      assert(pv1b === -100)
+      assert(pv2b === 100)
+      assert(pv1e === 0)
+      assert(pv2e === 0)
+      done()
+    })
+  })
+
   it('should disconnect', (done) => {
     next.then(() => {
       assert(pv1.isConnected() === true)

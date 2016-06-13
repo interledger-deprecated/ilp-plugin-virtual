@@ -2,5 +2,6 @@
   "host": "http://localhost:8080",
   "room": "test",
   "limit": "1000",
+  "max": "1000",
   "account": "plugin"
 }

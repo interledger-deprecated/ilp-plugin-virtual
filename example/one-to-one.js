@@ -1,3 +1,6 @@
+const debug = require('debug')
+debug.enable('plugin,plugin:err,connection,connection:err,server')
+
 const PluginVirtual = require('..')
 const readline = require('readline')
 const fs = require('fs')
@@ -32,15 +35,15 @@ let plugin = null
 function start () {
   _log('reading argv[2] for config file...')
   let configFile = process.argv[2]
-  let other = null
+  let auth = null
 
   try {
-    other = JSON.parse(fs.readFileSync(configFile))
+    auth = JSON.parse(fs.readFileSync(configFile))
   } catch (err) {
     _die('usage: node one-to-one.js <config JSON file>')
   }
 
-  pluginOptions.other = other
+  pluginOptions.auth = auth
   connect()
 }
 

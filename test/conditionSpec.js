@@ -97,7 +97,7 @@ describe('UTP/ATP Transfers', function() {
       return pv1.fulfillCondition(transfer1.id, new Buffer(fulfillment))
     }).then(() => {
       return new Promise((resolve) => {
-        pv2.on('fulfill_execution_condition', (transfer, fulfill) => {
+        pv2.once('fulfill_execution_condition', (transfer, fulfill) => {
           assert(transfer.id === 'escrowed_number_one')
           resolve()
           done()
@@ -140,7 +140,7 @@ describe('UTP/ATP Transfers', function() {
       return pv1.fulfillCondition('atomic_transfer', new Buffer(fulfillment))
     }).then(() => {
       return new Promise((resolve) => {
-        pv2.on('fulfill_cancellation_condition', (transfer, fulfill) => {
+        pv2.once('fulfill_cancellation_condition', (transfer, fulfill) => {
           assert(transfer.id === 'atomic_transfer')
           resolve()
           done()
@@ -173,7 +173,15 @@ describe('UTP/ATP Transfers', function() {
     })
   })
 
+  let pv1bBefore = null
+  let pv2bBefore = null
   it('should submit a transfer with a time limit', (done) => {
+    let expirationDate = new Date()
+    expirationDate.setSeconds(expirationDate.getSeconds() + 1)
+
+    pv1bBefore = pv1b
+    pv2bBefore = pv2b
+
     next = next.then(() => {
       return pv2.send({
         id: 'timed_transfer',
@@ -182,24 +190,39 @@ describe('UTP/ATP Transfers', function() {
         data: new Buffer(''),
         executionCondition: condition,
         cancellationCondition: '',
-        expiresAt: (new Date()).toString() // expires immediately
+        expiresAt: expirationDate.toString() // expires in 1 second
       })
     }).then(() => {
       done()
     })
   })
 
-  it('should cancel a transfer that has timed out', (done) => {
+  it('should automatically cancel a transfer that has timed out', (done) => {
     next = next.then(() => {
-      let cancel = new Promise((resolve) => {
-        pv1.once('fulfill_cancellation_condition', (transfer, fulfill) => {
-          assert(transfer.id === 'timed_transfer')
-          done()
-          resolve()
+      let cancel = Promise.all([
+        new Promise((resolve) => {
+          pv1.once('fulfill_cancellation_condition', (transfer, fulfill) => {
+            assert(transfer.id === 'timed_transfer')
+            resolve()
+          })
+        }),
+        new Promise((resolve) => {
+          pv2.once('fulfill_cancellation_condition', (transfer, fulfill) => {
+            assert(transfer.id === 'timed_transfer')
+            resolve()
+          })
         })
-      })
-      pv1.fulfillCondition('timed_transfer', new Buffer(fulfillment))
+      ]).then(() => { done() })
       return cancel
+    })
+  })
+
+  it('should revert both balances after timing out a connection', (done) => {
+    next = next.then(() => {
+      assert(pv1b === pv1bBefore)
+      assert(pv2b === pv2bBefore)
+      done()
+      return Promise.resolve(null)
     })
   })
 

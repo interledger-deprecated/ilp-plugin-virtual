@@ -257,6 +257,7 @@ class PluginVirtual extends EventEmitter {
     }).then((valid) => {
       if (valid) {
         return this.balance.add(transfer.amount).then(() => {
+          this._handleTimer(transfer)
           this._acceptTransfer(transfer)
         })
       } else {
@@ -279,6 +280,7 @@ class PluginVirtual extends EventEmitter {
         this.balance.sub(transfer.amount)
       }
     }).then(() => {
+      this._handleTimer(transfer)
       this.transferLog.complete(transfer)
     })
   }
@@ -286,6 +288,22 @@ class PluginVirtual extends EventEmitter {
   _falseAcknowledge (transfer) {
     this.emit('_falseAcknowledge', transfer)
     throw new Error('Recieved false acknowledge for tid: ' + transfer.id)
+  }
+
+  _handleTimer (transfer) {
+    if (transfer.expiresAt) {
+      let now = new Date()
+      let expiry = new Date(transfer.expiresAt)
+      setTimeout(() => {
+        this.transferLog.isFulfilled(transfer).then((isFulfilled) => {
+          if (!isFulfilled) {
+            // TODO: Q what should the event be on a timeout?
+            this._cancelTransfer(transfer, 'timed out')
+            this._log('automatic time out on tid: ' + transfer.id)
+          }
+        }).catch(this._handle)
+      }, expiry - now)
+    }
   }
 
   _acceptTransfer (transfer) {

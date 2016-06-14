@@ -43,12 +43,9 @@
     "ghooks": "^1.2.1",
     "istanbul": "^0.4.3",
     "mocha": "^2.5.3",
+    "mqtt": "^1.11.0",
     "readline": "^1.3.0",
-    "simple-peer": "^6.0.4",
-    "socket.io": "^1.4.6",
-    "socket.io-client": "^1.4.6",
-    "validate-commit-msg": "^2.6.1",
-    "wrtc": "0.0.60"
+    "validate-commit-msg": "^2.6.1"
   },
   "config": {
     "ghooks": {

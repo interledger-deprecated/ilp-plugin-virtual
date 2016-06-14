@@ -3,7 +3,7 @@
 const EventEmitter = require('events')
 
 const Balance = require('./model/balance')
-const Connection = require('./model/connection').Connection
+const Connection = require('./model/connection')
 const Transfer = require('./model/transfer')
 const TransferLog = require('./model/transferlog').TransferLog
 const log = require('./util/log')('plugin')

@@ -30,14 +30,14 @@ describe('PluginVirtual', function (doneDescribe) {
     pv1 = new PluginVirtual({
       store: s1store,
       auth: {
-        account: '1', host: 'http://localhost:8080', room: 'test',
+        account: '1', host: 'mqtt://test.mosquitto.org', token: 'test',
         limit: 300, max: 300
       }
     })
     pv2 = new PluginVirtual({
       store: s2store,
       auth: {
-        account: '2', host: 'http://localhost:8080', room: 'test',
+        account: '2', host: 'mqtt://test.mosquitto.org', token: 'test',
         limit: 300, max: 300
       }
     })

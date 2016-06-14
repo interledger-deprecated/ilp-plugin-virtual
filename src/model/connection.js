@@ -33,12 +33,17 @@ class Connection extends EventEmitter {
 
   connect () {
     this.client = mqtt.connect(this.host)
+    this._log('connecting to host `' + this.host + '`...')
     this.client.on('connect', () => {
-      client.subscribe(this.recvChannel)
+      this.client.subscribe(this.recvChannel)
+      this._log('connected! subscribing to channel `' + this.recvChannel + '`')
       this.emit('connect')
     })
     this.client.on('message', (channel, data) => {
-      this.emit('receive', JSON.parse(data))
+      // don't let errors in the handler affect the connection
+      try {
+        this.emit('receive', JSON.parse(data))
+      } catch (err) {}
     })
     return Promise.resolve(null)
   }

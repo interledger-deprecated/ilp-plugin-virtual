@@ -3,7 +3,6 @@
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
-const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
 const log = require('../src/util/log')('test')
 
@@ -13,10 +12,6 @@ let pv2 = null
 describe('PluginVirtual', function (doneDescribe) {
   it('should be a function', function () {
     assert.isFunction(PluginVirtual)
-  })
-
-  it('should be able to start the signalling server', () => {
-    server.run()
   })
 
   let s1store = null
@@ -30,15 +25,15 @@ describe('PluginVirtual', function (doneDescribe) {
     pv1 = new PluginVirtual({
       store: s1store,
       auth: {
-        account: '1', host: 'mqtt://test.mosquitto.org', token: 'test',
+        account: '1', host: 'mqtt://test.mosquitto.org', token: 'aW50ZXJsZWdlcgo',
         limit: 300, max: 300
       }
     })
     pv2 = new PluginVirtual({
       store: s2store,
       auth: {
-        account: '2', host: 'mqtt://test.mosquitto.org', token: 'test',
-        limit: 300, max: 300
+        account: '2', host: 'mqtt://test.mosquitto.org', token: 'aW50ZXJsZWdlcgo',
+        limit: 300, max: 300, secret: 'fake'
       }
     })
 
@@ -162,28 +157,9 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
-  let repeat0point5 = null
-  it('should reject a transfer with a zero amount', (done) => {
-    reply2.then(() => {
-      return pv1.send({
-        id: 'zeroamount',
-        account: 'doesnt really matter',
-        amount: '0',
-        data: new Buffer('')
-      })
-    })
-    repeat0point5 = new Promise((resolve) => {
-      pv1.once('reject', (transfer) => {
-        assert(transfer.id === 'zeroamount')
-        done()
-        resolve()
-      })
-    })
-  })
-
   let repeat1 = null
   it('should reject a transfer with a repeat id', (done) => {
-    repeat0point5.then(() => {
+    reply2.then(() => {
       return pv1.send({
         id: 'onehundred',
         account: 'doesnt really matter',
@@ -200,9 +176,28 @@ describe('PluginVirtual', function (doneDescribe) {
     })
   })
 
+  let repeat0point5 = null
+  it('should reject a transfer with a zero amount', (done) => {
+    repeat1.then(() => {
+      return pv1.send({
+        id: 'zeroamount',
+        account: 'doesnt really matter',
+        amount: '0',
+        data: new Buffer('')
+      })
+    })
+    repeat0point5 = new Promise((resolve) => {
+      pv1.once('reject', (transfer) => {
+        assert(transfer.id === 'zeroamount')
+        done()
+        resolve()
+      })
+    })
+  })
+
   let repeat3 = null
   it('should also emit an error on a transfer with a repeat id', (done) => {
-    repeat1.then(() => {
+    repeat0point5.then(() => {
       return pv1.send({
         id: 'onehundred',
         account: 'doesnt really matter',

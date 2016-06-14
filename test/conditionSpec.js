@@ -3,7 +3,6 @@
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const Transfer = require('../src/model/transfer').Transfer
-const server = require('../src/signalling/server')
 const newObjStore = require('../src/model/objStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
@@ -12,9 +11,6 @@ let pv1 = null
 let pv2 = null
 
 describe('UTP/ATP Transfers', function() { 
-  it('should start the signalling server', () => {
-    server.run()
-  })
 
   let connected = null
   it('should instantiate the PluginVirtuals', (done) => {
@@ -24,15 +20,15 @@ describe('UTP/ATP Transfers', function() {
     pv1 = new PluginVirtual({
       store: s1store,
       auth: {
-        account: '1', host: 'mqtt://test.mosquitto.org', token: 'test',
+        account: '1', host: 'mqtt://test.mosquitto.org', token: 'aW50ZXJsZWdlcgo',
         limit: 300, max: 300
       }
     })
     pv2 = new PluginVirtual({
       store: s2store,
       auth: {
-        account: '2', host: 'mqtt://test.mosquitto.org', token: 'test',
-        limit: 300, max: 300
+        account: '2', host: 'mqtt://test.mosquitto.org', token: 'aW50ZXJsZWdlcgo',
+        limit: 300, max: 300, secret: 'fake'
       }
     })
 

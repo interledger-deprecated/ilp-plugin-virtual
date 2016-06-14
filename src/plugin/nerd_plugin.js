@@ -2,15 +2,15 @@
 
 const EventEmitter = require('events')
 
-const Balance = require('./model/balance')
-const Connection = require('./model/connection')
-const Transfer = require('./model/transfer')
-const TransferLog = require('./model/transferlog').TransferLog
-const log = require('./util/log')('plugin')
+const Balance = require('../model/balance')
+const Connection = require('../model/connection')
+const Transfer = require('../model/transfer')
+const TransferLog = require('../model/transferlog').TransferLog
+const log = require('../util/log')('plugin')
 
 const cc = require('five-bells-condition')
 
-class PluginVirtual extends EventEmitter {
+class NerdPluginVirtual extends EventEmitter {
 
   /* LedgerPlugin API */
 
@@ -176,6 +176,10 @@ class PluginVirtual extends EventEmitter {
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
   }
+  
+  getBalance () {
+    return this.balance.get()
+  }
 
   _cancelTransfer (transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
@@ -235,9 +239,20 @@ class PluginVirtual extends EventEmitter {
       // don't do fullfillCondition because then it would lead to an
       // endless cycle of fulfillments sent back and forth
       return this._fulfillConditionLocal(obj.transfer, obj.fulfillment)
+    } else if (obj.type === 'balance') {
+      return this._sendBalance() 
     } else {
       this._handle(new Error('Invalid message received'))
     }
+  }
+
+  _sendBalance () {
+    return this.balance.get().then((balance) => {
+      return this.connection.send({
+        type: 'balance',
+        balance: balance
+      })
+    })
   }
 
   _handleTransfer (transfer) {
@@ -338,5 +353,4 @@ class PluginVirtual extends EventEmitter {
   }
 }
 
-exports.PluginVirtual = PluginVirtual
-exports.Connection = Connection
+module.exports = NerdPluginVirtual

@@ -224,7 +224,7 @@ class PluginVirtual extends EventEmitter {
     } else if (obj.type === 'reject') {
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, new Buffer(obj.message))
-      return this.transferLog.complete(obj.transfer)
+      return this._completeTransfer(obj.transfer)
     } else if (obj.type === 'reply') {
       this._log('received a reply on tid: ' + obj.transfer.id)
       this.emit('reply', obj.transfer, new Buffer(obj.message))
@@ -281,7 +281,7 @@ class PluginVirtual extends EventEmitter {
       }
     }).then(() => {
       this._handleTimer(transfer)
-      this.transferLog.complete(transfer)
+      this._completeTransfer(transfer)
     })
   }
 
@@ -317,12 +317,20 @@ class PluginVirtual extends EventEmitter {
 
   _rejectTransfer (transfer, reason) {
     this._log('sending out a reject for tid: ' + transfer.id)
-    this.transferLog.complete(transfer)
+    this._completeTransfer(transfer)
     return this.connection.send({
       type: 'reject',
       transfer: transfer,
       message: reason
     })
+  }
+
+  _completeTransfer (transfer) {
+    let promises = [this.transferLog.complete(transfer)]
+    if (!transfer.executionCondition) {
+      promises.push(this.transferLog.fulfill(transfer))
+    }
+    return Promise.all(promises)
   }
 
   _log (msg) {

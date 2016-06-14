@@ -188,9 +188,9 @@ class NerdPluginVirtual extends EventEmitter {
     // balances aren't affected until it executes
     return this.transferLog.getType(transfer).then((type) => {
       if (type === this.transferLog.outgoing) {
-        return this.balance.add(transfer.amount)
+        return this.balance.sub(transfer.amount)
       } else if (type === this.transferLog.incoming) {
-        return this.balance.sub(transfer.amount) 
+        return this.balance.add(transfer.amount) 
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
@@ -271,7 +271,7 @@ class NerdPluginVirtual extends EventEmitter {
       return this.balance.isValidIncoming(transfer.amount)
     }).then((valid) => {
       if (valid) {
-        return this.balance.add(transfer.amount).then(() => {
+        return this.balance.sub(transfer.amount).then(() => {
           this._handleTimer(transfer)
           this._acceptTransfer(transfer)
         })
@@ -292,7 +292,7 @@ class NerdPluginVirtual extends EventEmitter {
       if (isComplete) {
         this._falseAcknowledge(transfer)
       } else {
-        this.balance.sub(transfer.amount)
+        this.balance.add(transfer.amount)
       }
     }).then(() => {
       this._handleTimer(transfer)

@@ -38,6 +38,10 @@ class NoobPluginVirtual extends EventEmitter {
     })
   }
 
+  _log (msg) {
+    log.log(this.auth.account + ': ' + msg)
+  }
+
   _receive (obj) {
     if (obj.type === 'transfer') {
       this._log('received a Transfer with tid: ' + obj.transfer.id)
@@ -67,6 +71,7 @@ class NoobPluginVirtual extends EventEmitter {
     } else if (obj.type === 'balance') {
       this._log('received balance: ' + obj.balance)
       this.emit('_balance', obj.balance)
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -113,10 +118,11 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getBalance () {
+    this._log('sending balance query...')
     this.connection.send({
       type: 'balance',
     })
-    return new Promise((balance) => {
+    return new Promise((resolve) => {
       this.once('_balance', (balance) => {
         resolve(balance)
       })

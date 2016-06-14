@@ -9,8 +9,8 @@ class Balance extends EventEmitter {
     super()
 
     this._store = opts.store
-    this._limit = opts.limit
-    this._max = opts.max
+    this._limit = this._convert(opts.limit)
+    this._max = this._convert(opts.max)
     this._initialized = false
     this._field = 'account'
   }
@@ -59,7 +59,7 @@ class Balance extends EventEmitter {
   isValidIncoming (amountString) {
     let amount = this._convert(amountString)
     return this._getNumber().then((balance) => {
-      let inLimit = balance.add(amount).lte(this._max)
+      let inLimit = balance.sub(amount).gte(this._limit.negated())
       let positive = amount.gt(this._convert('0'))
       return Promise.resolve(inLimit && positive)
     })

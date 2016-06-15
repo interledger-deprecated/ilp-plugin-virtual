@@ -1,7 +1,0 @@
-{
-  "host": "mqtt://test.mosquitto.org",
-  "token": "aW50ZXJsZWdlcgo",
-  "limit": "1000",
-  "max": "1000",
-  "account": "plugin"
-}

@@ -16,6 +16,10 @@ describe('The Noob and the Nerd', function () {
     assert.isFunction(PluginVirtual)
   })
 
+  it('should implement canConnectToLedger', () => {
+    assert(PluginVirtual.canConnectToLedger())
+  })
+
   it('should instantiate the nerd', () => {
     let objStore = newObjStore()
     nerd = new PluginVirtual({
@@ -54,6 +58,13 @@ describe('The Noob and the Nerd', function () {
     }).catch(handle)
   })
 
+  it('should be able to log errors in the connection', (done) => {
+    next = next.then(() => {
+      noob.connection._handle('fake error!')
+      done()
+    })
+  })
+
   it('should have a zero balance at the start', (done) => {
     next = next.then(() => {
       return noob.getBalance()
@@ -61,6 +72,30 @@ describe('The Noob and the Nerd', function () {
       assert(balance === '0')
       done()
     }).catch(handle)
+  })
+
+  it('should getInfo() without errors', (done) => {
+    next = next.then(() => {
+      noob.getInfo()
+      nerd.getInfo() 
+      done()
+    })
+  })
+
+  it('should getConnectors() without errors', (done) => {
+    next = next.then(() => {
+      noob.getConnectors()
+      nerd.getConnectors() 
+      done()
+    })
+  })
+
+  it('should keep track of whether it`s connected', (done) => {
+    next = next.then(() => {
+      assert(noob.isConnected())
+      assert(nerd.isConnected())
+      done()
+    })
   })
 
   it('should acknowledge a valid transfer noob -> nerd', (done) => {
@@ -275,6 +310,38 @@ describe('The Noob and the Nerd', function () {
       assert(balance === '290')
       done()
     }).catch(handle)
+  })
+
+  it('should send a reply from noob -> nerd', (done) => {
+    next = next.then(() => {
+      noob.replyToTransfer('fifth', 'I have a message')
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd.once('reply', (transfer, message) => {
+          assert(transfer.id === 'fifth')
+          assert(message.toString() === 'I have a message') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should send a reply from nerd -> noob', (done) => {
+    next = next.then(() => {
+      nerd.replyToTransfer('fourth', 'I have a message too')
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('reply', (transfer, message) => {
+          assert(transfer.id === 'fourth')
+          assert(message.toString() === 'I have a message too') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
   })
 
   it('should be able to send transfers when one nerd dies', (done) => {

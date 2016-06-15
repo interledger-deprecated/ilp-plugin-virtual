@@ -13,3 +13,8 @@ module.exports = function (opts) {
     return new NoobPluginVirtual(opts)
   }
 }
+
+module.exports.canConnectToLedger = function (auth) {
+  // TODO: should this ping the server?
+  return true
+}

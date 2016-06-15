@@ -61,11 +61,6 @@ class NerdPluginVirtual extends EventEmitter {
     })
   }
 
-  static canConnectToLedger (auth) {
-    // TODO: Q test the server?
-    return true
-  }
-
   connect () {
     this.connection.connect()
     return new Promise((resolve) => {
@@ -264,9 +259,11 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('reject', obj.transfer, new Buffer(obj.message))
       return this._completeTransfer(obj.transfer)
     } else if (obj.type === 'reply') {
-      this._log('received a reply on tid: ' + obj.transfer.id)
-      this.emit('reply', obj.transfer, new Buffer(obj.message))
-      return Promise.resolve(null)
+      this._log('received a reply on tid: ' + obj.transferId)
+      return this.transferLog.getId(obj.transferId).then((transfer) => {
+        this.emit('reply', transfer, new Buffer(obj.message))
+        return Promise.resolve(null)
+      })
     } else if (obj.type === 'fulfillment') {
       this._log('received a fulfillment for tid: ' + obj.transferId)
       return this.transferLog.getId(obj.transferId).then((transfer) => {

@@ -95,6 +95,7 @@ class NoobPluginVirtual extends EventEmitter {
         obj.transfer, 
         new Buffer(obj.fulfillment)
       )
+      this._fulfillTransfer(obj.transfer.id)
       return Promise.resolve(null)
     } else if (obj.type === 'fulfill_cancellation_condition' &&
     !this._fulfilledTransfer(obj.transfer.id)) {
@@ -103,6 +104,7 @@ class NoobPluginVirtual extends EventEmitter {
         obj.transfer, 
         new Buffer(obj.fulfillment)
       )
+      this._fulfillTransfer(obj.transfer.id)
       return Promise.resolve(null)
     } else if (obj.type === 'reject' &&
     this._expectedResponse(obj.transfer.id)) {
@@ -121,10 +123,6 @@ class NoobPluginVirtual extends EventEmitter {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
     }
-  }
-
-  static canConnectToLedger (auth) {
-    return true
   }
 
   connect () {
@@ -199,7 +197,7 @@ class NoobPluginVirtual extends EventEmitter {
     return this.connection.send({
       type: 'reply',
       // TODO: change the main plugin to use IDs in messages for reply
-      transfer: transferId,
+      transferId: transferId,
       message: replyMessage
     })
   }

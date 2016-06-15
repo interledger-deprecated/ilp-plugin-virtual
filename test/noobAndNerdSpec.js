@@ -255,14 +255,6 @@ describe('The Noob and the Nerd', function () {
         amount: '100' 
       })
     }).then(() => {
-      // currently, the expectation is that transactions from the nerd side
-      // must be send out through all of the nerds
-      return nerd2.send({
-        id: 'fifth',
-        account: 'x',
-        amount: '100' 
-      })
-    }).then(() => {
       return Promise.all([
         new Promise((resolve) => {
           nerd.once('accept', (transfer, message) => {

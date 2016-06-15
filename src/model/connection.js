@@ -54,8 +54,15 @@ class Connection extends EventEmitter {
   }
 
   send (msg) {
-    this.client.publish(this.sendChannel, JSON.stringify(msg))
-    return Promise.resolve(null)
+    return new Promise((resolve) => {
+      this.client.publish(this.sendChannel, JSON.stringify(msg), resolve)
+    })
+  }
+  
+  sendOverRecv (msg) {
+    return new Promise((resolve) => {
+      this.client.publish(this.recvChannel, JSON.stringify(msg), resolve)
+    })
   }
 }
 module.exports = Connection

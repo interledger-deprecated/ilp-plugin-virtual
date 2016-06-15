@@ -97,12 +97,32 @@ class NerdPluginVirtual extends EventEmitter {
 
   send (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
-    return this.connection.send({
-      type: 'transfer',
-      transfer: outgoingTransfer
+    return this._syncOutgoing(outgoingTransfer).then(() => {
+      return this.connection.send({
+        type: 'transfer',
+        transfer: outgoingTransfer
+      })
+    }).catch(this._handle)
+  }
+
+  _syncOutgoing (transfer) {
+    return this.connection.sendOverRecv({
+      type: 'sync',
+      transfer: transfer
     }).then(() => {
-      return this.transferLog.storeOutgoing(outgoingTransfer)
-    }).catch(this._handle())
+      this._log('sending out a sync message for tid: ' + transfer.id)
+      return new Promise((resolve) => {
+        let synced = false
+        this.on('_sync', (sTransfer) => {
+          if (!synced) {
+            synced = (sTransfer.id === transfer.id)
+          }
+          if (synced) {
+            resolve() 
+          }
+        })
+      })
+    }).catch(this.handle)
   }
 
   getInfo () {
@@ -255,9 +275,18 @@ class NerdPluginVirtual extends EventEmitter {
       })
     } else if (obj.type === 'balance') {
       return this._sendBalance() 
+    } else if (obj.type === 'sync') {
+      this._log('received a sync message for tid: ' + obj.transfer.id)
+      return this._handleSync(obj.transfer)
     } else {
       this._handle(new Error('Invalid message received'))
     }
+  }
+
+  _handleSync (transfer) {
+    return this.transferLog.storeOutgoing(transfer).then(() => {
+      this.emit('_sync', transfer)
+    })
   }
 
   _sendBalance () {

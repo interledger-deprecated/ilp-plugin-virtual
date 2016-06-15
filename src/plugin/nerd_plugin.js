@@ -39,6 +39,7 @@ class NerdPluginVirtual extends EventEmitter {
     }
     
     this.auth = opts.auth
+    this.store = opts.store
 
     this.transferLog = new TransferLog(opts.store)
 
@@ -212,6 +213,10 @@ class NerdPluginVirtual extends EventEmitter {
 
   getBalance () {
     return this.balance.get()
+  }
+
+  addBalance (amount) {
+    return this.balance.add(amount)
   }
 
   replyToTransfer (transferId, replyMessage) {

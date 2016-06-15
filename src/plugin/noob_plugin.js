@@ -36,14 +36,44 @@ class NoobPluginVirtual extends EventEmitter {
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch(this._handle)
     })
+
+    this._expects = {}
+    this._seen = {}
+    this._fulfilled = {}
   }
 
   _log (msg) {
     log.log(this.auth.account + ': ' + msg)
   }
 
+  // These functions prevent messages from being
+  // processed more than once
+  _expectResponse (tid) {
+    this._expects[tid] = true
+  }
+  _expectedResponse (tid) {
+    return !!(this._expects[tid])
+  }
+  _receiveResponse (tid) {
+    this._expects[tid] = false
+  }
+  _seeTransfer (tid) {
+    this._seen[tid] = true
+  }
+  _seenTransfer (tid) {
+    return !!(this._seen[tid])
+  } 
+  _fulfilledTransfer (tid) {
+    return !!(this._fulfilled[tid])
+  }
+  _fulfillTransfer (tid) {
+    this._fulfilled[tid] = true 
+  }
+
+  // callback for incoming messages
   _receive (obj) {
-    if (obj.type === 'transfer') {
+    if (obj.type === 'transfer' && !this._seenTransfer(obj.transfer.id)) {
+      this._seeTransfer(obj.transfer.id)
       this._log('received a Transfer with tid: ' + obj.transfer.id)
       this.emit('receive', obj.transfer)
       return this.connection.send({
@@ -51,26 +81,31 @@ class NoobPluginVirtual extends EventEmitter {
         transfer: obj.transfer,
         message: 'transfer accepted'
       })
-    } else if (obj.type === 'acknowledge') {
+    } else if (obj.type === 'acknowledge' &&
+    this._expectedResponse(obj.transfer.id)) {
+      this._receiveResponse(obj.transfer.id)
       this._log('received an ACK on tid: ' + obj.transfer.id)
       // TODO: Q should accept be fullfill execution condition even in OTP?
       this.emit('accept', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
-    } else if (obj.type === 'fulfill_execution_condition') {
+    } else if (obj.type === 'fulfill_execution_condition' &&
+    !this._fulfilledTransfer(obj.transfer.id)) {
       this.emit(
         'fulfill_execution_condition',
         obj.transfer, 
         new Buffer(obj.fulfillment)
       )
       return Promise.resolve(null)
-    } else if (obj.type === 'fulfill_cancellation_condition') {
+    } else if (obj.type === 'fulfill_cancellation_condition' &&
+    !this._fulfilledTransfer(obj.transfer.id)) {
       this.emit(
         'fulfill_cancellation_condition',
         obj.transfer, 
         new Buffer(obj.fulfillment)
       )
       return Promise.resolve(null)
-    } else if (obj.type === 'reject') {
+    } else if (obj.type === 'reject' &&
+    this._expectedResponse(obj.transfer.id)) {
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
@@ -121,6 +156,7 @@ class NoobPluginVirtual extends EventEmitter {
 
   send (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
+    this._expectResponse(outgoingTransfer.id)
     return this.connection.send({
       type: 'transfer',
       transfer: outgoingTransfer

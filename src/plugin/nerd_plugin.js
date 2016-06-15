@@ -27,7 +27,7 @@ class NerdPluginVirtual extends EventEmitter {
   * @param {string} opts.auth.account name of your PluginVirtual (can be anything)
   * @param {string} opts.auth.room room to connect to in signalling server
   * @param {string} opts.auth.limit numeric string representing credit limit
-  * @param {string} opts.auth.max numeric string representing maximum balance
+  * @param {string} opts.auth.balance numeric string representing starting balance
   * @param {string} opts.auth.host hostname of signalling server with port
   */
   constructor (opts) {
@@ -53,7 +53,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.balance = new Balance({
       store: opts.store,
       limit: opts.auth.limit,
-      max: opts.auth.max
+      balance: opts.auth.balance
     })
     this.balance.on('_balanceChanged', (balance) => {
       this._log('balance changed to ' + balance)

@@ -19,7 +19,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
         host: 'mqatt://test.mosquitto.org',
         token: 'Y29uZGl0aW9uCg',
         limit: '1000',
-        max: '1000',
+        balance: '0',
         account: 'nerd',
         secret: 'secret'
       }

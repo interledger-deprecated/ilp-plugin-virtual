@@ -28,7 +28,7 @@ describe('The Noob and the Nerd', function () {
         host: 'mqatt://test.mosquitto.org',
         token: 'aW50ZXJsZWdlcgo',
         limit: '1000',
-        max: '1000',
+        balance: '0',
         account: 'nerd',
         secret: 'secret'
       }
@@ -368,6 +368,25 @@ describe('The Noob and the Nerd', function () {
       assert(balance === '250')
       done()
     }).catch(handle)
+  })
+
+  it('should reject a false acknowledge from the noob', (done) => {
+    next = next.then(() => {
+      return noob.connection.send({
+        type: 'acknowledge',
+        transfer: {id: 'fake'},
+        message: 'fake acknowledge'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd2.once('_falseAcknowledge', (transfer) => {
+          assert(transfer.id === 'fake')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
   })
 
   it('should disconnect gracefully', (done) => {

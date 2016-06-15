@@ -56,9 +56,19 @@ class NoobPluginVirtual extends EventEmitter {
       // TODO: Q should accept be fullfill execution condition even in OTP?
       this.emit('accept', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
-    } else if (obj.type === 'fulfillment') {
-      // this doesn't do anything because there is no balance here nor
-      // is there a log of transfers
+    } else if (obj.type === 'fulfill_execution_condition') {
+      this.emit(
+        'fulfill_execution_condition',
+        obj.transfer, 
+        new Buffer(obj.fulfillment)
+      )
+      return Promise.resolve(null)
+    } else if (obj.type === 'fulfill_cancellation_condition') {
+      this.emit(
+        'fulfill_cancellation_condition',
+        obj.transfer, 
+        new Buffer(obj.fulfillment)
+      )
       return Promise.resolve(null)
     } else if (obj.type === 'reject') {
       this._log('received a reject on tid: ' + obj.transfer.id)
@@ -144,8 +154,8 @@ class NoobPluginVirtual extends EventEmitter {
     return this.connection.send({
       type: 'fulfillment',
       // TODO: change the main plugin to use IDs in messages for fulfillment
-      transfer: transferId,
-      message: replyMessage
+      transferId: transferId,
+      fulfillment: fulfillment
     })
   }
   

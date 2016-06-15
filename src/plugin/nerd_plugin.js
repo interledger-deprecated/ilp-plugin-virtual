@@ -122,8 +122,6 @@ class NerdPluginVirtual extends EventEmitter {
     return this.transferLog.getId(transferId).then((storedTransfer) => {
       transfer = storedTransfer
       return this._fulfillConditionLocal(transfer, fulfillment)
-    }).then(() => {
-      return this._sendFulfillment(transfer, fulfillment)
     }).catch(this._handle)
   }
 
@@ -171,38 +169,49 @@ class NerdPluginVirtual extends EventEmitter {
   _executeTransfer(transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
     this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
-    return this.transferLog.fulfill(transfer)
     // because there is only one balance, kept, money is not _actually_ kept
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
+    return this.transferLog.getType(transfer).then((type) => {
+      if (type === this.transferLog.outgoing) {
+        return this.balance.add(transfer.amount)
+      } else if (type === this.transferLog.incoming) {
+        return this.balance.sub(transfer.amount) 
+      }
+    }).then(() => {
+      return this.transferLog.fulfill(transfer)
+    }).then(() => {
+      return this.connection.send({
+        type: 'fulfill_execution_condition',
+        transfer: transfer,
+        fulfillment: fulfillment
+      })
+    })
   }
   
-  getBalance () {
-    return this.balance.get()
-  }
 
   _cancelTransfer (transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
     this.emit('fulfill_cancellation_condition', transfer, fulfillmentBuffer)
-    // if the transfer was incoming, then a cancellation means nothing because
+    // a cancellation on an outgoing transfer means nothing because
     // balances aren't affected until it executes
     return this.transferLog.getType(transfer).then((type) => {
-      if (type === this.transferLog.outgoing) {
-        return this.balance.sub(transfer.amount)
-      } else if (type === this.transferLog.incoming) {
+      if (type === this.transferLog.incoming) {
         return this.balance.add(transfer.amount) 
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
+    }).then(() => {
+      return this.connection.send({
+        type: 'fulfill_cancellation_condition',
+        transfer: transfer,
+        fulfillment: fulfillment
+      })
     })
   }
 
-  _sendFulfillment(transfer, fulfillment) {
-    return this.connection.send({
-      type: 'fulfillment',
-      transfer: transfer,
-      fulfillment: fulfillment
-    })
+  getBalance () {
+    return this.balance.get()
   }
 
   replyToTransfer (transferId, replyMessage) {
@@ -234,11 +243,11 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('reply', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
     } else if (obj.type === 'fulfillment') {
-      this._log('received a fulfillment for tid: ' + obj.transfer.id)
-      this.emit('fulfillment', obj.transfer, new Buffer(obj.fulfillment))
-      // don't do fullfillCondition because then it would lead to an
-      // endless cycle of fulfillments sent back and forth
-      return this._fulfillConditionLocal(obj.transfer, obj.fulfillment)
+      this._log('received a fulfillment for tid: ' + obj.transferId)
+      return this.transferLog.getId(obj.transferId).then((transfer) => {
+        this.emit('fulfillment', transfer, new Buffer(obj.fulfillment))
+        return this._fulfillConditionLocal(transfer, obj.fulfillment)
+      })
     } else if (obj.type === 'balance') {
       return this._sendBalance() 
     } else {
@@ -291,7 +300,8 @@ class NerdPluginVirtual extends EventEmitter {
     }).then((isComplete) => {
       if (isComplete) {
         this._falseAcknowledge(transfer)
-      } else {
+      // don't add to the balance yet if it's a UTP/ATP transfer
+      } else if (!transfer.executionCondition) {
         this.balance.add(transfer.amount)
       }
     }).then(() => {

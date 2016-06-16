@@ -25,10 +25,10 @@ class NerdPluginVirtual extends EventEmitter {
   *
   * @param {object} opts.auth ledger-specific information
   * @param {string} opts.auth.account name of your PluginVirtual (can be anything)
-  * @param {string} opts.auth.room room to connect to in signalling server
+  * @param {string} opts.auth.token channel to connect to in MQTT server
   * @param {string} opts.auth.limit numeric string representing credit limit
   * @param {string} opts.auth.balance numeric string representing starting balance
-  * @param {string} opts.auth.host hostname of signalling server with port
+  * @param {string} opts.auth.host hostname of MQTT server
   */
   constructor (opts) {
     super()

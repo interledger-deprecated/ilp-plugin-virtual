@@ -10,6 +10,7 @@ let nerd2 = null
 let noob = null
 let noob2 = null
 let handle = (err) => { log.log(err) }
+let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('The Noob and the Nerd', function () {
   it('should be a function', () => {
@@ -20,13 +21,14 @@ describe('The Noob and the Nerd', function () {
     assert(PluginVirtual.canConnectToLedger())
   })
 
+
   it('should instantiate the nerd', () => {
     let objStore = newObjStore()
     nerd = new PluginVirtual({
       store: objStore,
       auth: {
         host: 'mqatt://test.mosquitto.org',
-        token: 'aW50ZXJsZWdlcgo',
+        token: token,
         limit: '1000',
         balance: '0',
         account: 'nerd',
@@ -41,7 +43,7 @@ describe('The Noob and the Nerd', function () {
       store: {},
       auth: {
         host: 'mqatt://test.mosquitto.org',
-        token: 'aW50ZXJsZWdlcgo',
+        token: token,
         account: 'noob'
       }
     })
@@ -171,7 +173,7 @@ describe('The Noob and the Nerd', function () {
         store: {},
         auth: {
           host: 'mqatt://test.mosquitto.org',
-          token: 'aW50ZXJsZWdlcgo',
+          token: token,
           account: 'noob2'
         }
       })
@@ -240,7 +242,7 @@ describe('The Noob and the Nerd', function () {
         store: objStore2,
         auth: {
           host: 'mqatt://test.mosquitto.org',
-          token: 'aW50ZXJsZWdlcgo',
+          token: token,
           limit: '1000',
           max: '1000',
           account: 'nerd2',

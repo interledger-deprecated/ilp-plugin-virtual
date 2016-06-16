@@ -9,6 +9,7 @@ const cc = require('five-bells-condition')
 let nerd = null
 let noob = null
 let handle = (err) => { log.log(err) }
+let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('UTP/ATP Transactions with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
@@ -17,7 +18,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       store: objStore,
       auth: {
         host: 'mqatt://test.mosquitto.org',
-        token: 'Y29uZGl0aW9uCg',
+        token: token,
         limit: '1000',
         balance: '0',
         account: 'nerd',
@@ -28,7 +29,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       store: {},
       auth: {
         host: 'mqatt://test.mosquitto.org',
-        token: 'Y29uZGl0aW9uCg',
+        token: token,
         account: 'noob'
       }
     })

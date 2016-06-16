@@ -156,6 +156,235 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).catch(handle)
   })
 
+  it('should cancel an ATP transaction as the nerd', (done) => {
+    next = next.then(() => {
+      return nerd.send({
+        id: 'cancelthis',
+        account: 'x',
+        amount: '200',
+        executionCondition: 'garbage',
+        cancellationCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd.once('accept', (transfer, message) => {
+          assert(transfer.id === 'cancelthis') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      let promise = new Promise((resolve) => {
+        noob.once('fulfill_cancellation_condition', (transfer, fulfillment) => {
+          assert(transfer.id === 'cancelthis')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('cancelthis', fulfillment)
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should support UTP transfers with time limits', (done) => {
+    next = next.then(() => {
+      return noob.send({
+        id: 'time_out',
+        account: 'x',
+        amount: '200',
+        executionCondition: condition,
+        expiresAt: (new Date()).toString()
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('fulfill_cancellation_condition', (transfer, message) => {
+          assert(transfer.id === 'time_out') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should complete a UTP transfer with a time limit', (done) => {
+    next = next.then(() => {
+      let time = new Date()
+      time.setSeconds(time.getSeconds() + 2)
+
+      return noob.send({
+        id: 'time_complete',
+        account: 'x',
+        amount: '200',
+        executionCondition: condition,
+        expiresAt: time.toString()
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('accept', (transfer, message) => {
+          assert(transfer.id === 'time_complete') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      let promise = new Promise((resolve) => {
+        noob.once('fulfill_execution_condition', (transfer, fulfill) => {
+          assert(transfer.id === 'time_complete')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('time_complete', fulfillment)
+      return promise
+    }).then(() => {
+      done()
+    }).catch((err) => { console.error(err) })
+  })
+
+  it('should submit a UTP transaction as the nerd', (done) => {
+    next = next.then(() => {
+      return nerd.send({
+        id: 'third',
+        account: 'x',
+        amount: '100',
+        executionCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd.once('accept', (transfer, message) => {
+          assert(transfer.id === 'third') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      return nerd.fulfillCondition('third', fulfillment)
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('fulfill_execution_condition', (transfer, message) => {
+          assert(transfer.id === 'third') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should complain on fulfilling a nonexistant transfer', (done) => {
+    next = next.then(() => {
+      let promise = new Promise((resolve) => {
+        nerd.once('exception', (err) => {
+          assert(err.message === 'got transfer ID for nonexistant transfer')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('nonexistant', 'garbage')
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should be able to execute a transfer noob -> nerd', (done) => {
+    next = next.then(() => {
+      return noob.send({
+        id: 'fourth',
+        account: 'x',
+        amount: '100',
+        executionCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('accept', (transfer, message) => {
+          assert(transfer.id === 'fourth') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      return noob.fulfillCondition('fourth', fulfillment)
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('fulfill_execution_condition', (transfer, message) => {
+          assert(transfer.id === 'fourth') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should complain on fulfilling an transfer twice', (done) => {
+    next = next.then(() => {
+      let promise = new Promise((resolve) => {
+        nerd.once('exception', (err) => {
+          assert(err.message === 'this transfer has already been fulfilled')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('first', fulfillment)
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should complain when an OTP transfer is fulfilled', (done) => {
+    next = next.then(() => {
+      return noob.send({
+        id: 'fifth',
+        account: 'x',
+        amount: '10' 
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('accept', (transfer, message) => {
+          assert(transfer.id === 'fifth')
+          resolve()
+        })
+      })
+    }).then(() => {
+      let promise = new Promise((resolve) => {
+        nerd.once('exception', (err) => {
+          assert(err.message === 'got transfer ID for OTP transfer')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('fifth', fulfillment)
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should complain if transfer is given incorrect fulfillment', (done) => {
+    next = next.then(() => {
+      return nerd.send({
+        id: 'sixth',
+        account: 'x',
+        amount: '100',
+        executionCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd.once('accept', (transfer, message) => {
+          assert(transfer.id === 'sixth') 
+          resolve()
+        })
+      })
+    }).then(() => {
+      let promise = new Promise((resolve) => {
+        nerd.once('exception', (err) => {
+          assert(err.message === 'invalid fulfillment')
+          resolve()
+        })
+      })
+      nerd.fulfillCondition('sixth', 'garbage')
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
   it('should disconnect gracefully', (done) => {
     next.then(() => {
       noob.disconnect()

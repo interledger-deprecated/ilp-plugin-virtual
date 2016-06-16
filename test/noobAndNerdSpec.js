@@ -389,6 +389,75 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
+  it('should reject a repeat transfer from the noob', (done) => {
+    next = next.then(() => {
+      return noob.send({
+        id: 'first',
+        amount: '100',
+        account: 'x'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('reject', (transfer) => {
+          assert(transfer.id === 'first')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should emit false reject if a fake transfer is rejected', (done) => {
+    next = next.then(() => {
+      return noob.connection.send({
+        type: 'reject',
+        transfer: {id: 'notreal'},
+        message: 'fake reject'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd2.once('_falseReject', (transfer) => {
+          assert(transfer.id === 'notreal')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+  
+  it('should not give an error if a real transfer is rejected', (done) => {
+  // it's harmless to complete a transfer that is already completed if
+  // the reject is to a completed transfer.
+    next = next.then(() => {
+      return noob.connection.send({
+        type: 'reject',
+        transfer: {id: 'first'},
+        message: 'late reject'
+      })
+    }).then(() => {
+      done()
+    })
+  })
+  
+  it('should give error if the noob sends invalid message type', (done) => {
+    next = next.then(() => {
+      return noob.connection.send({
+        type: 'garbage'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd2.once('exception', (err) => {
+          assert(err.message === 'Invalid message received')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
   it('should disconnect gracefully', (done) => {
     next.then(() => {
       noob.disconnect()

@@ -109,10 +109,8 @@ class NerdPluginVirtual extends EventEmitter {
       return new Promise((resolve) => {
         let synced = false
         this.on('_sync', (sTransfer) => {
-          if (!synced) {
-            synced = (sTransfer.id === transfer.id)
-          }
-          if (synced) {
+          if (!synced && sTransfer.id === transfer.id) {
+            synced = true
             resolve() 
           }
         })
@@ -158,7 +156,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     return this.transferLog.isFulfilled(transfer).then((fulfilled) => {
       if (fulfilled) {
-        throw new Error('this transaction has already been fulfilled') 
+        throw new Error('this transfer has already been fulfilled') 
       } else {
         return Promise.resolve(null)
       }
@@ -191,7 +189,7 @@ class NerdPluginVirtual extends EventEmitter {
     return this.transferLog.getType(transfer).then((type) => {
       if (type === this.transferLog.outgoing) {
         return this.balance.add(transfer.amount)
-      } else if (type === this.transferLog.incoming) {
+      } else { // if (type === this.transferLog.incoming)
         return this.balance.sub(transfer.amount) 
       }
     }).then(() => {
@@ -230,10 +228,6 @@ class NerdPluginVirtual extends EventEmitter {
     return this.balance.get()
   }
 
-  addBalance (amount) {
-    return this.balance.add(amount)
-  }
-
   replyToTransfer (transferId, replyMessage) {
     return this.transferLog.getId(transferId).then((storedTransfer) => {
       return this.connection.send({
@@ -257,7 +251,7 @@ class NerdPluginVirtual extends EventEmitter {
     } else if (obj.type === 'reject') {
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, new Buffer(obj.message))
-      return this._completeTransfer(obj.transfer)
+      return this._handleReject(obj.transfer)
     } else if (obj.type === 'reply') {
       this._log('received a reply on tid: ' + obj.transferId)
       return this.transferLog.getId(obj.transferId).then((transfer) => {
@@ -278,6 +272,16 @@ class NerdPluginVirtual extends EventEmitter {
     } else {
       this._handle(new Error('Invalid message received'))
     }
+  }
+
+  _handleReject (transfer) {
+    return this.transferLog.exists(transfer).then((exists) => {
+      if (exists) {
+        this._completeTransfer(transfer)
+      } else {
+        this.emit('_falseReject', transfer) // event for debugging
+      }
+    })
   }
 
   _handleSync (transfer) {

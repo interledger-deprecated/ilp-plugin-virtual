@@ -23,7 +23,8 @@ When instantiating the plugin, your `opts.auth` needs the correct fields.
   "token": "channel name in MQTT server",
   "limit": "amount of negative balance that can exist",
   "balance": "starting balance of the trustline",
-  "host": "host of MQTT server"
+  "host": "host of MQTT server",
+  "secret": "not used yet"
 }
 ```
 

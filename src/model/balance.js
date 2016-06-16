@@ -1,10 +1,9 @@
 const EventEmitter = require('events')
 
 const BigNumber = require('bignumber.js')
-const TransferLog = require('../model/transfer')
 
 class Balance extends EventEmitter {
-  
+
   constructor (opts) {
     super()
 
@@ -20,13 +19,13 @@ class Balance extends EventEmitter {
     return this._store.put(this._field, this._balance)
   }
 
-  _getNumber() {
+  _getNumber () {
     return this.get().then((balance) => {
       return new BigNumber(balance)
     })
   }
 
-  _convert(amount) {
+  _convert (amount) {
     try {
       return new BigNumber(amount)
     } catch (err) {
@@ -38,7 +37,7 @@ class Balance extends EventEmitter {
     let promise = Promise.resolve(null)
     if (!this._initialized) { promise = this._initialize() }
     return promise.then(() => {
-      return this._store.get(this._field) 
+      return this._store.get(this._field)
     })
   }
 
@@ -49,7 +48,7 @@ class Balance extends EventEmitter {
       this.emit('_balanceChanged', newBalance)
       this._store.put(this._field, newBalance)
       return Promise.resolve(newBalance)
-    }) 
+    })
   }
 
   sub (amount) {

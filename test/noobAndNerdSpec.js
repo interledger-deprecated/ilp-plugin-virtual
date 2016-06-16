@@ -35,14 +35,14 @@ describe('The Noob and the Nerd', function () {
     })
     assert.isObject(nerd)
   })
-  
+
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
       store: {},
       auth: {
         host: 'mqatt://test.mosquitto.org',
         token: 'aW50ZXJsZWdlcgo',
-        account: 'noob',
+        account: 'noob'
       }
     })
     assert.isObject(noob)
@@ -77,7 +77,7 @@ describe('The Noob and the Nerd', function () {
   it('should getInfo() without errors', (done) => {
     next = next.then(() => {
       noob.getInfo()
-      nerd.getInfo() 
+      nerd.getInfo()
       done()
     })
   })
@@ -85,7 +85,7 @@ describe('The Noob and the Nerd', function () {
   it('should getConnectors() without errors', (done) => {
     next = next.then(() => {
       noob.getConnectors()
-      nerd.getConnectors() 
+      nerd.getConnectors()
       done()
     })
   })
@@ -103,7 +103,7 @@ describe('The Noob and the Nerd', function () {
       return noob.send({
         id: 'first',
         account: 'x',
-        amount: '10' 
+        amount: '10'
       })
     }).then(() => {
       return new Promise((resolve) => {
@@ -130,7 +130,7 @@ describe('The Noob and the Nerd', function () {
       return noob.send({
         id: 'second',
         account: 'x',
-        amount: '1000' 
+        amount: '1000'
       })
     }).then(() => {
       return new Promise((resolve) => {
@@ -148,7 +148,7 @@ describe('The Noob and the Nerd', function () {
       return nerd.send({
         id: 'third',
         account: 'x',
-        amount: '100' 
+        amount: '100'
       })
     }).then(() => {
       return new Promise((resolve) => {
@@ -172,7 +172,7 @@ describe('The Noob and the Nerd', function () {
         auth: {
           host: 'mqatt://test.mosquitto.org',
           token: 'aW50ZXJsZWdlcgo',
-          account: 'noob2',
+          account: 'noob2'
         }
       })
       assert.isObject(noob2)
@@ -202,7 +202,7 @@ describe('The Noob and the Nerd', function () {
       return nerd.send({
         id: 'fourth',
         account: 'x',
-        amount: '100' 
+        amount: '100'
       })
     }).then(() => {
       return Promise.all([
@@ -287,7 +287,7 @@ describe('The Noob and the Nerd', function () {
       return nerd.send({
         id: 'fifth',
         account: 'x',
-        amount: '100' 
+        amount: '100'
       })
     }).then(() => {
       return Promise.all([
@@ -319,7 +319,7 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         nerd.once('reply', (transfer, message) => {
           assert(transfer.id === 'fifth')
-          assert(message.toString() === 'I have a message') 
+          assert(message.toString() === 'I have a message')
           resolve()
         })
       })
@@ -335,7 +335,7 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         noob.once('reply', (transfer, message) => {
           assert(transfer.id === 'fourth')
-          assert(message.toString() === 'I have a message too') 
+          assert(message.toString() === 'I have a message too')
           resolve()
         })
       })
@@ -351,7 +351,7 @@ describe('The Noob and the Nerd', function () {
       return noob2.send({
         id: 'sixth',
         account: 'x',
-        amount: '40' 
+        amount: '40'
       })
     }).then(() => {
       return new Promise((resolve) => {
@@ -426,7 +426,7 @@ describe('The Noob and the Nerd', function () {
       done()
     })
   })
-  
+
   it('should not give an error if a real transfer is rejected', (done) => {
   // it's harmless to complete a transfer that is already completed if
   // the reject is to a completed transfer.
@@ -440,7 +440,7 @@ describe('The Noob and the Nerd', function () {
       done()
     })
   })
-  
+
   it('should give error if the noob sends invalid message type', (done) => {
     next = next.then(() => {
       return noob.connection.send({
@@ -465,5 +465,5 @@ describe('The Noob and the Nerd', function () {
       nerd2.disconnect()
       done()
     }).catch(handle)
-  }) 
+  })
 })

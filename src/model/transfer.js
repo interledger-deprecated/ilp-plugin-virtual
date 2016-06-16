@@ -1,5 +1,3 @@
-const BigNumber = require('bignumber.js')
-
 module.exports.equals = (left, right) => {
   return (
     left &&

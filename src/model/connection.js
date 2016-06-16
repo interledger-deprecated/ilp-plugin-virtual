@@ -28,7 +28,7 @@ class Connection extends EventEmitter {
   }
 
   _handle (err) {
-    log.error(this.name + ': ' + err) 
+    log.error(this.name + ': ' + err)
   }
 
   connect () {
@@ -47,7 +47,7 @@ class Connection extends EventEmitter {
     })
     return Promise.resolve(null)
   }
-  
+
   disconnect () {
     this.client.end()
     return Promise.resolve(null)
@@ -58,7 +58,7 @@ class Connection extends EventEmitter {
       this.client.publish(this.sendChannel, JSON.stringify(msg), resolve)
     })
   }
-  
+
   sendOverRecv (msg) {
     return new Promise((resolve) => {
       this.client.publish(this.recvChannel, JSON.stringify(msg), resolve)

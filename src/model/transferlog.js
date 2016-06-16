@@ -23,8 +23,8 @@ class TransferLog {
   get (transfer) {
     return this.getId(transfer.id)
   }
-  
-  getTypeId(transferId) {
+
+  getTypeId (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
         return Promise.resolve(JSON.parse(json).type)
@@ -33,8 +33,8 @@ class TransferLog {
       }
     })
   }
-  
-  getType(transfer) {
+
+  getType (transfer) {
     return this.getTypeId(transfer.id)
   }
 

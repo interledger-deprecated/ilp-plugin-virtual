@@ -26,7 +26,7 @@ describe('ObjectStore', function () {
 describe('TransferLog', function () {
   let obj = null
   let tlog = null
-  
+
   it('should create an object', () => {
     obj = newObjStore()
     tlog = new TransferLog(obj)

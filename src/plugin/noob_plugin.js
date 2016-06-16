@@ -6,7 +6,7 @@ const Connection = require('../model/connection')
 const log = require('../util/log')('plugin')
 
 class NoobPluginVirtual extends EventEmitter {
-  
+
   /**
   * Create a PluginVirtual
   * @param {object} opts contains PluginOptions for PluginVirtual.
@@ -20,14 +20,14 @@ class NoobPluginVirtual extends EventEmitter {
   */
   constructor (opts) {
     super()
-    
+
     let that = this
     this._handle = (err) => {
       that.emit('exception', err)
     }
 
     this.auth = opts.auth
-    
+
     this.connected = false
     this.connectionConfig = opts.auth
     this.connection = new Connection(this.connectionConfig)
@@ -60,12 +60,12 @@ class NoobPluginVirtual extends EventEmitter {
   }
   _seenTransfer (tid) {
     return !!(this._seen[tid])
-  } 
+  }
   _fulfilledTransfer (tid) {
     return !!(this._fulfilled[tid])
   }
   _fulfillTransfer (tid) {
-    this._fulfilled[tid] = true 
+    this._fulfilled[tid] = true
   }
 
   // callback for incoming messages
@@ -90,7 +90,7 @@ class NoobPluginVirtual extends EventEmitter {
     !this._fulfilledTransfer(obj.transfer.id)) {
       this.emit(
         'fulfill_execution_condition',
-        obj.transfer, 
+        obj.transfer,
         new Buffer(obj.fulfillment)
       )
       this._fulfillTransfer(obj.transfer.id)
@@ -99,7 +99,7 @@ class NoobPluginVirtual extends EventEmitter {
     !this._fulfilledTransfer(obj.transfer.id)) {
       this.emit(
         'fulfill_cancellation_condition',
-        obj.transfer, 
+        obj.transfer,
         new Buffer(obj.fulfillment)
       )
       this._fulfillTransfer(obj.transfer.id)
@@ -162,7 +162,7 @@ class NoobPluginVirtual extends EventEmitter {
   getBalance () {
     this._log('sending balance query...')
     this.connection.send({
-      type: 'balance',
+      type: 'balance'
     })
     return new Promise((resolve) => {
       this.once('_balance', (balance) => {
@@ -190,7 +190,7 @@ class NoobPluginVirtual extends EventEmitter {
       fulfillment: fulfillment
     })
   }
-  
+
   replyToTransfer (transferId, replyMessage) {
     return this.connection.send({
       type: 'reply',

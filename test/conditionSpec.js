@@ -29,7 +29,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       auth: {
         host: 'mqatt://test.mosquitto.org',
         token: 'Y29uZGl0aW9uCg',
-        account: 'noob',
+        account: 'noob'
       }
     })
     assert.isObject(noob)
@@ -45,9 +45,9 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       done()
     }).catch(handle)
   })
-  
-  let fulfillment = 'cf:0:' 
-  let condition = cc.fulfillmentToCondition(fulfillment) 
+
+  let fulfillment = 'cf:0:'
+  let condition = cc.fulfillmentToCondition(fulfillment)
 
   it('should acknowledge a UTP transaction', (done) => {
     next = next.then(() => {
@@ -60,7 +60,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('accept', (transfer, message) => {
-          assert(transfer.id === 'first') 
+          assert(transfer.id === 'first')
           resolve()
         })
       })
@@ -114,7 +114,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('accept', (transfer, message) => {
-          assert(transfer.id === 'second') 
+          assert(transfer.id === 'second')
           resolve()
         })
       })
@@ -168,7 +168,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('accept', (transfer, message) => {
-          assert(transfer.id === 'cancelthis') 
+          assert(transfer.id === 'cancelthis')
           resolve()
         })
       })
@@ -198,7 +198,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('fulfill_cancellation_condition', (transfer, message) => {
-          assert(transfer.id === 'time_out') 
+          assert(transfer.id === 'time_out')
           resolve()
         })
       })
@@ -222,7 +222,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('accept', (transfer, message) => {
-          assert(transfer.id === 'time_complete') 
+          assert(transfer.id === 'time_complete')
           resolve()
         })
       })
@@ -251,7 +251,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('accept', (transfer, message) => {
-          assert(transfer.id === 'third') 
+          assert(transfer.id === 'third')
           resolve()
         })
       })
@@ -260,7 +260,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('fulfill_execution_condition', (transfer, message) => {
-          assert(transfer.id === 'third') 
+          assert(transfer.id === 'third')
           resolve()
         })
       })
@@ -295,7 +295,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('accept', (transfer, message) => {
-          assert(transfer.id === 'fourth') 
+          assert(transfer.id === 'fourth')
           resolve()
         })
       })
@@ -304,7 +304,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('fulfill_execution_condition', (transfer, message) => {
-          assert(transfer.id === 'fourth') 
+          assert(transfer.id === 'fourth')
           resolve()
         })
       })
@@ -333,7 +333,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       return noob.send({
         id: 'fifth',
         account: 'x',
-        amount: '10' 
+        amount: '10'
       })
     }).then(() => {
       return new Promise((resolve) => {
@@ -367,7 +367,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('accept', (transfer, message) => {
-          assert(transfer.id === 'sixth') 
+          assert(transfer.id === 'sixth')
           resolve()
         })
       })
@@ -391,5 +391,5 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       nerd.disconnect()
       done()
     }).catch(handle)
-  }) 
+  })
 })

@@ -37,7 +37,7 @@ class NerdPluginVirtual extends EventEmitter {
     this._handle = (err) => {
       that.emit('exception', err)
     }
-    
+
     this.auth = opts.auth
     this.store = opts.store
 
@@ -83,7 +83,7 @@ class NerdPluginVirtual extends EventEmitter {
   isConnected () {
     return this.connected
   }
-  
+
   getConnectors () {
     // the connection is only between two plugins for now, so the connector
     // name can be literally anything
@@ -111,7 +111,7 @@ class NerdPluginVirtual extends EventEmitter {
         this.on('_sync', (sTransfer) => {
           if (!synced && sTransfer.id === transfer.id) {
             synced = true
-            resolve() 
+            resolve()
           }
         })
       })
@@ -129,7 +129,7 @@ class NerdPluginVirtual extends EventEmitter {
     })
   }
 
-  fulfillCondition(transferId, fulfillmentBuffer) {
+  fulfillCondition (transferId, fulfillmentBuffer) {
     let fulfillment = fulfillmentBuffer.toString()
     let transfer = null
     this._log('fulfilling: ' + fulfillment)
@@ -146,26 +146,24 @@ class NerdPluginVirtual extends EventEmitter {
       return false
     }
   }
-  
-  _fulfillConditionLocal(transfer, fulfillment) {
+
+  _fulfillConditionLocal (transfer, fulfillment) {
     if (!transfer) {
       throw new Error('got transfer ID for nonexistant transfer')
     } else if (!transfer.executionCondition) {
-      throw new Error('got transfer ID for OTP transfer')        
+      throw new Error('got transfer ID for OTP transfer')
     }
 
     return this.transferLog.isFulfilled(transfer).then((fulfilled) => {
       if (fulfilled) {
-        throw new Error('this transfer has already been fulfilled') 
+        throw new Error('this transfer has already been fulfilled')
       } else {
         return Promise.resolve(null)
       }
     }).then(() => {
       let execute = transfer.executionCondition
-      let cancel = transfer.cancellationCondition  
-      let action = Promise.resolve(null)
-    
-      // TODO: Q should the timeout be activated automatically?
+      let cancel = transfer.cancellationCondition
+
       let time = new Date()
       let expiresAt = new Date(transfer.expiresAt)
       let timedOut = (time > expiresAt)
@@ -180,7 +178,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).catch(this._handle)
   }
 
-  _executeTransfer(transfer, fulfillment) {
+  _executeTransfer (transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
     this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
     // because there is only one balance, kept, money is not _actually_ kept
@@ -190,7 +188,7 @@ class NerdPluginVirtual extends EventEmitter {
       if (type === this.transferLog.outgoing) {
         return this.balance.add(transfer.amount)
       } else { // if (type === this.transferLog.incoming)
-        return this.balance.sub(transfer.amount) 
+        return this.balance.sub(transfer.amount)
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
@@ -202,7 +200,6 @@ class NerdPluginVirtual extends EventEmitter {
       })
     })
   }
-  
 
   _cancelTransfer (transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
@@ -211,7 +208,7 @@ class NerdPluginVirtual extends EventEmitter {
     // balances aren't affected until it executes
     return this.transferLog.getType(transfer).then((type) => {
       if (type === this.transferLog.incoming) {
-        return this.balance.add(transfer.amount) 
+        return this.balance.add(transfer.amount)
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
@@ -265,7 +262,7 @@ class NerdPluginVirtual extends EventEmitter {
         return this._fulfillConditionLocal(transfer, obj.fulfillment)
       })
     } else if (obj.type === 'balance') {
-      return this._sendBalance() 
+      return this._sendBalance()
     } else if (obj.type === 'sync') {
       this._log('received a sync message for tid: ' + obj.transfer.id)
       return this._handleSync(obj.transfer)

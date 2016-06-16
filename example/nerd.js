@@ -41,11 +41,15 @@ function start () {
   }
   
   pluginOptions.auth = auth
-  token()
+  if (!pluginOptions.auth.token) {
+    token()
+  } else {
+    connect()
+  }
 }
 
 function token () {
-  let token = require('crypto').randomBytes(3).toString('hex')
+  let token = require('crypto').randomBytes(16).toString('hex')
   _log('Your token is: ' + token)
 
   pluginOptions.auth.token = token 

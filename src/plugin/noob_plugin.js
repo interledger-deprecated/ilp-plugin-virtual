@@ -117,6 +117,10 @@ class NoobPluginVirtual extends EventEmitter {
       this._log('received balance: ' + obj.balance)
       this.emit('_balance', obj.balance)
       return Promise.resolve(null)
+    } else if (obj.type === 'info') {
+      this._log('received info.')
+      this.emit('_info', obj.info)
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -172,13 +176,14 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getInfo () {
-    return Promise.resolve({
-      /* placeholder values */
-      // TODO: Q what should these be
-      precision: 'inf',
-      scale: 'inf',
-      currencyCode: 'GBP',
-      currencySymbol: '$'
+    this._log('sending getInfo query...')
+    this.connection.send({
+      type: 'info'
+    })
+    return new Promise((resolve) => {
+      this.once('_info', (info) => {
+        resolve(info)
+      })
     })
   }
 

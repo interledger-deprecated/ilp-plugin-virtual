@@ -263,6 +263,8 @@ class NerdPluginVirtual extends EventEmitter {
       })
     } else if (obj.type === 'balance') {
       return this._sendBalance()
+    } else if (obj.type === 'info') {
+      return this._sendInfo()
     } else if (obj.type === 'sync') {
       this._log('received a sync message for tid: ' + obj.transfer.id)
       return this._handleSync(obj.transfer)
@@ -292,6 +294,15 @@ class NerdPluginVirtual extends EventEmitter {
       return this.connection.send({
         type: 'balance',
         balance: balance
+      })
+    })
+  }
+
+  _sendInfo () {
+    return this.getInfo().then((info) => {
+      return this.connection.send({
+        type: 'info',
+        info: info
       })
     })
   }

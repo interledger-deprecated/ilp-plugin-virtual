@@ -6,3 +6,10 @@ test:
     - npm test --coverage
   post:
     - bash <(curl -s https://codecov.io/bash)
+deployment:
+  production:
+    branch: master
+    commands:
+      # Push NPM package if not yet published
+      - mv npmrc-env .npmrc
+      - if [ $(npm show ilp version) != $(npm ls --depth=-1 2>/dev/null | head -1 | cut -f 1 -d " " | cut -f 2 -d @) ] ; then npm publish ; fi

@@ -262,6 +262,7 @@ class NerdPluginVirtual extends EventEmitter {
         return this._fulfillConditionLocal(transfer, obj.fulfillment)
       })
     } else if (obj.type === 'balance') {
+      this._log('received a query for the balance...')
       return this._sendBalance()
     } else if (obj.type === 'info') {
       return this._sendInfo()
@@ -291,6 +292,7 @@ class NerdPluginVirtual extends EventEmitter {
 
   _sendBalance () {
     return this.balance.get().then((balance) => {
+      this._log('sending balance: ' + balance)
       return this.connection.send({
         type: 'balance',
         balance: balance

@@ -58,6 +58,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.balance.on('_balanceChanged', (balance) => {
       this._log('balance changed to ' + balance)
       this.emit('_balanceChanged', balance)
+      this._sendBalance()
     })
   }
 

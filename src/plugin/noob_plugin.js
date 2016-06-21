@@ -115,7 +115,7 @@ class NoobPluginVirtual extends EventEmitter {
       return Promise.resolve(null)
     } else if (obj.type === 'balance') {
       this._log('received balance: ' + obj.balance)
-      this.emit('_balance', obj.balance)
+      this.emit('balance', obj.balance)
       return Promise.resolve(null)
     } else if (obj.type === 'info') {
       this._log('received info.')
@@ -169,7 +169,7 @@ class NoobPluginVirtual extends EventEmitter {
       type: 'balance'
     })
     return new Promise((resolve) => {
-      this.once('_balance', (balance) => {
+      this.once('balance', (balance) => {
         resolve(balance)
       })
     })

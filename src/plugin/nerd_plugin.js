@@ -62,6 +62,10 @@ class NerdPluginVirtual extends EventEmitter {
     })
   }
 
+  getAccount () {
+    return this.auth.account
+  }
+
   connect () {
     this.connection.connect()
     return new Promise((resolve) => {
@@ -86,9 +90,9 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    // the connection is only between two plugins for now, so the connector
-    // name can be literally anything
-    return Promise.resolve(['x'])
+    // the connection is only between two plugins for now, so the
+    // list is empty
+    return Promise.resolve([])
   }
 
   send (outgoingTransfer) {

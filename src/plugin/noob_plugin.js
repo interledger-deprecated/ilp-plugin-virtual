@@ -151,8 +151,11 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    return Promise.resolve(['x'])
+    // the connection is only between two plugins for now, so the
+    // list is empty
+    return Promise.resolve([])
   }
+
 
   send (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)

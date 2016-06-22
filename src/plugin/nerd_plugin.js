@@ -60,6 +60,11 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('_balanceChanged', balance)
       this._sendBalance()
     })
+    this.balance.on('settlement', (balance) => {
+      this._log('you should settle your balance of ' + balance)
+      this.emit('settlement', balance)
+      this._sendSettle() 
+    })
   }
 
   getAccount () {
@@ -300,6 +305,16 @@ class NerdPluginVirtual extends EventEmitter {
       this._log('sending balance: ' + balance)
       return this.connection.send({
         type: 'balance',
+        balance: balance
+      })
+    })
+  }
+
+  _sendSettle () {
+    return this.balance.get().then((balance) => {
+      this._log('sending settlement notification: ' + balance)
+      return this.connection.send({
+        type: 'settlement',
         balance: balance
       })
     })

@@ -121,6 +121,10 @@ class NoobPluginVirtual extends EventEmitter {
       this._log('received info.')
       this.emit('_info', obj.info)
       return Promise.resolve(null)
+    } else if (obj.type === 'settlement') {
+      this._log('received settlement notification.')
+      this.emit('settlement', obj.balance)
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)

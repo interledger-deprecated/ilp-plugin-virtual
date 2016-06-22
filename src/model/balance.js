@@ -64,6 +64,9 @@ class Balance extends EventEmitter {
     return this._getNumber().then((balance) => {
       let inLimit = balance.sub(amount).gte(this._limit.negated())
       let positive = amount.gt(this._convert('0'))
+      if (!inLimit) {
+        this.emit('settlement', balance)
+      }
       return Promise.resolve(inLimit && positive)
     })
   }

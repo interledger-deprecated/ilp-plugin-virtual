@@ -16,7 +16,11 @@ class Balance extends EventEmitter {
 
   _initialize () {
     this._initialized = true
-    return this._store.put(this._field, this._balance)
+    return this._store.get(this._field).then((balance) => {
+      if (balance === undefined) {
+        return this._store.put(this._field, this._balance)
+      }
+    })
   }
 
   _getNumber () {

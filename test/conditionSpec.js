@@ -2,7 +2,7 @@
 
 const PluginVirtual = require('..')
 const assert = require('chai').assert
-const newObjStore = require('../src/model/objStore')
+const newSqliteStore = require('../src/model/sqliteStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
 
@@ -13,7 +13,7 @@ let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('UTP/ATP Transactions with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
-    let objStore = newObjStore()
+    let objStore = newSqliteStore()
     nerd = new PluginVirtual({
       store: objStore,
       auth: {

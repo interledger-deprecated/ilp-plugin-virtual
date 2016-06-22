@@ -21,7 +21,6 @@ describe('The Noob and the Nerd', function () {
     assert(PluginVirtual.canConnectToLedger())
   })
 
-
   it('should instantiate the nerd', () => {
     let objStore = newObjStore()
     nerd = new PluginVirtual({
@@ -36,6 +35,10 @@ describe('The Noob and the Nerd', function () {
       }
     })
     assert.isObject(nerd)
+  })
+
+  it('should run getAccount for compatability reasons', () => {
+    assert(nerd.getAccount() === 'nerd')
   })
 
   it('should instantiate the noob', () => {

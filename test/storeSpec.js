@@ -1,5 +1,6 @@
 'use strict'
 const newObjStore = require('../src/model/objStore')
+const newSqliteStore = require('../src/model/sqliteStore')
 const TransferLog = require('../src/model/transferlog').TransferLog
 const Balance = require('../src/model/balance')
 const assert = require('chai').assert
@@ -20,6 +21,34 @@ describe('ObjectStore', function () {
       assert(value === undefined)
       done()
     })
+  })
+})
+
+describe('SqliteStore', function () {
+  let obj = null
+  it('should create an object', () => {
+    obj = newSqliteStore()
+    assert.isObject(obj)
+  })
+
+  it('should support deletion', function (done) {
+    obj.put('k', 'v').then(() => {
+      return obj.del('k')
+    }).then(() => {
+      return obj.get('k')
+    }).then((value) => {
+      assert(value === undefined)
+      done()
+    })
+  })
+
+  it('should support adding elements', function (done) {
+    obj.put('k', 'v').then(() => {
+      return obj.get('k')
+    }).then((value) => {
+      assert(value === 'v') 
+      done()
+    }).catch((err) => {console.error(err)})
   })
 })
 

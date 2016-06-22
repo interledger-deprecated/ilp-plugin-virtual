@@ -2,8 +2,7 @@
 
 const PluginVirtual = require('..')
 const assert = require('chai').assert
-const newObjStore = require('../src/model/objStore')
-const newSqliteStore = require('../src/model/sqliteStore')
+const newObjStore = require('./helpers/objStore')
 const log = require('../src/util/log')('test')
 
 let nerd = null

@@ -2,7 +2,7 @@
 
 const PluginVirtual = require('..')
 const assert = require('chai').assert
-const newSqliteStore = require('../src/model/sqliteStore')
+const newSqliteStore = require('./helpers/sqliteStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
 

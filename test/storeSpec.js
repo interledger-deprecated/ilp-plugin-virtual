@@ -1,6 +1,6 @@
 'use strict'
-const newObjStore = require('../src/model/objStore')
-const newSqliteStore = require('../src/model/sqliteStore')
+const newObjStore = require('./helpers/objStore')
+const newSqliteStore = require('./helpers/sqliteStore')
 const TransferLog = require('../src/model/transferlog').TransferLog
 const Balance = require('../src/model/balance')
 const assert = require('chai').assert

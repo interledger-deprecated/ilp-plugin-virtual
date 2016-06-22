@@ -48,6 +48,9 @@
     "bignumber.js": "^2.3.0",
     "five-bells-condition": "^3.2.0"
   },
+  "optionalDependencies": {
+    "sqlite3": "^3.1.4"
+  },
   "config": {
     "ghooks": {
       "commit-msg": "validate-commit-msg"

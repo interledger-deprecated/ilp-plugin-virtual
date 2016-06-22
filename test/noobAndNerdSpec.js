@@ -3,6 +3,7 @@
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('../src/model/objStore')
+const newSqliteStore = require('../src/model/sqliteStore')
 const log = require('../src/util/log')('test')
 
 let nerd = null
@@ -11,6 +12,7 @@ let noob = null
 let noob2 = null
 let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
+let store1 = newObjStore()
 
 describe('The Noob and the Nerd', function () {
   it('should be a function', () => {
@@ -22,9 +24,8 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should instantiate the nerd', () => {
-    let objStore = newObjStore()
     nerd = new PluginVirtual({
-      store: objStore,
+      store: store1,
       auth: {
         host: 'mqatt://test.mosquitto.org',
         token: token,
@@ -141,6 +142,23 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         noob.once('reject', (transfer, message) => {
           assert(transfer.id === 'second')
+          done()
+          resolve()
+        })
+      })
+    }).catch(handle)
+  })
+
+  it('should trigger settlement when balance under limit', (done) => {
+    next = next.then(() => {
+      return noob.send({
+        id: 'secondish',
+        account: 'x',
+        amount: '1000'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('settlement', (balance) => {
           done()
           resolve()
         })
@@ -459,6 +477,26 @@ describe('The Noob and the Nerd', function () {
         })
       })
     }).then(() => {
+      done()
+    })
+  })
+
+  it('should hold same balance when nerd is made with old db', (done) => {
+    next = next.then(() => {
+      let tmp_nerd = new PluginVirtual({
+        store: store1,
+        auth: {
+          host: 'mqatt://test.mosquitto.org',
+          token: token,
+          limit: '1000',
+          balance: '0',
+          account: 'nerd',
+          secret: 'secret'
+        }
+      })
+      return tmp_nerd.getBalance()
+    }).then((balance) => {
+      assert(balance !== '0')
       done()
     })
   })

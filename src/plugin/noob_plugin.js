@@ -26,6 +26,8 @@ class NoobPluginVirtual extends EventEmitter {
       that.emit('exception', err)
     }
 
+    this.id = opts.id // not used but required for compatability with five
+                      // bells connector.
     this.auth = opts.auth
 
     this.connected = false

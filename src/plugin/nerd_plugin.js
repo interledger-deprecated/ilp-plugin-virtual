@@ -42,6 +42,7 @@ class NerdPluginVirtual extends EventEmitter {
                       // bells connector.
     this.auth = opts.auth
     this.store = opts.store
+    this.timers = {}
 
     this.transferLog = new TransferLog(opts.store)
 
@@ -219,18 +220,24 @@ class NerdPluginVirtual extends EventEmitter {
   
   _timeOutTransfer (transfer) {
     this.emit('reject', transfer, 'timed out')
+    let transactionType = null
     return this.transferLog.getType(transfer).then((type) => {
+      transactionType = type
       if (type === this.transferLog.incoming) {
         return this.balance.add(transfer.amount)
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
     }).then(() => {
-      return this.connection.send({
-        type: 'reject',
-        transfer: transfer,
-        message: 'timed out'
-      })
+      if (transactionType === this.transferLog.incoming) {
+        return this.connection.send({
+          type: 'reject',
+          transfer: transfer,
+          message: 'timed out'
+        })
+      } else {
+        return Promise.resolve(null) 
+      }
     })
   }
 
@@ -377,7 +384,7 @@ class NerdPluginVirtual extends EventEmitter {
     if (transfer.expiresAt) {
       let now = new Date()
       let expiry = new Date(transfer.expiresAt)
-      setTimeout(() => {
+      this.timers[transfer.id] = setTimeout(() => {
         this.transferLog.isFulfilled(transfer).then((isFulfilled) => {
           if (!isFulfilled) {
             this._timeOutTransfer(transfer)
@@ -385,6 +392,8 @@ class NerdPluginVirtual extends EventEmitter {
           }
         }).catch(this._handle)
       }, expiry - now)
+      // for debugging purposes
+      this.emit('_timing', transfer.id)
     }
   }
 

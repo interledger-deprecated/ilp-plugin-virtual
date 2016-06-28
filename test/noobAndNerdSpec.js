@@ -372,6 +372,23 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
+  it('should give error if the nerd sends invalid message type', (done) => {
+    next = next.then(() => {
+      return nerd.connection.send({
+        type: 'garbage'
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('exception', (err) => {
+          assert(err.message === 'Invalid message received')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
   it('should hold same balance when nerd is made with old db', (done) => {
     next = next.then(() => {
       let tmp_nerd = new PluginVirtual({

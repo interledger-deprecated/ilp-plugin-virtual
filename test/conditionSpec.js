@@ -187,7 +187,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     })
   })
 
-  it('should support UTP transfers with time limits', (done) => {
+  it('should support UTP transfers with time limits noob->nerd', (done) => {
     next = next.then(() => {
       return noob.send({
         id: 'time_out',
@@ -200,6 +200,57 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       return new Promise((resolve) => {
         noob.once('reject', (transfer, message) => {
           assert(transfer.id === 'time_out')
+          resolve()
+        })
+      })
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should support UTP transfers with time limits nerd->noob', (done) => {
+    next = next.then(() => {
+      let promise = new Promise((resolve) => {
+        nerd.once('reject', (transfer, message) => {
+          assert(transfer.id === 'time_out_3')
+          resolve()
+        })
+      })
+      nerd.send({
+        id: 'time_out_3',
+        account: 'x',
+        amount: '200',
+        executionCondition: condition,
+        expiresAt: (new Date()).toString()
+      })
+      return promise
+    }).then(() => {
+      done()
+    })
+  })
+
+  it('should cancel fulfillments submitted after timeout', (done) => {
+    let time = new Date()
+    time.setSeconds(time.getSeconds() + 1)
+
+    next = next.then(() => {
+      nerd.once('_timing', () => {
+        clearTimeout(nerd.timers['time_out_2'])
+      })
+      return noob.send({
+        id: 'time_out_2',
+        account: 'x',
+        amount: '200',
+        executionCondition: condition,
+        expiresAt: time.toString()
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          noob.fulfillCondition('time_out_2', fulfillment)
+        }, 1000)
+        noob.once('reject', (transfer, message) => {
+          assert(transfer.id === 'time_out_2')
           resolve()
         })
       })

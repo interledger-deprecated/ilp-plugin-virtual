@@ -199,7 +199,6 @@ class NoobPluginVirtual extends EventEmitter {
   fulfillCondition (transferId, fulfillment) {
     return this.connection.send({
       type: 'fulfillment',
-      // TODO: change the main plugin to use IDs in messages for fulfillment
       transferId: transferId,
       fulfillment: fulfillment
     })
@@ -208,7 +207,6 @@ class NoobPluginVirtual extends EventEmitter {
   replyToTransfer (transferId, replyMessage) {
     return this.connection.send({
       type: 'reply',
-      // TODO: change the main plugin to use IDs in messages for reply
       transferId: transferId,
       message: replyMessage
     })

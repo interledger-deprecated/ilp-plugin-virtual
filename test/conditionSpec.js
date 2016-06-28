@@ -198,7 +198,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('fulfill_cancellation_condition', (transfer, message) => {
+        noob.once('reject', (transfer, message) => {
           assert(transfer.id === 'time_out')
           resolve()
         })

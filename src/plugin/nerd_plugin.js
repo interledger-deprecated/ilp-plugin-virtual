@@ -164,8 +164,10 @@ class NerdPluginVirtual extends EventEmitter {
 
       if (this._validate(fulfillment, execute) && !timedOut) {
         return this._executeTransfer(transfer, fulfillment)
-      } else if ((cancel && this._validate(fulfillment, cancel)) || timedOut) {
+      } else if (cancel && this._validate(fulfillment, cancel)) {
         return this._cancelTransfer(transfer, fulfillment)
+      } else if (timedOut) {
+        return this._timeOutTransfer(transfer)
       } else {
         throw new Error('invalid fulfillment')
       }
@@ -214,6 +216,23 @@ class NerdPluginVirtual extends EventEmitter {
       })
     })
   }
+  
+  _timeOutTransfer (transfer) {
+    this.emit('reject', transfer, 'timed out')
+    return this.transferLog.getType(transfer).then((type) => {
+      if (type === this.transferLog.incoming) {
+        return this.balance.add(transfer.amount)
+      }
+    }).then(() => {
+      return this.transferLog.fulfill(transfer)
+    }).then(() => {
+      return this.connection.send({
+        type: 'reject',
+        transfer: transfer,
+        message: 'timed out'
+      })
+    })
+  }
 
   getBalance () {
     return this.balance.get()
@@ -236,7 +255,6 @@ class NerdPluginVirtual extends EventEmitter {
       return this._handleTransfer(obj.transfer)
     } else if (obj.type === 'acknowledge') {
       this._log('received an ACK on tid: ' + obj.transfer.id)
-      // TODO: Q should accept be fullfill execution condition even in OTP?
       this.emit('accept', obj.transfer, new Buffer(obj.message))
       return this._handleAcknowledge(obj.transfer)
     } else if (obj.type === 'reject') {
@@ -362,8 +380,7 @@ class NerdPluginVirtual extends EventEmitter {
       setTimeout(() => {
         this.transferLog.isFulfilled(transfer).then((isFulfilled) => {
           if (!isFulfilled) {
-            // TODO: Q what should the event be on a timeout?
-            this._cancelTransfer(transfer, 'timed out')
+            this._timeOutTransfer(transfer)
             this._log('automatic time out on tid: ' + transfer.id)
           }
         }).catch(this._handle)

@@ -107,7 +107,7 @@ class NoobPluginVirtual extends EventEmitter {
       this._fulfillTransfer(obj.transfer.id)
       return Promise.resolve(null)
     } else if (obj.type === 'reject' &&
-    this._expectedResponse(obj.transfer.id)) {
+    !this._fulfilledTransfer(obj.transfer.id)) {
       this._log('received a reject on tid: ' + obj.transfer.id)
       this.emit('reject', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)

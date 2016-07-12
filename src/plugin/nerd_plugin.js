@@ -185,7 +185,7 @@ class NerdPluginVirtual extends EventEmitter {
       if (type === this.transferLog.outgoing) {
         return this.balance.add(transfer.amount)
       } else { // if (type === this.transferLog.incoming)
-        return this.balance.sub(transfer.amount)
+        return Promise.resolve(null)
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)

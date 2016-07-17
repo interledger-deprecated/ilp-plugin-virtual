@@ -76,6 +76,7 @@ class NoobPluginVirtual extends EventEmitter {
       this._seeTransfer(obj.transfer.id)
       this._log('received a Transfer with tid: ' + obj.transfer.id)
       this.emit('propose', obj.transfer)
+      this.emit('receive', obj.transfer)
       return this.connection.send({
         type: 'acknowledge',
         transfer: obj.transfer,

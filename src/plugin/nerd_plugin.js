@@ -399,6 +399,7 @@ class NerdPluginVirtual extends EventEmitter {
 
   _acceptTransfer (transfer) {
     this._log('sending out an ACK for tid: ' + transfer.id)
+    this.emit('receive', transfer)
     return this.connection.send({
       type: 'acknowledge',
       transfer: transfer,

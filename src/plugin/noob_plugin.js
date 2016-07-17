@@ -75,7 +75,7 @@ class NoobPluginVirtual extends EventEmitter {
     if (obj.type === 'transfer' && !this._seenTransfer(obj.transfer.id)) {
       this._seeTransfer(obj.transfer.id)
       this._log('received a Transfer with tid: ' + obj.transfer.id)
-      this.emit('receive', obj.transfer)
+      this.emit('propose', obj.transfer)
       return this.connection.send({
         type: 'acknowledge',
         transfer: obj.transfer,
@@ -86,7 +86,7 @@ class NoobPluginVirtual extends EventEmitter {
       this._receiveResponse(obj.transfer.id)
       this._log('received an ACK on tid: ' + obj.transfer.id)
       // TODO: Q should accept be fullfill execution condition even in OTP?
-      this.emit('accept', obj.transfer, new Buffer(obj.message))
+      this.emit('receive', obj.transfer, new Buffer(obj.message))
       return Promise.resolve(null)
     } else if (obj.type === 'fulfill_execution_condition' &&
     !this._fulfilledTransfer(obj.transfer.id)) {

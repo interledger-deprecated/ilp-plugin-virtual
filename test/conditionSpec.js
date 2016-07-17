@@ -60,7 +60,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.once('accept', (transfer, message) => {
+        nerd.once('receive', (transfer, message) => {
           assert(transfer.id === 'first')
           resolve()
         })
@@ -114,7 +114,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('accept', (transfer, message) => {
+        noob.once('receive', (transfer, message) => {
           assert(transfer.id === 'second')
           resolve()
         })
@@ -168,7 +168,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.once('accept', (transfer, message) => {
+        nerd.once('receive', (transfer, message) => {
           assert(transfer.id === 'cancelthis')
           resolve()
         })
@@ -273,7 +273,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('accept', (transfer, message) => {
+        noob.once('receive', (transfer, message) => {
           assert(transfer.id === 'time_complete')
           resolve()
         })
@@ -302,7 +302,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.once('accept', (transfer, message) => {
+        nerd.once('receive', (transfer, message) => {
           assert(transfer.id === 'third')
           resolve()
         })
@@ -346,7 +346,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('accept', (transfer, message) => {
+        noob.once('receive', (transfer, message) => {
           assert(transfer.id === 'fourth')
           resolve()
         })
@@ -389,7 +389,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('accept', (transfer, message) => {
+        noob.once('receive', (transfer, message) => {
           assert(transfer.id === 'fifth')
           resolve()
         })
@@ -418,7 +418,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.once('accept', (transfer, message) => {
+        nerd.once('receive', (transfer, message) => {
           assert(transfer.id === 'sixth')
           resolve()
         })

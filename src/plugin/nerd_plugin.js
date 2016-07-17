@@ -258,11 +258,11 @@ class NerdPluginVirtual extends EventEmitter {
   _receive (obj) {
     if (obj.type === 'transfer') {
       this._log('received a Transfer with tid: ' + obj.transfer.id)
-      this.emit('receive', obj.transfer)
+      this.emit('propose', obj.transfer)
       return this._handleTransfer(obj.transfer)
     } else if (obj.type === 'acknowledge') {
       this._log('received an ACK on tid: ' + obj.transfer.id)
-      this.emit('accept', obj.transfer, new Buffer(obj.message))
+      this.emit('receive', obj.transfer, new Buffer(obj.message))
       return this._handleAcknowledge(obj.transfer)
     } else if (obj.type === 'reject') {
       this._log('received a reject on tid: ' + obj.transfer.id)

@@ -112,7 +112,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        noob.once('accept', (transfer, message) => {
+        noob.once('receive', (transfer, message) => {
           assert(transfer.id === 'first')
           done()
           resolve()
@@ -174,7 +174,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.once('accept', (transfer, message) => {
+        nerd.once('receive', (transfer, message) => {
           assert(transfer.id === 'third')
           resolve()
         })
@@ -229,19 +229,19 @@ describe('The Noob and the Nerd', function () {
     }).then(() => {
       return Promise.all([
         new Promise((resolve) => {
-          noob.once('receive', (transfer, message) => {
+          noob.once('propose', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })
         }),
         new Promise((resolve) => {
-          noob2.once('receive', (transfer, message) => {
+          noob2.once('propose', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })
         }),
         new Promise((resolve) => {
-          nerd.once('accept', (transfer, message) => {
+          nerd.once('receive', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })

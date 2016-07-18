@@ -1,3 +1,4 @@
+'use strict'
 // const log = require('../util/log')
 
 class TransferLog {

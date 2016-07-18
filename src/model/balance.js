@@ -1,3 +1,4 @@
+'use strict'
 const EventEmitter = require('events')
 
 const BigNumber = require('bignumber.js')

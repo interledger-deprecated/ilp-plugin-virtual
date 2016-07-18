@@ -1,3 +1,4 @@
+'use strict'
 function newObjStore (init) {
   // this simple store just uses an javascript object to store things in memory.
   var s = init || {}

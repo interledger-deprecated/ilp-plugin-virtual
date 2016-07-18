@@ -1,3 +1,4 @@
+'use strict'
 module.exports.equals = (left, right) => {
   return (
     left &&

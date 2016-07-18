@@ -24,6 +24,7 @@ class NoobPluginVirtual extends EventEmitter {
     let that = this
     this._handle = (err) => {
       that.emit('exception', err)
+      throw err
     }
 
     this.id = opts.id // not used but required for compatability with five
@@ -170,7 +171,7 @@ class NoobPluginVirtual extends EventEmitter {
     return this.connection.send({
       type: 'transfer',
       transfer: outgoingTransfer
-    }).catch(this._handle())
+    }).catch(this._handle)
   }
 
   getBalance () {

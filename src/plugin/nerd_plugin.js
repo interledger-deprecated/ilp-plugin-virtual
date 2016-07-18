@@ -36,6 +36,7 @@ class NerdPluginVirtual extends EventEmitter {
     let that = this
     this._handle = (err) => {
       that.emit('exception', err)
+      throw err
     }
 
     this.id = opts.id // not used but required for compatability with five

@@ -120,7 +120,10 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.balance.isValidIncoming(transfer.amount)
     }).then((valid) => {
-      if (valid) {
+      const validAmount = (typeof transfer.amount === 'string' &&
+        !isNaN(transfer.amount - 0))
+      const validAccount = (typeof transfer.account === 'string')
+      if (valid && validAmount && validAccount) {
         this._log('sending out a Transfer with tid: ' + transfer.id)
         return this.connection.send({
           type: 'transfer',
@@ -364,6 +367,9 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.balance.isValidIncoming(transfer.amount)
     }).then((valid) => {
+      const validAmount = (typeof transfer.amount === 'string' &&
+        !isNaN(transfer.amount - 0))
+      const validAccount = (typeof transfer.account === 'string')
       if (valid) {
         return this.balance.sub(transfer.amount).then(() => {
           this._handleTimer(transfer)

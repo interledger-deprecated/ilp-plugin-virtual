@@ -104,13 +104,32 @@ class NerdPluginVirtual extends EventEmitter {
     return Promise.resolve([])
   }
 
-  send (outgoingTransfer) {
-    this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
-    return this.transferLog.storeOutgoing(outgoingTransfer).then(() => {
-      return this.connection.send({
-        type: 'transfer',
-        transfer: outgoingTransfer
-      })
+  send (transfer) {
+    return this.transferLog.get(transfer).then((storedTransfer) => {
+      if (storedTransfer) {
+        this.emit('_repeatTransfer', transfer)
+        this.emit('reject', transfer)
+        return this._rejectTransfer(transfer, 'repeat transfer id').then(() => {
+          throw new Error('repeat transfer id')
+        })
+      } else {
+        return Promise.resolve(null)
+      }
+    }).then(() => {
+      return this.transferLog.storeOutgoing(transfer)
+    }).then(() => {
+      return this.balance.isValidIncoming(transfer.amount)
+    }).then((valid) => {
+      if (valid) {
+        this._log('sending out a Transfer with tid: ' + transfer.id)
+        return this.connection.send({
+          type: 'transfer',
+          transfer: transfer
+        })
+      } else {
+        this._log('rejecting invalid transfer with tid: ' + transfer.id)
+        this.emit('reject', transfer)
+      }
     }).catch(this._handle)
   }
 

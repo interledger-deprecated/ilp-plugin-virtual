@@ -79,8 +79,8 @@ class NerdPluginVirtual extends EventEmitter {
     this.connection.connect()
     return new Promise((resolve) => {
       this.connection.on('connect', () => {
-        this.emit('connect')
         this.connected = true
+        this.emit('connect')
         resolve(null)
       })
     })
@@ -88,8 +88,8 @@ class NerdPluginVirtual extends EventEmitter {
 
   disconnect () {
     return this.connection.disconnect().then(() => {
-      this.emit('disconnect')
       this.connected = false
+      this.emit('disconnect')
       return Promise.resolve(null)
     })
   }

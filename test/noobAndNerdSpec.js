@@ -18,10 +18,6 @@ describe('The Noob and the Nerd', function () {
     assert.isFunction(PluginVirtual)
   })
 
-  it('should implement canConnectToLedger', () => {
-    assert(PluginVirtual.canConnectToLedger())
-  })
-
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
       store: store1,

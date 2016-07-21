@@ -137,8 +137,8 @@ class NerdPluginVirtual extends EventEmitter {
     return Promise.resolve({
       /* placeholder values */
       // TODO: Q what should these be
-      precision: '15',
-      scale: '15',
+      precision: 15,
+      scale: 15,
       currencyCode: 'GBP',
       currencySymbol: '$'
     })

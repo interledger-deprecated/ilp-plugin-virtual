@@ -15,6 +15,6 @@ module.exports = function (opts) {
 }
 
 module.exports.canConnectToLedger = function (auth) {
-  // TODO: should this ping the server?
-  return true
+  // TODO: should this ping the server? no.
+  return !!auth
 }

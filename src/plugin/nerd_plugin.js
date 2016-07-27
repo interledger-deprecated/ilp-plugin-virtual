@@ -45,6 +45,13 @@ class NerdPluginVirtual extends EventEmitter {
     this.store = opts.store
     this.timers = {}
 
+    this.info = {
+      precision: opts.auth.precision || 15,
+      scale: opts.auth.scale || 15,
+      currencyCode: opts.auth.currencyCode || '???',
+      currencySymbol: opts.auth.currencySymbol || '?'
+    }
+
     this.transferLog = new TransferLog(opts.store)
 
     this.prefix = opts.auth.prefix
@@ -139,14 +146,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getInfo () {
-    return Promise.resolve({
-      /* placeholder values */
-      // TODO: Q what should these be
-      precision: 15,
-      scale: 15,
-      currencyCode: 'GBP',
-      currencySymbol: '$'
-    })
+    return Promise.resolve(this.info)
   }
 
   fulfillCondition (transferId, fulfillmentBuffer) {

@@ -47,6 +47,8 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.transferLog = new TransferLog(opts.store)
 
+    this.prefix = opts.auth.prefix
+
     this.connected = false
     this.connectionConfig = opts.auth
     this.connection = new Connection(this.connectionConfig)
@@ -264,6 +266,19 @@ class NerdPluginVirtual extends EventEmitter {
     })
   }
 
+  getPrefix () {
+    return Promise.resolve(this.prefix)
+  }
+
+  _sendPrefix() {
+    return this.getPrefix().then((prefix) => {
+      return this.connection.send({
+        type: 'prefix',
+        prefix: prefix
+      })
+    })
+  }
+
   getBalance () {
     return this.balance.get()
   }
@@ -308,6 +323,8 @@ class NerdPluginVirtual extends EventEmitter {
       return this._sendBalance()
     } else if (obj.type === 'info') {
       return this._sendInfo()
+    } else if (obj.type === 'prefix') {
+      return this._sendPrefix()
     } else {
       this._handle(new Error('Invalid message received'))
     }

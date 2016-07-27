@@ -129,10 +129,25 @@ class NoobPluginVirtual extends EventEmitter {
       this._log('received settlement notification.')
       this.emit('settlement', obj.balance)
       return Promise.resolve(null)
+    } else if (obj.type === 'prefix') {
+      this._log('received prefix.')
+      this._emit('_prefix', obj.prefix)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
     }
+  }
+
+  getPrefix () {
+    this._log('sending prefix query...')
+    return new Promise((resolve) => {
+      this.on('_prefix', (prefix) => {
+        resolve(prefix)
+      })
+      this.connection.send({
+        type: 'prefix'
+      })
+    })
   }
 
   connect () {

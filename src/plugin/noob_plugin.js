@@ -76,8 +76,13 @@ class NoobPluginVirtual extends EventEmitter {
     if (obj.type === 'transfer' && !this._seenTransfer(obj.transfer.id)) {
       this._seeTransfer(obj.transfer.id)
       this._log('received a Transfer with tid: ' + obj.transfer.id)
-      this.emit('propose', obj.transfer)
-      this.emit('receive', obj.transfer)
+
+      if (obj.transfer.executionCondition) {
+        this.emit('incoming_prepare', obj.transfer)
+      } else {
+        this.emit('incoming_transfer', obj.transfer)
+      }
+
       return this.connection.send({
         type: 'acknowledge',
         transfer: obj.transfer,
@@ -87,50 +92,66 @@ class NoobPluginVirtual extends EventEmitter {
     this._expectedResponse(obj.transfer.id)) {
       this._receiveResponse(obj.transfer.id)
       this._log('received an ACK on tid: ' + obj.transfer.id)
-      // TODO: Q should accept be fullfill execution condition even in OTP?
-      this.emit('receive', obj.transfer, new Buffer(obj.message))
+
+      this.emit('_accepted', obj.transfer)
+      if (obj.transfer.executionCondition) {
+        this.emit('outgoing_prepare', obj.transfer)
+      } else {
+        this._log('GOT AN OUTGOING TRANSFER ACCEPTED')
+        this.emit('outgoing_transfer', obj.transfer)
+      }
+
       return Promise.resolve(null)
     } else if (obj.type === 'fulfill_execution_condition' &&
     !this._fulfilledTransfer(obj.transfer.id)) {
+      this._fulfillTransfer(obj.transfer.id)
+
       this.emit(
-        'fulfill_execution_condition',
+        obj.toNerd ? 'outgoing_fulfill' : 'incoming_fulfill',
         obj.transfer,
         new Buffer(obj.fulfillment)
       )
-      this._fulfillTransfer(obj.transfer.id)
-      return Promise.resolve(null)
-    } else if (obj.type === 'fulfill_cancellation_condition' &&
-    !this._fulfilledTransfer(obj.transfer.id)) {
-      this.emit(
-        'fulfill_cancellation_condition',
-        obj.transfer,
-        new Buffer(obj.fulfillment)
-      )
-      this._fulfillTransfer(obj.transfer.id)
+
       return Promise.resolve(null)
     } else if (obj.type === 'reject' &&
     !this._fulfilledTransfer(obj.transfer.id)) {
       this._log('received a reject on tid: ' + obj.transfer.id)
-      this.emit('reject', obj.transfer, new Buffer(obj.message))
+
+      this.emit('_rejected', obj.transfer)
+      this.emit(
+        obj.toNerd ? 'outgoing_cancel' : 'incoming_cancel',
+        obj.transfer,
+        new Buffer(obj.message)
+      )
+
       return Promise.resolve(null)
     } else if (obj.type === 'reply') {
       this._log('received a reply on tid: ' + obj.transfer.id)
+
       this.emit('reply', obj.transfer, new Buffer(obj.message))
+
       return Promise.resolve(null)
     } else if (obj.type === 'balance') {
       this._log('received balance: ' + obj.balance)
+
       this.emit('balance', obj.balance)
+
       return Promise.resolve(null)
     } else if (obj.type === 'info') {
       this._log('received info.')
+
       this.emit('_info', obj.info)
+
       return Promise.resolve(null)
     } else if (obj.type === 'settlement') {
       this._log('received settlement notification.')
+
       this.emit('settlement', obj.balance)
+
       return Promise.resolve(null)
     } else if (obj.type === 'prefix') {
       this._log('received prefix.')
+
       this._emit('_prefix', obj.prefix)
     } else {
       this._handle(new Error('Invalid message received'))
@@ -179,14 +200,31 @@ class NoobPluginVirtual extends EventEmitter {
     return Promise.resolve([])
   }
 
-
   send (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
     this._expectResponse(outgoingTransfer.id)
-    return this.connection.send({
-      type: 'transfer',
-      transfer: outgoingTransfer
-    }).catch(this._handle)
+    return new Promise((resolve, reject) => {
+      let resolved = false
+
+      this.on('_accepted', (transfer) => {
+        if (!resolved && transfer.id === outgoingTransfer.id) {
+          resolved = true
+          resolve(null)
+        }
+      })
+
+      this.on('_rejected', (transfer) => {
+        if (!resolved && transfer.id === outgoingTransfer.id) {
+          resolved = true
+          reject(new Error('transfer was invalid'))
+        }
+      })
+
+      this.connection.send({
+        type: 'transfer',
+        transfer: outgoingTransfer
+      }).catch(this._handle)
+    })
   }
 
   getBalance () {

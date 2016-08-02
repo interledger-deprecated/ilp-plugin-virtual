@@ -10,7 +10,7 @@ function newSqliteStore (address) {
   db.run('CREATE TABLE IF NOT EXISTS store (key TEXT, value TEXT)', () => {
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS id ON store (key)')
   })
-  
+
   let put = function (k, v) {
     return new Promise((resolve) => {
       log.log('PUTTING', v, 'INTO', k)
@@ -35,7 +35,7 @@ function newSqliteStore (address) {
   let del = function (k) {
     return new Promise((resolve) => {
       db.run('DELETE FROM store WHERE (key == ?)', k, () => {
-        resolve() 
+        resolve()
       })
     })
   }

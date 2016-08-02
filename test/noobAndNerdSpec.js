@@ -6,7 +6,6 @@ const newObjStore = require('./helpers/objStore')
 const log = require('../src/util/log')('test')
 
 let nerd = null
-let nerd2 = null
 let noob = null
 let noob2 = null
 let handle = (err) => { log.log(err) }
@@ -22,7 +21,7 @@ describe('The Noob and the Nerd', function () {
     nerd = new PluginVirtual({
       store: store1,
       auth: {
-        host: 'mqatt://test.mosquitto.org',
+        host: 'mqtt://test.mosquitto.org',
         token: token,
         limit: '1000',
         balance: '0',
@@ -41,7 +40,7 @@ describe('The Noob and the Nerd', function () {
     noob = new PluginVirtual({
       store: {},
       auth: {
-        host: 'mqatt://test.mosquitto.org',
+        host: 'mqtt://test.mosquitto.org',
         token: token,
         account: 'noob'
       }
@@ -101,19 +100,21 @@ describe('The Noob and the Nerd', function () {
 
   it('should acknowledge a valid transfer noob -> nerd', (done) => {
     next = next.then(() => {
-      return noob.send({
-        id: 'first',
-        account: 'x',
-        amount: '10'
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('receive', (transfer, message) => {
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'first')
           done()
           resolve()
         })
       })
+
+      noob.send({
+        id: 'first',
+        account: 'x',
+        amount: '10'
+      })
+
+      return p
     }).catch(handle)
   })
 
@@ -132,49 +133,48 @@ describe('The Noob and the Nerd', function () {
         id: 'second',
         account: 'x',
         amount: '1000'
+      }).catch(() => {
+        done()
       })
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('reject', (transfer, message) => {
-          assert(transfer.id === 'second')
-          done()
-          resolve()
-        })
-      })
-    }).catch(handle)
+    })
   })
 
   it('should trigger settlement when balance under limit', (done) => {
     next = next.then(() => {
-      return noob.send({
-        id: 'secondish',
-        account: 'x',
-        amount: '1000'
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
+      const p = new Promise((resolve) => {
         noob.once('settlement', (balance) => {
           done()
           resolve()
         })
       })
+
+      noob.send({
+        id: 'secondish',
+        account: 'x',
+        amount: '1000'
+      })
+
+      return p
     }).catch(handle)
   })
 
   it('should add balance when nerd sends money to noob', (done) => {
     next = next.then(() => {
-      return nerd.send({
-        id: 'third',
-        account: 'x',
-        amount: '100'
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('receive', (transfer, message) => {
+      const p = new Promise((resolve) => {
+        nerd.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'third')
           resolve()
         })
       })
+
+      nerd.send({
+        id: 'third',
+        account: 'x',
+        amount: '100'
+      })
+
+      return p
+    }).then(() => {
     }).then(() => {
       return noob.getBalance()
     }).then((balance) => {
@@ -188,7 +188,7 @@ describe('The Noob and the Nerd', function () {
       noob2 = new PluginVirtual({
         store: {},
         auth: {
-          host: 'mqatt://test.mosquitto.org',
+          host: 'mqtt://test.mosquitto.org',
           token: token,
           account: 'noob2'
         }
@@ -217,32 +217,34 @@ describe('The Noob and the Nerd', function () {
 
   it('should notify both noobs on a received transfer', (done) => {
     next = next.then(() => {
-      return nerd.send({
-        id: 'fourth',
-        account: 'x',
-        amount: '100'
-      })
-    }).then(() => {
-      return Promise.all([
+      const p = Promise.all([
         new Promise((resolve) => {
-          noob.once('propose', (transfer, message) => {
+          noob.once('incoming_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })
         }),
         new Promise((resolve) => {
-          noob2.once('propose', (transfer, message) => {
+          noob2.once('incoming_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })
         }),
         new Promise((resolve) => {
-          nerd.once('receive', (transfer, message) => {
+          nerd.once('outgoing_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
             resolve()
           })
         })
       ])
+
+      nerd.send({
+        id: 'fourth',
+        account: 'x',
+        amount: '100'
+      })
+
+      return p
     }).then(() => {
       done()
     }).catch(handle)
@@ -305,16 +307,9 @@ describe('The Noob and the Nerd', function () {
         id: 'first',
         amount: '100',
         account: 'x'
+      }).catch(() => {
+        done()
       })
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('reject', (transfer) => {
-          assert(transfer.id === 'first')
-          resolve()
-        })
-      })
-    }).then(() => {
-      done()
     })
   })
 
@@ -387,7 +382,7 @@ describe('The Noob and the Nerd', function () {
 
   it('should hold same balance when nerd is made with old db', (done) => {
     next = next.then(() => {
-      let tmp_nerd = new PluginVirtual({
+      let tmpNerd = new PluginVirtual({
         store: store1,
         auth: {
           host: 'mqatt://test.mosquitto.org',
@@ -398,7 +393,7 @@ describe('The Noob and the Nerd', function () {
           secret: 'secret'
         }
       })
-      return tmp_nerd.getBalance()
+      return tmpNerd.getBalance()
     }).then((balance) => {
       assert(balance !== '0')
       done()

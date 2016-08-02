@@ -19,9 +19,9 @@ class Connection extends EventEmitter {
     if (this.config.secret) {
       this.isNoob = false
     }
-    
-    this.recvChannel = (this.isNoob? 'noob_':'nerd_') + this.token
-    this.sendChannel = (this.isNoob? 'nerd_':'noob_') + this.token
+
+    this.recvChannel = (this.isNoob ? 'noob_' : 'nerd_') + this.token
+    this.sendChannel = (this.isNoob ? 'nerd_' : 'noob_') + this.token
   }
 
   _log (msg) {

@@ -45,7 +45,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.store = opts.store
     this.timers = {}
 
-    this.info = {
+    this.info = opts.auth.info || {
       precision: opts.auth.precision || 15,
       scale: opts.auth.scale || 15,
       currencyCode: opts.auth.currencyCode || '???',
@@ -76,7 +76,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.balance.on('settlement', (balance) => {
       this._log('you should settle your balance of ' + balance)
       this.emit('settlement', balance)
-      this._sendSettle() 
+      this._sendSettle()
     })
   }
 
@@ -117,7 +117,6 @@ class NerdPluginVirtual extends EventEmitter {
     return this.transferLog.get(transfer).then((storedTransfer) => {
       if (storedTransfer) {
         this.emit('_repeatTransfer', transfer)
-        this.emit('reject', transfer)
         return this._rejectTransfer(transfer, 'repeat transfer id').then(() => {
           throw new Error('repeat transfer id')
         })
@@ -134,15 +133,37 @@ class NerdPluginVirtual extends EventEmitter {
       const validAccount = (typeof transfer.account === 'string')
       if (valid && validAmount && validAccount) {
         this._log('sending out a Transfer with tid: ' + transfer.id)
-        return this.connection.send({
-          type: 'transfer',
-          transfer: transfer
-        })
+        return this._sendAndWait(transfer)
       } else {
         this._log('rejecting invalid transfer with tid: ' + transfer.id)
-        this.emit('reject', transfer)
+        throw new Error('invalid amount in transfer with id ' + transfer.id)
       }
     }).catch(this._handle)
+  }
+
+  _sendAndWait (outgoingTransfer) {
+    return new Promise((resolve, reject) => {
+      let resolved = false
+
+      this.on('_accepted', (transfer) => {
+        if (!resolved && transfer.id === outgoingTransfer.id) {
+          resolved = true
+          resolve(null)
+        }
+      })
+
+      this.on('_rejected', (transfer) => {
+        if (!resolved && transfer.id === outgoingTransfer.id) {
+          resolved = true
+          reject(new Error('transfer was invalid'))
+        }
+      })
+
+      this.connection.send({
+        type: 'transfer',
+        transfer: outgoingTransfer
+      }).catch(this._handle)
+    })
   }
 
   getInfo () {
@@ -181,17 +202,14 @@ class NerdPluginVirtual extends EventEmitter {
         return Promise.resolve(null)
       }
     }).then(() => {
-      let execute = transfer.executionCondition
-      let cancel = transfer.cancellationCondition
+      const execute = transfer.executionCondition
 
-      let time = new Date()
-      let expiresAt = new Date(transfer.expiresAt)
-      let timedOut = (time > expiresAt)
+      const time = new Date()
+      const expiresAt = new Date(transfer.expiresAt)
+      const timedOut = (time > expiresAt)
 
       if (this._validate(fulfillment, execute) && !timedOut) {
         return this._executeTransfer(transfer, fulfillment)
-      } else if (cancel && this._validate(fulfillment, cancel)) {
-        return this._cancelTransfer(transfer, fulfillment)
       } else if (timedOut) {
         return this._timeOutTransfer(transfer)
       } else {
@@ -202,67 +220,50 @@ class NerdPluginVirtual extends EventEmitter {
 
   _executeTransfer (transfer, fulfillment) {
     let fulfillmentBuffer = new Buffer(fulfillment)
-    this.emit('fulfill_execution_condition', transfer, fulfillmentBuffer)
     // because there is only one balance, kept, money is not _actually_ kept
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
     return this.transferLog.getType(transfer).then((type) => {
       if (type === this.transferLog.outgoing) {
+        this.emit('outgoing_fulfill', transfer, fulfillmentBuffer)
         return this.balance.add(transfer.amount)
       } else { // if (type === this.transferLog.incoming)
+        this.emit('incoming_fulfill', transfer, fulfillmentBuffer)
         return Promise.resolve(null)
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
     }).then(() => {
+      return this.transferLog.getType(transfer)
+    }).then((type) => {
       return this.connection.send({
         type: 'fulfill_execution_condition',
+        toNerd: (type === this.transferLog.incoming),
         transfer: transfer,
         fulfillment: fulfillment
       })
     })
   }
 
-  _cancelTransfer (transfer, fulfillment) {
-    let fulfillmentBuffer = new Buffer(fulfillment)
-    this.emit('fulfill_cancellation_condition', transfer, fulfillmentBuffer)
-    // a cancellation on an outgoing transfer means nothing because
-    // balances aren't affected until it executes
+  _timeOutTransfer (transfer) {
+    let transactionType = null
     return this.transferLog.getType(transfer).then((type) => {
+      transactionType = type
       if (type === this.transferLog.incoming) {
+        this.emit('incoming_cancel', transfer, 'timed out')
         return this.balance.add(transfer.amount)
+      } else {
+        this.emit('outgoing_cancel', transfer, 'timed out')
       }
     }).then(() => {
       return this.transferLog.fulfill(transfer)
     }).then(() => {
       return this.connection.send({
-        type: 'fulfill_cancellation_condition',
+        type: 'reject',
+        toNerd: (transactionType === this.transferLog.incoming),
         transfer: transfer,
-        fulfillment: fulfillment
+        message: 'timed out'
       })
-    })
-  }
-  
-  _timeOutTransfer (transfer) {
-    this.emit('reject', transfer, 'timed out')
-    let transactionType = null
-    return this.transferLog.getType(transfer).then((type) => {
-      transactionType = type
-      if (type === this.transferLog.incoming) {
-        return this.balance.add(transfer.amount)
-      }
-    }).then(() => {
-      return this.transferLog.fulfill(transfer)
-    }).then(() => {
-      if (transactionType === this.transferLog.incoming) {
-        return this.connection.send({
-          type: 'reject',
-          transfer: transfer,
-          message: 'timed out'
-        })
-      } else {
-        return Promise.resolve(null) 
-      }
     })
   }
 
@@ -270,7 +271,7 @@ class NerdPluginVirtual extends EventEmitter {
     return Promise.resolve(this.prefix)
   }
 
-  _sendPrefix() {
+  _sendPrefix () {
     return this.getPrefix().then((prefix) => {
       return this.connection.send({
         type: 'prefix',
@@ -296,15 +297,25 @@ class NerdPluginVirtual extends EventEmitter {
   _receive (obj) {
     if (obj.type === 'transfer') {
       this._log('received a Transfer with tid: ' + obj.transfer.id)
-      this.emit('propose', obj.transfer)
+
       return this._handleTransfer(obj.transfer)
     } else if (obj.type === 'acknowledge') {
       this._log('received an ACK on tid: ' + obj.transfer.id)
-      this.emit('receive', obj.transfer, new Buffer(obj.message))
+
+      this.emit('_accepted', obj.transfer)
+      if (obj.transfer.executionCondition) {
+        this.emit('outgoing_prepare', obj.transfer, new Buffer(obj.message))
+      } else {
+        this.emit('outgoing_transfer', obj.transfer, new Buffer(obj.message))
+      }
+
       return this._handleAcknowledge(obj.transfer)
     } else if (obj.type === 'reject') {
       this._log('received a reject on tid: ' + obj.transfer.id)
-      this.emit('reject', obj.transfer, new Buffer(obj.message))
+
+      this.emit('_rejected', obj.transfer)
+      this.emit('outgoing_cancel', obj.transfer, new Buffer(obj.message))
+
       return this._handleReject(obj.transfer)
     } else if (obj.type === 'reply') {
       this._log('received a reply on tid: ' + obj.transferId)
@@ -387,7 +398,7 @@ class NerdPluginVirtual extends EventEmitter {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
       const validAccount = (typeof transfer.account === 'string')
-      if (valid) {
+      if (valid && validAmount && validAccount) {
         return this.balance.sub(transfer.amount).then(() => {
           this._handleTimer(transfer)
           this._acceptTransfer(transfer)
@@ -442,11 +453,18 @@ class NerdPluginVirtual extends EventEmitter {
 
   _acceptTransfer (transfer) {
     this._log('sending out an ACK for tid: ' + transfer.id)
-    this.emit('receive', transfer)
-    return this.connection.send({
-      type: 'acknowledge',
-      transfer: transfer,
-      message: 'transfer accepted'
+
+    return this.transferLog.getType(transfer).then((direction) => {
+      const dir = (direction === this.transferLog.incoming)
+        ? 'incoming' : 'outgoing'
+      const type = (transfer.executionCondition) ? 'prepare' : 'transfer'
+      this.emit(dir + '_' + type, transfer)
+
+      return this.connection.send({
+        type: 'acknowledge',
+        transfer: transfer,
+        message: 'transfer accepted'
+      })
     })
   }
 
@@ -455,6 +473,7 @@ class NerdPluginVirtual extends EventEmitter {
     this._completeTransfer(transfer)
     return this.connection.send({
       type: 'reject',
+      toNerd: true,
       transfer: transfer,
       message: reason
     })

@@ -46,9 +46,9 @@ describe('SqliteStore', function () {
     obj.put('k', 'v').then(() => {
       return obj.get('k')
     }).then((value) => {
-      assert(value === 'v') 
+      assert(value === 'v')
       done()
-    }).catch((err) => {console.error(err)})
+    }).catch((err) => { console.error(err) })
   })
 })
 

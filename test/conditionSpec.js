@@ -11,7 +11,7 @@ let noob = null
 let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
 
-describe('UTP/ATP Transactions with Nerd and Noob', function () {
+describe('Conditional transfers with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
@@ -52,19 +52,22 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
 
   it('should acknowledge a UTP transaction', (done) => {
     next = next.then(() => {
-      return nerd.send({
+      const p = new Promise((resolve) => {
+        nerd.once('outgoing_prepare', (transfer, message) => {
+          assert(transfer.id === 'first')
+          resolve()
+        })
+      })
+
+      nerd.send({
         id: 'first',
         account: 'x',
         amount: '100',
         executionCondition: condition
       })
+
+      return p
     }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('receive', (transfer, message) => {
-          assert(transfer.id === 'first')
-          resolve()
-        })
-      })
     }).then(() => {
       done()
     })
@@ -81,14 +84,17 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
 
   it('should fulfill a UTP transaction as the noob', (done) => {
     next = next.then(() => {
-      return noob.fulfillCondition('first', fulfillment)
     }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('fulfill_execution_condition', (transfer, fulfillment) => {
+      const p = new Promise((resolve) => {
+        noob.once('incoming_fulfill', (transfer, fulfillment) => {
           assert(transfer.id === 'first')
           resolve()
         })
       })
+
+      noob.fulfillCondition('first', fulfillment)
+
+      return p
     }).then(() => {
       done()
     })
@@ -103,106 +109,25 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
     }).catch(handle)
   })
 
-  it('should submit an ATP transaction as the noob', (done) => {
-    next = next.then(() => {
-      return noob.send({
-        id: 'second',
-        account: 'x',
-        amount: '200',
-        executionCondition: 'garbage',
-        cancellationCondition: condition
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('receive', (transfer, message) => {
-          assert(transfer.id === 'second')
-          resolve()
-        })
-      })
-    }).then(() => {
-      done()
-    })
-  })
-
-  it('should take escrowed balance out', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
-      assert(balance === '-100')
-      done()
-    }).catch(handle)
-  })
-
-  it('should cancel an ATP transaction as the noob', (done) => {
-    next = next.then(() => {
-      return noob.fulfillCondition('second', fulfillment)
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('fulfill_cancellation_condition', (transfer, fulfillment) => {
-          assert(transfer.id === 'second')
-          resolve()
-        })
-      })
-    }).then(() => {
-      done()
-    })
-  })
-
-  it('should give back escrowed funds after cancellation', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
-      assert(balance === '100')
-      done()
-    }).catch(handle)
-  })
-
-  it('should cancel an ATP transaction as the nerd', (done) => {
-    next = next.then(() => {
-      return nerd.send({
-        id: 'cancelthis',
-        account: 'x',
-        amount: '200',
-        executionCondition: 'garbage',
-        cancellationCondition: condition
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('receive', (transfer, message) => {
-          assert(transfer.id === 'cancelthis')
-          resolve()
-        })
-      })
-    }).then(() => {
-      let promise = new Promise((resolve) => {
-        noob.once('fulfill_cancellation_condition', (transfer, fulfillment) => {
-          assert(transfer.id === 'cancelthis')
-          resolve()
-        })
-      })
-      nerd.fulfillCondition('cancelthis', fulfillment)
-      return promise
-    }).then(() => {
-      done()
-    })
-  })
-
   it('should support UTP transfers with time limits noob->nerd', (done) => {
     next = next.then(() => {
-      return noob.send({
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_cancel', (transfer, message) => {
+          assert(transfer.id === 'time_out')
+          resolve()
+        })
+      })
+
+      noob.send({
         id: 'time_out',
         account: 'x',
         amount: '200',
         executionCondition: condition,
         expiresAt: (new Date()).toString()
       })
+
+      return p
     }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('reject', (transfer, message) => {
-          assert(transfer.id === 'time_out')
-          resolve()
-        })
-      })
     }).then(() => {
       done()
     })
@@ -211,7 +136,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
   it('should support UTP transfers with time limits nerd->noob', (done) => {
     next = next.then(() => {
       let promise = new Promise((resolve) => {
-        nerd.once('reject', (transfer, message) => {
+        nerd.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out_3')
           resolve()
         })
@@ -249,7 +174,7 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
         setTimeout(() => {
           noob.fulfillCondition('time_out_2', fulfillment)
         }, 1000)
-        noob.once('reject', (transfer, message) => {
+        noob.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out_2')
           resolve()
         })
@@ -262,25 +187,27 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
   it('should complete a UTP transfer with a time limit', (done) => {
     next = next.then(() => {
       let time = new Date()
-      time.setSeconds(time.getSeconds() + 2)
+      time.setSeconds(time.getSeconds() + 4)
 
-      return noob.send({
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_prepare', (transfer, message) => {
+          assert(transfer.id === 'time_complete')
+          resolve()
+        })
+      })
+
+      noob.send({
         id: 'time_complete',
         account: 'x',
         amount: '200',
         executionCondition: condition,
         expiresAt: time.toString()
       })
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('receive', (transfer, message) => {
-          assert(transfer.id === 'time_complete')
-          resolve()
-        })
-      })
+
+      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
-        noob.once('fulfill_execution_condition', (transfer, fulfill) => {
+        noob.once('outgoing_fulfill', (transfer, fulfill) => {
           assert(transfer.id === 'time_complete')
           resolve()
         })
@@ -301,21 +228,20 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
         executionCondition: condition
       })
     }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('receive', (transfer, message) => {
+      const noobPromise = new Promise((resolve) => {
+        noob.once('incoming_fulfill', (transfer, message) => {
           assert(transfer.id === 'third')
           resolve()
         })
       })
-    }).then(() => {
-      return nerd.fulfillCondition('third', fulfillment)
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('fulfill_execution_condition', (transfer, message) => {
+      const nerdPromise = new Promise((resolve) => {
+        nerd.once('outgoing_fulfill', (transfer, message) => {
           assert(transfer.id === 'third')
           resolve()
         })
       })
+      nerd.fulfillCondition('third', fulfillment)
+      return Promise.all([noobPromise, nerdPromise])
     }).then(() => {
       done()
     })
@@ -338,28 +264,28 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
 
   it('should be able to execute a transfer noob -> nerd', (done) => {
     next = next.then(() => {
-      return noob.send({
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_prepare', (transfer, message) => {
+          assert(transfer.id === 'fourth')
+          resolve()
+        })
+      })
+      noob.send({
         id: 'fourth',
         account: 'x',
         amount: '100',
         executionCondition: condition
       })
+      return p
     }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('receive', (transfer, message) => {
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_fulfill', (transfer, message) => {
           assert(transfer.id === 'fourth')
           resolve()
         })
       })
-    }).then(() => {
-      return noob.fulfillCondition('fourth', fulfillment)
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('fulfill_execution_condition', (transfer, message) => {
-          assert(transfer.id === 'fourth')
-          resolve()
-        })
-      })
+      noob.fulfillCondition('fourth', fulfillment)
+      return p
     }).then(() => {
       done()
     })
@@ -382,18 +308,19 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
 
   it('should complain when an OTP transfer is fulfilled', (done) => {
     next = next.then(() => {
-      return noob.send({
-        id: 'fifth',
-        account: 'x',
-        amount: '10'
-      })
     }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('receive', (transfer, message) => {
+      const p = new Promise((resolve) => {
+        noob.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'fifth')
           resolve()
         })
       })
+      noob.send({
+        id: 'fifth',
+        account: 'x',
+        amount: '10'
+      })
+      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
         nerd.once('exception', (err) => {
@@ -410,19 +337,20 @@ describe('UTP/ATP Transactions with Nerd and Noob', function () {
 
   it('should complain if transfer is given incorrect fulfillment', (done) => {
     next = next.then(() => {
-      return nerd.send({
+    }).then(() => {
+      const p = new Promise((resolve) => {
+        nerd.once('outgoing_prepare', (transfer, message) => {
+          assert(transfer.id === 'sixth')
+          resolve()
+        })
+      })
+      nerd.send({
         id: 'sixth',
         account: 'x',
         amount: '100',
         executionCondition: condition
       })
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('receive', (transfer, message) => {
-          assert(transfer.id === 'sixth')
-          resolve()
-        })
-      })
+      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
         nerd.once('exception', (err) => {

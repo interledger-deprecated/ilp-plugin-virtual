@@ -30,6 +30,12 @@ class NoobPluginVirtual extends EventEmitter {
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
     this.auth = opts.auth
+    this.prefix = opts.auth.prefix
+
+    if (typeof opts.auth.prefix !== 'string') {
+      throw new TypeError('Expected opts.auth.prefix to be a string, received: ' +
+        typeof opts.auth.prefix)
+    }
 
     this.connected = false
     this.connectionConfig = opts.auth
@@ -226,6 +232,7 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   send (outgoingTransfer) {
+    outgoingTransfer.ledger = this.prefix
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
     this._expectResponse(outgoingTransfer.id)
     return new Promise((resolve, reject) => {

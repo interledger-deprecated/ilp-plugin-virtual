@@ -56,6 +56,11 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.prefix = opts.auth.prefix
 
+    if (typeof opts.auth.prefix !== 'string') {
+      throw new TypeError('Expected opts.auth.prefix to be a string, received: ' +
+        typeof opts.auth.prefix)
+    }
+
     this.connected = false
     this.connectionConfig = opts.auth
 
@@ -118,6 +123,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   send (transfer) {
+    transfer.ledger = this.prefix
     return this.transferLog.get(transfer).then((storedTransfer) => {
       if (storedTransfer) {
         this.emit('_repeatTransfer', transfer)

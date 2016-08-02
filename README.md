@@ -24,6 +24,7 @@ When instantiating the plugin, your `opts.auth` needs the correct fields.
   "limit": "amount of negative balance that can exist",
   "balance": "starting balance of the trustline",
   "host": "host of MQTT server",
+  "prefix": "prefix for ilp address",
   "secret": "not used yet"
 }
 ```

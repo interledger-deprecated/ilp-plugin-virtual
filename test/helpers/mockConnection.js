@@ -34,27 +34,33 @@ class MockConnection extends EventEmitter {
 
   connect () {
     this._log('connecting to host `' + this.host + '`...')
-    this._log('connected! subscribing to channel `' + this.recvChannel + '`')
+    this._log('connected! subscribing to channel `' + this.isNoob + '`')
+    this.connected = true
     this.emit('connect')
-    this.recvChannel.on('message', (channel, data) => {
-      this._log('received on', this.isNoob)
+
+    this.listener = (channel, data) => {
+      if (!this.connected) return
+      this._log('received on ' + this.isNoob)
       // don't let errors in the handler affect the connection
       try {
         this.emit('receive', JSON.parse(data))
       } catch (err) {
         this._log(err)
       }
-    })
+    }
+    this.recvChannel.on('message', this.listener)
+
     return Promise.resolve(null)
   }
 
   disconnect () {
+    this.connected = false
     return Promise.resolve(null)
   }
 
   send (msg) {
     return new Promise((resolve) => {
-      this._log('sending on', this.isNoob)
+      this._log('sending on ' + this.isNoob)
       // asyncronously runs function and swallows
       // the errors, just like a network connection
       setTimeout(() => {

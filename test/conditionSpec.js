@@ -35,7 +35,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
     noob = new PluginVirtual({
       store: {},
       auth: {
-        prefix: 'test.noob.',
         host: 'mqatt://test.mosquitto.org',
         token: token,
         mockConnection: MockConnection,
@@ -125,7 +124,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       const p = new Promise((resolve) => {
         noob.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out')
-          assert(transfer.ledger === 'test.noob.')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -188,7 +187,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         }, 1000)
         noob.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out_2')
-          assert(transfer.ledger === 'test.noob.')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })

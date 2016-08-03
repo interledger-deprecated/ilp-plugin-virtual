@@ -21,6 +21,22 @@ describe('The Noob and the Nerd', function () {
     assert.isFunction(PluginVirtual)
   })
 
+  it('should throw if the nerd doesn\'t get a prefix', function () {
+    assert.throws(() => {
+      return new PluginVirtual({
+        store: store1,
+        auth: {
+          host: 'mqtt://test.mosquitto.org',
+          token: token,
+          limit: '1000',
+          balance: '0',
+          account: 'nerd',
+          secret: 'secret'
+        }
+      })
+    }, 'Expected opts.auth.prefix to be a string, received: undefined')
+  })
+
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
       store: store1,
@@ -47,7 +63,6 @@ describe('The Noob and the Nerd', function () {
     noob = new PluginVirtual({
       store: {},
       auth: {
-        prefix: 'test.noob.',
         host: 'mqtt://test.mosquitto.org',
         token: token,
         mockConnection: MockConnection,
@@ -113,7 +128,7 @@ describe('The Noob and the Nerd', function () {
       const p = new Promise((resolve) => {
         noob.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'first')
-          assert(transfer.ledger === 'test.noob.')
+          assert(transfer.ledger === 'test.nerd.')
           done()
           resolve()
         })
@@ -200,7 +215,6 @@ describe('The Noob and the Nerd', function () {
       noob2 = new PluginVirtual({
         store: {},
         auth: {
-          prefix: 'test.noob2.',
           host: 'mqtt://test.mosquitto.org',
           token: token,
           mockConnection: MockConnection,
@@ -275,7 +289,7 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         nerd.once('reply', (transfer, message) => {
           assert(transfer.id === 'second')
-          assert(transfer.ledger === 'test.noob.')
+          assert(transfer.ledger === 'test.nerd.')
           assert(message.toString() === 'I have a message')
           resolve()
         })

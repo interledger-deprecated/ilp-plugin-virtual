@@ -21,6 +21,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
     nerd = new PluginVirtual({
       store: objStore,
       auth: {
+        prefix: 'test.nerd.',
         host: 'mqatt://test.mosquitto.org',
         token: token,
         limit: '1000',
@@ -63,6 +64,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       const p = new Promise((resolve) => {
         nerd.once('outgoing_prepare', (transfer, message) => {
           assert(transfer.id === 'first')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -75,7 +77,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
 
       return p
-    }).then(() => {
     }).then(() => {
       done()
     })
@@ -96,6 +97,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       const p = new Promise((resolve) => {
         noob.once('incoming_fulfill', (transfer, fulfillment) => {
           assert(transfer.id === 'first')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -122,6 +124,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       const p = new Promise((resolve) => {
         noob.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -136,7 +139,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
       return p
     }).then(() => {
-    }).then(() => {
       done()
     })
   })
@@ -146,6 +148,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       let promise = new Promise((resolve) => {
         nerd.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out_3')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -184,6 +187,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         }, 1000)
         noob.once('outgoing_cancel', (transfer, message) => {
           assert(transfer.id === 'time_out_2')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })

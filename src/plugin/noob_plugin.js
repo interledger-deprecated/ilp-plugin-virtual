@@ -30,6 +30,7 @@ class NoobPluginVirtual extends EventEmitter {
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
     this.auth = opts.auth
+    this._prefix = null
 
     this.connected = false
     this.connectionConfig = opts.auth
@@ -185,9 +186,11 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getPrefix () {
+    if (this._prefix) return Promise.resolve(this._prefix)
     this._log('sending prefix query...')
     return new Promise((resolve) => {
       this.on('_prefix', (prefix) => {
+        this._prefix = prefix
         resolve(prefix)
       })
       this.connection.send({
@@ -245,9 +248,12 @@ class NoobPluginVirtual extends EventEmitter {
         }
       })
 
-      this.connection.send({
-        type: 'transfer',
-        transfer: outgoingTransfer
+      this.getPrefix().then((prefix) => {
+        outgoingTransfer.ledger = prefix
+        this.connection.send({
+          type: 'transfer',
+          transfer: outgoingTransfer
+        }).catch(this._handle)
       }).catch(this._handle)
     })
   }

@@ -21,10 +21,27 @@ describe('The Noob and the Nerd', function () {
     assert.isFunction(PluginVirtual)
   })
 
+  it('should throw if the nerd doesn\'t get a prefix', function () {
+    assert.throws(() => {
+      return new PluginVirtual({
+        store: store1,
+        auth: {
+          host: 'mqtt://test.mosquitto.org',
+          token: token,
+          limit: '1000',
+          balance: '0',
+          account: 'nerd',
+          secret: 'secret'
+        }
+      })
+    }, 'Expected opts.auth.prefix to be a string, received: undefined')
+  })
+
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
       store: store1,
       auth: {
+        prefix: 'test.nerd.',
         host: 'mqtt://test.mosquitto.org',
         token: token,
         limit: '1000',
@@ -111,6 +128,7 @@ describe('The Noob and the Nerd', function () {
       const p = new Promise((resolve) => {
         noob.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'first')
+          assert(transfer.ledger === 'test.nerd.')
           done()
           resolve()
         })
@@ -171,6 +189,7 @@ describe('The Noob and the Nerd', function () {
       const p = new Promise((resolve) => {
         nerd.once('outgoing_transfer', (transfer, message) => {
           assert(transfer.id === 'third')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
@@ -231,18 +250,21 @@ describe('The Noob and the Nerd', function () {
         new Promise((resolve) => {
           noob.once('incoming_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
+            assert(transfer.ledger === 'test.nerd.')
             resolve()
           })
         }),
         new Promise((resolve) => {
           noob2.once('incoming_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
+            assert(transfer.ledger === 'test.nerd.')
             resolve()
           })
         }),
         new Promise((resolve) => {
           nerd.once('outgoing_transfer', (transfer, message) => {
             assert(transfer.id === 'fourth')
+            assert(transfer.ledger === 'test.nerd.')
             resolve()
           })
         })
@@ -267,6 +289,7 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         nerd.once('reply', (transfer, message) => {
           assert(transfer.id === 'second')
+          assert(transfer.ledger === 'test.nerd.')
           assert(message.toString() === 'I have a message')
           resolve()
         })
@@ -283,6 +306,7 @@ describe('The Noob and the Nerd', function () {
       return new Promise((resolve) => {
         noob.once('reply', (transfer, message) => {
           assert(transfer.id === 'fourth')
+          assert(transfer.ledger === 'test.nerd.')
           assert(message.toString() === 'I have a message too')
           resolve()
         })
@@ -395,6 +419,7 @@ describe('The Noob and the Nerd', function () {
       let tmpNerd = new PluginVirtual({
         store: store1,
         auth: {
+          prefix: 'test.tmpNerd.',
           host: 'mqatt://test.mosquitto.org',
           token: token,
           limit: '1000',

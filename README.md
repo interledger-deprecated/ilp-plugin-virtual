@@ -35,6 +35,7 @@ When instantiating the plugin, your `opts.auth` needs the correct fields.
 {
   "account": "can be anything; only used for logging",
   "token": "channel name in MQTT server",
+  "prefix": "prefix for ilp address",
   "host": "host of MQTT server"
 }
 ```

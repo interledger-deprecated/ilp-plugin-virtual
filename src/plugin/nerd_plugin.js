@@ -165,7 +165,7 @@ class NerdPluginVirtual extends EventEmitter {
 
       this.connection.send({
         type: 'transfer',
-        transfer: outgoingTransfer
+        transfer: Object.assign({}, outgoingTransfer, { ledger: this.prefix })
       }).catch(this._handle)
     })
   }

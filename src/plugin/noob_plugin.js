@@ -156,7 +156,7 @@ class NoobPluginVirtual extends EventEmitter {
     } else if (obj.type === 'prefix') {
       this._log('received prefix.')
 
-      this._emit('_prefix', obj.prefix)
+      this.emit('_prefix', obj.prefix)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -224,9 +224,11 @@ class NoobPluginVirtual extends EventEmitter {
         }
       })
 
-      this.connection.send({
-        type: 'transfer',
-        transfer: outgoingTransfer
+      this.getPrefix().then((prefix) => {
+        return this.connection.send({
+          type: 'transfer',
+          transfer: Object.assign({}, outgoingTransfer, { ledger: prefix })
+        })
       }).catch(this._handle)
     })
   }

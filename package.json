@@ -1,6 +1,6 @@
 {
   "name": "ilp-plugin-virtual",
-  "version": "2.1.3",
+  "version": "3.0.0",
   "description": "ILP virtual ledger plugin for directly transacting connectors",
   "main": "index.js",
   "scripts": {

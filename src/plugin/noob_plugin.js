@@ -157,6 +157,27 @@ class NoobPluginVirtual extends EventEmitter {
       this._log('received prefix.')
 
       this.emit('_prefix', obj.prefix)
+
+      return Promise.resolve(null)
+    } else if (obj.type === 'manual_reject') {
+      this._log('received manual reject on: ' + obj.transfer.id)
+
+      this.emit('outgoing_reject', obj.transfer, obj.message)
+
+      return Promise.resolve(null)
+    } else if (obj.type === 'manual_reject_failure') {
+      this._log('manual rejection failed on: ' + obj.id)
+
+      this.emit('_manual_reject_failure', obj.id, obj.message)
+
+      return Promise.resolve(null)
+    } else if (obj.type === 'manual_reject_success') {
+      this._log('manual reject success on: ' + obj.transfer.id)
+
+      this.emit('incoming_reject', obj.transfer, obj.message)
+      this.emit('_manual_reject_success', obj.transfer.id)
+
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -268,6 +289,33 @@ class NoobPluginVirtual extends EventEmitter {
       type: 'reply',
       transferId: transferId,
       message: replyMessage
+    })
+  }
+
+  rejectIncomingTransfer (transferId) {
+    this._log('sending out a manual reject on tid: ' + transferId)
+    return new Promise((resolve, reject) => {
+      let resolved = false
+
+      this.on('_manual_reject_success', (transfer) => {
+        if (!resolved && transfer.id === transferId) {
+          resolved = true
+          resolve(null)
+        }
+      })
+
+      this.on('_manual_reject_failure', (id, message) => {
+        if (!resolved && transferId === id) {
+          resolved = true
+          reject(new Error(message))
+        }
+      })
+
+      this.connection.send({
+        type: 'manual_reject',
+        transferId: transferId,
+        message: 'manually rejected'
+      }).catch(this._handle)
     })
   }
 }

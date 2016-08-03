@@ -184,6 +184,36 @@ class NerdPluginVirtual extends EventEmitter {
     }).catch(this._handle)
   }
 
+  rejectIncomingTransfer (transferId) {
+    let transfer = null
+    this._log('rejecting incoming transfer: ' + transferId)
+    return this.transferLog.getId(transferId).then((storedTransfer) => {
+      transfer = storedTransfer
+      if (!storedTransfer || !storedTransfer.executionCondition) {
+        throw new Error(
+          'invalid transfer id; must be an existing transfer with a condition'
+        )
+      } else {
+        return this.transferLog.getType(storedTransfer)
+      }
+    }).then((type) => {
+      if (type !== this.transferLog.incoming) {
+        throw new Error('transfer must be incoming')
+      } else {
+        return this.balance.add(transfer.amount)
+      }
+    }).then(() => {
+      return this.transferLog.fulfill(transfer)
+    }).then(() => {
+      this.emit('incoming_reject', transfer, 'manually rejected')
+      return this.connection.send({
+        type: 'manual_reject',
+        transfer: transfer,
+        message: 'manually rejected'
+      })
+    }).catch(this._handle)
+  }
+
   _validate (fulfillment, condition) {
     try {
       return cc.validateFulfillment(fulfillment, condition)
@@ -333,6 +363,9 @@ class NerdPluginVirtual extends EventEmitter {
         this.emit('fulfillment', transfer, new Buffer(obj.fulfillment))
         return this._fulfillConditionLocal(transfer, obj.fulfillment)
       })
+    } else if (obj.type === 'manual_reject') {
+      this._log('received a manual reject for tid: ' + obj.transferId)
+      return this._handleManualReject(obj.transferId, obj.message)
     } else if (obj.type === 'balance') {
       this._log('received a query for the balance...')
       return this._sendBalance()
@@ -352,6 +385,50 @@ class NerdPluginVirtual extends EventEmitter {
       } else {
         this.emit('_falseReject', transfer) // event for debugging
       }
+    })
+  }
+
+  _handleManualReject (transferId, message) {
+    let transfer = null
+    return this.transferLog.getId(transferId).then((storedTransfer) => {
+      transfer = storedTransfer
+      if (!transfer || !transfer.executionCondition) {
+        this._sendManualRejectFailure(
+          transferId,
+          'must be an existing transfer with a condition'
+        )
+        throw new Error()
+      } else {
+        return this.transferLog.getType(transfer)
+      }
+    }).then((type) => {
+      if (type !== this.transferLog.outgoing) {
+        this._sendManualRejectFailure(
+          transfer.id,
+          'transfer must be incoming'
+        )
+      } else {
+        return this.transferLog.fulfill(transfer)
+      }
+    }).then(() => {
+      this.emit('outgoing_reject', transfer, message)
+      this._sendManualRejectSuccess(transfer, message)
+    })
+  }
+
+  _sendManualRejectFailure (transferId, message) {
+    return this.connection.send({
+      type: 'manual_reject_failure',
+      id: transferId,
+      message: message
+    })
+  }
+
+  _sendManualRejectSuccess (transfer, message) {
+    return this.connection.send({
+      type: 'manual_reject_success',
+      transfer: transfer,
+      message: message
     })
   }
 

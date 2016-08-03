@@ -34,7 +34,7 @@ class NoobPluginVirtual extends EventEmitter {
     this.connected = false
     this.connectionConfig = opts.auth
 
-    const MockConnection = opts.auth.MockConnection
+    const MockConnection = opts.auth.mockConnection
     this.connection = MockConnection
       ? (new MockConnection(this.connectionConfig))
       : (new Connection(this.connectionConfig))

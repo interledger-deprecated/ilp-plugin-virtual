@@ -6,6 +6,10 @@ const newSqliteStore = require('./helpers/sqliteStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
 
+const mock = require('./helpers/mockConnection')
+const MockConnection = mock.MockConnection
+const MockChannels = mock.MockChannels
+
 let nerd = null
 let noob = null
 let handle = (err) => { log.log(err) }
@@ -22,6 +26,8 @@ describe('Conditional transfers with Nerd and Noob', function () {
         limit: '1000',
         balance: '0',
         account: 'nerd',
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
         secret: 'secret'
       }
     })
@@ -30,6 +36,8 @@ describe('Conditional transfers with Nerd and Noob', function () {
       auth: {
         host: 'mqatt://test.mosquitto.org',
         token: token,
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
         account: 'noob'
       }
     })

@@ -5,6 +5,10 @@ const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
 const log = require('../src/util/log')('test')
 
+const mock = require('./helpers/mockConnection')
+const MockConnection = mock.MockConnection
+const MockChannels = mock.MockChannels
+
 let nerd = null
 let noob = null
 let noob2 = null
@@ -26,6 +30,8 @@ describe('The Noob and the Nerd', function () {
         limit: '1000',
         balance: '0',
         account: 'nerd',
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
         secret: 'secret'
       }
     })
@@ -42,6 +48,8 @@ describe('The Noob and the Nerd', function () {
       auth: {
         host: 'mqtt://test.mosquitto.org',
         token: token,
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
         account: 'noob'
       }
     })
@@ -190,16 +198,18 @@ describe('The Noob and the Nerd', function () {
         auth: {
           host: 'mqtt://test.mosquitto.org',
           token: token,
+          mockConnection: MockConnection,
+          mockChannels: MockChannels,
           account: 'noob2'
         }
       })
       assert.isObject(noob2)
     }).then(() => {
-      noob2.connect()
       return new Promise((resolve) => {
         noob2.once('connect', () => {
           resolve()
         })
+        noob2.connect()
       })
     }).then(() => {
       done()
@@ -390,6 +400,8 @@ describe('The Noob and the Nerd', function () {
           limit: '1000',
           balance: '0',
           account: 'nerd',
+          mockConnection: MockConnection,
+          mockChannels: MockChannels,
           secret: 'secret'
         }
       })

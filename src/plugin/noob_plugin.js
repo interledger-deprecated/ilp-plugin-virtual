@@ -33,7 +33,11 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.connected = false
     this.connectionConfig = opts.auth
-    this.connection = new Connection(this.connectionConfig)
+
+    const MockConnection = opts.auth.MockConnection
+    this.connection = MockConnection
+      ? (new MockConnection(this.connectionConfig))
+      : (new Connection(this.connectionConfig))
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch(this._handle)
     })
@@ -172,13 +176,13 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   connect () {
-    this.connection.connect()
     return new Promise((resolve) => {
       this.connection.on('connect', () => {
         this.connected = true
         this.emit('connect')
         resolve(null)
       })
+      this.connection.connect()
     })
   }
 

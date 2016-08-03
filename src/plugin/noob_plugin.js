@@ -156,7 +156,7 @@ class NoobPluginVirtual extends EventEmitter {
     } else if (obj.type === 'prefix') {
       this._log('received prefix.')
 
-      this._emit('_prefix', obj.prefix)
+      this.emit('_prefix', obj.prefix)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)

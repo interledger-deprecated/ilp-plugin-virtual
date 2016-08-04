@@ -29,16 +29,15 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
-    this.auth = opts.auth
+    this.auth = opts
     this._prefix = null
 
     this.connected = false
-    this.connectionConfig = opts.auth
 
-    const MockConnection = opts.auth.mockConnection
+    const MockConnection = opts.mockConnection
     this.connection = MockConnection
-      ? (new MockConnection(this.connectionConfig))
-      : (new Connection(this.connectionConfig))
+      ? (new MockConnection(opts))
+      : (new Connection(opts))
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch(this._handle)
     })

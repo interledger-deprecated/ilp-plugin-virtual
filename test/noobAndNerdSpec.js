@@ -24,33 +24,29 @@ describe('The Noob and the Nerd', function () {
   it('should throw if the nerd doesn\'t get a prefix', function () {
     assert.throws(() => {
       return new PluginVirtual({
-        store: store1,
-        auth: {
-          host: 'mqtt://test.mosquitto.org',
-          token: token,
-          limit: '1000',
-          balance: '0',
-          account: 'nerd',
-          secret: 'secret'
-        }
-      })
-    }, 'Expected opts.auth.prefix to be a string, received: undefined')
-  })
-
-  it('should instantiate the nerd', () => {
-    nerd = new PluginVirtual({
-      store: store1,
-      auth: {
-        prefix: 'test.nerd.',
+        _store: store1,
         host: 'mqtt://test.mosquitto.org',
         token: token,
         limit: '1000',
         balance: '0',
         account: 'nerd',
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
         secret: 'secret'
-      }
+      })
+    }, 'Expected opts.prefix to be a string, received: undefined')
+  })
+
+  it('should instantiate the nerd', () => {
+    nerd = new PluginVirtual({
+      _store: store1,
+      host: 'mqtt://test.mosquitto.org',
+      prefix: 'test.nerd.',
+      token: token,
+      limit: '1000',
+      balance: '0',
+      account: 'nerd',
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      secret: 'secret'
     })
     assert.isObject(nerd)
   })
@@ -61,14 +57,12 @@ describe('The Noob and the Nerd', function () {
 
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
-      store: {},
-      auth: {
-        host: 'mqtt://test.mosquitto.org',
-        token: token,
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        account: 'noob'
-      }
+      _store: {},
+      host: 'mqtt://test.mosquitto.org',
+      token: token,
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      account: 'noob'
     })
     assert.isObject(noob)
   })
@@ -213,14 +207,12 @@ describe('The Noob and the Nerd', function () {
   it('should create a second noob', (done) => {
     next = next.then(() => {
       noob2 = new PluginVirtual({
-        store: {},
-        auth: {
-          host: 'mqtt://test.mosquitto.org',
-          token: token,
-          mockConnection: MockConnection,
-          mockChannels: MockChannels,
-          account: 'noob2'
-        }
+        _store: {},
+        host: 'mqtt://test.mosquitto.org',
+        token: token,
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
+        account: 'noob2'
       })
       assert.isObject(noob2)
     }).then(() => {
@@ -417,18 +409,16 @@ describe('The Noob and the Nerd', function () {
   it('should hold same balance when nerd is made with old db', (done) => {
     next = next.then(() => {
       let tmpNerd = new PluginVirtual({
-        store: store1,
-        auth: {
-          prefix: 'test.tmpNerd.',
-          host: 'mqatt://test.mosquitto.org',
-          token: token,
-          limit: '1000',
-          balance: '0',
-          account: 'nerd',
-          mockConnection: MockConnection,
-          mockChannels: MockChannels,
-          secret: 'secret'
-        }
+        _store: store1,
+        host: 'mqatt://test.mosquitto.org',
+        token: token,
+        limit: '1000',
+        balance: '0',
+        account: 'nerd',
+        prefix: 'test.tmpNerd.',
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
+        secret: 'secret'
       })
       return tmpNerd.getBalance()
     }).then((balance) => {

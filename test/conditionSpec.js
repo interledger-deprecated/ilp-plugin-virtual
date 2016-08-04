@@ -19,28 +19,24 @@ describe('Conditional transfers with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
-      store: objStore,
-      auth: {
-        prefix: 'test.nerd.',
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        limit: '1000',
-        balance: '0',
-        account: 'nerd',
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        secret: 'secret'
-      }
+      _store: objStore,
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      limit: '1000',
+      balance: '0',
+      account: 'nerd',
+      prefix: 'test.nerd.',
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      secret: 'secret'
     })
     noob = new PluginVirtual({
-      store: {},
-      auth: {
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        account: 'noob'
-      }
+      _store: {},
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      account: 'noob'
     })
     assert.isObject(noob)
     assert.isObject(nerd)

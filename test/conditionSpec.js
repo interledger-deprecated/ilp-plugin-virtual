@@ -1,14 +1,16 @@
 'use strict'
 
+const mockRequire = require('mock-require')
+const mock = require('./helpers/mockConnection')
+const MockConnection = mock.MockConnection
+const MockChannels = mock.MockChannels
+mockRequire('../src/model/connection', MockConnection)
+
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
-
-const mock = require('./helpers/mockConnection')
-const MockConnection = mock.MockConnection
-const MockChannels = mock.MockChannels
 
 let nerd = null
 let noob = null
@@ -17,6 +19,7 @@ let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Conditional transfers with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
+    mockRequire('mqtt', null)
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
       _store: objStore,

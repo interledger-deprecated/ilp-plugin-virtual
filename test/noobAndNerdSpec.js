@@ -1,13 +1,15 @@
 'use strict'
 
+const mockRequire = require('mock-require')
+const mock = require('./helpers/mockConnection')
+const MockConnection = mock.MockConnection
+const MockChannels = mock.MockChannels
+mockRequire('../src/model/connection', MockConnection)
+
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
 const log = require('../src/util/log')('test')
-
-const mock = require('./helpers/mockConnection')
-const MockConnection = mock.MockConnection
-const MockChannels = mock.MockChannels
 
 let nerd = null
 let noob = null
@@ -44,7 +46,6 @@ describe('The Noob and the Nerd', function () {
       limit: '1000',
       balance: '0',
       account: 'nerd',
-      mockConnection: MockConnection,
       mockChannels: MockChannels,
       secret: 'secret'
     })
@@ -60,7 +61,6 @@ describe('The Noob and the Nerd', function () {
       _store: {},
       host: 'mqtt://test.mosquitto.org',
       token: token,
-      mockConnection: MockConnection,
       mockChannels: MockChannels,
       account: 'noob'
     })
@@ -210,7 +210,6 @@ describe('The Noob and the Nerd', function () {
         _store: {},
         host: 'mqtt://test.mosquitto.org',
         token: token,
-        mockConnection: MockConnection,
         mockChannels: MockChannels,
         account: 'noob2'
       })
@@ -416,7 +415,6 @@ describe('The Noob and the Nerd', function () {
         balance: '0',
         account: 'nerd',
         prefix: 'test.tmpNerd.',
-        mockConnection: MockConnection,
         mockChannels: MockChannels,
         secret: 'secret'
       })

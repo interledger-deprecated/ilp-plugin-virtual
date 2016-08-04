@@ -34,10 +34,7 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.connected = false
 
-    const MockConnection = opts.mockConnection
-    this.connection = MockConnection
-      ? (new MockConnection(opts))
-      : (new Connection(opts))
+    this.connection = new Connection(opts)
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch(this._handle)
     })

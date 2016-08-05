@@ -13,7 +13,7 @@ npm install --save ilp-plugin-virtual
 You can test out the ledger plugin by running `npm test` on your machine.  To
 include debug information during the test, run `npm run-script verbose-test`
 
-When instantiating the plugin, your `opts.auth` needs the correct fields.
+When instantiating the plugin, your `opts` need the correct fields.
 
 ### opts.auth (Nerd)
 

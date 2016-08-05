@@ -1,14 +1,16 @@
 'use strict'
 
+const mockRequire = require('mock-require')
+const mock = require('./helpers/mockConnection')
+const MockConnection = mock.MockConnection
+const MockChannels = mock.MockChannels
+mockRequire('../src/model/connection', MockConnection)
+
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
 const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
-
-const mock = require('./helpers/mockConnection')
-const MockConnection = mock.MockConnection
-const MockChannels = mock.MockChannels
 
 let nerd = null
 let noob = null
@@ -17,30 +19,27 @@ let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Conditional transfers with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
+    mockRequire('mqtt', null)
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
-      store: objStore,
-      auth: {
-        prefix: 'test.nerd.',
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        limit: '1000',
-        balance: '0',
-        account: 'nerd',
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        secret: 'secret'
-      }
+      _store: objStore,
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      limit: '1000',
+      balance: '0',
+      account: 'nerd',
+      prefix: 'test.nerd.',
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      secret: 'secret'
     })
     noob = new PluginVirtual({
-      store: {},
-      auth: {
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        account: 'noob'
-      }
+      _store: {},
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      account: 'noob'
     })
     assert.isObject(noob)
     assert.isObject(nerd)

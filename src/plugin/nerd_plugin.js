@@ -18,17 +18,18 @@ class NerdPluginVirtual extends EventEmitter {
   * Create a PluginVirtual
   * @param {object} opts contains PluginOptions for PluginVirtual.
   *
-  * @param {object} opts.store methods for persistance
-  * @param {function} opts.store.get get an element by key
-  * @param {function} opts.store.put store an element by key, value
-  * @param {function} opts.store.del delete an elemeny by key
+  * @param {object} opts._store methods for persistance
+  * @param {function} opts._store.get get an element by key
+  * @param {function} opts._store.put store an element by key, value
+  * @param {function} opts._store.del delete an elemeny by key
   *
-  * @param {object} opts.auth ledger-specific information
-  * @param {string} opts.auth.account name of your PluginVirtual (can be anything)
-  * @param {string} opts.auth.token channel to connect to in MQTT server
-  * @param {string} opts.auth.limit numeric string representing credit limit
-  * @param {string} opts.auth.balance numeric string representing starting balance
-  * @param {string} opts.auth.host hostname of MQTT server
+  * @param {string} opts.account name of your PluginVirtual (can be anything)
+  * @param {string} opts.prefix ilp address of this ledger
+  * @param {string} opts.token channel to connect to in MQTT server
+  * @param {string} opts.limit numeric string representing credit limit
+  * @param {string} opts.balance numeric string representing starting balance
+  * @param {string} opts.host hostname of MQTT server
+  * @param {object} opts.info object to be returned by getInfo
   */
   constructor (opts) {
     super()
@@ -41,41 +42,37 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
-    this.auth = opts.auth
-    this.store = opts.store
+    this.auth = opts
+    this.store = opts._store
     this.timers = {}
 
-    this.info = opts.auth.info || {
-      precision: opts.auth.precision || 15,
-      scale: opts.auth.scale || 15,
-      currencyCode: opts.auth.currencyCode || '???',
-      currencySymbol: opts.auth.currencySymbol || '?'
+    this.info = opts.info || {
+      precision: 15,
+      scale: 15,
+      currencyCode: '???',
+      currencySymbol: '?'
     }
 
-    this.transferLog = new TransferLog(opts.store)
+    this.transferLog = new TransferLog(opts._store)
 
-    this.prefix = opts.auth.prefix
+    this.prefix = opts.prefix
 
-    if (typeof opts.auth.prefix !== 'string') {
-      throw new TypeError('Expected opts.auth.prefix to be a string, received: ' +
-        typeof opts.auth.prefix)
+    if (typeof opts.prefix !== 'string') {
+      throw new TypeError('Expected opts.prefix to be a string, received: ' +
+        typeof opts.prefix)
     }
 
     this.connected = false
-    this.connectionConfig = opts.auth
 
-    const MockConnection = opts.auth.mockConnection
-    this.connection = MockConnection
-      ? (new MockConnection(this.connectionConfig))
-      : (new Connection(this.connectionConfig))
+    this.connection = new Connection(opts)
     this.connection.on('receive', (obj) => {
       this._receive(obj).catch(this._handle)
     })
 
     this.balance = new Balance({
-      store: opts.store,
-      limit: opts.auth.limit,
-      balance: opts.auth.balance
+      store: opts._store,
+      limit: opts.limit,
+      balance: opts.balance
     })
     this.balance.on('_balanceChanged', (balance) => {
       this._log('balance changed to ' + balance)

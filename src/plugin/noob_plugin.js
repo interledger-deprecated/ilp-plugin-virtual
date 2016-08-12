@@ -29,7 +29,7 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
-    this.auth = opts
+    this._account = opts.account
     this._prefix = null
 
     this.connected = false
@@ -45,7 +45,7 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   _log (msg) {
-    log.log(this.auth.account + ': ' + msg)
+    log.log(this._account + ': ' + msg)
   }
 
   // These functions prevent messages from being

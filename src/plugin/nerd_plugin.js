@@ -7,6 +7,7 @@ const Connection = require('../model/connection')
 const Transfer = require('../model/transfer')
 const TransferLog = require('../model/transferlog').TransferLog
 const log = require('../util/log')('plugin')
+const uuid = require('uuid4')
 
 const cc = require('five-bells-condition')
 
@@ -69,9 +70,14 @@ class NerdPluginVirtual extends EventEmitter {
       this._receive(obj).catch(this._handle)
     })
 
+    this.settler = opts._optimisticPlugin
+    this.settleAddress = opts.settleAddress
+    this.maxBalance = opts.max
+
     this.balance = new Balance({
       store: opts._store,
       limit: opts.limit,
+      max: this.maxBalance,
       balance: opts.balance
     })
     this.balance.on('_balanceChanged', (balance) => {
@@ -79,11 +85,32 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('_balanceChanged', balance)
       this._sendBalance()
     })
-    this.balance.on('settlement', (balance) => {
+    this.balance.on('under', (balance) => {
       this._log('you should settle your balance of ' + balance)
-      this.emit('settlement', balance)
       this._sendSettle()
     })
+    this.balance.on('over', (balance) => {
+      this._log('you should settle your balance of ' + balance)
+      this.emit('settlement', balance)
+    })
+
+    if (this.settler && this.settleAddress) {
+      this.on('settlement', (balance) => {
+        this.settler.send({
+          account: this.settleAddress,
+          amount: this._getSettleAmount(balance),
+          id: uuid()
+        })
+      })
+
+      this.settler.on('incoming_transfer', (transfer) => {
+        console.log(transfer)
+        console.log(this.settleAddress)
+        if (transfer.account !== this.settleAddress) return
+        this._log('received a settlement for ' + transfer.amount)
+        this._incomingSettle(transfer)
+      })
+    }
   }
 
   getAccount () {
@@ -133,7 +160,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.storeOutgoing(transfer)
     }).then(() => {
-      return this.balance.isValidIncoming(transfer.amount)
+      return this.balance.isValidOutgoing(transfer.amount)
     }).then((valid) => {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
@@ -376,6 +403,9 @@ class NerdPluginVirtual extends EventEmitter {
       return this._sendInfo()
     } else if (obj.type === 'prefix') {
       return this._sendPrefix()
+    } else if (obj.type === 'settled') {
+      this._log('settled for amount ' + obj.transfer.amount)
+      return this._outgoingSettle(obj.transfer)
     } else {
       this._handle(new Error('Invalid message received'))
     }
@@ -569,6 +599,26 @@ class NerdPluginVirtual extends EventEmitter {
       promises.push(this.transferLog.fulfill(transfer))
     }
     return Promise.all(promises)
+  }
+
+  _getSettleAmount (balance) {
+    const balanceNumber = balance - 0
+    const limitNumber = this.limit - 0
+
+    // amount that balance must increase by
+    return (balanceNumber - (balanceNumber - limitNumber) / 2) + ''
+  }
+
+  _outgoingSettle (transfer) {
+    return this.balance.sub(transfer.amount).then(() => {
+      return this._sendBalance()
+    })
+  }
+
+  _incomingSettle (transfer) {
+    return this.balance.add(transfer.amount).then(() => {
+      return this._sendBalance()
+    })
   }
 
   _log (msg) {

@@ -11,6 +11,7 @@ class Balance extends EventEmitter {
     this._store = opts.store
     this._limit = this._convert(opts.limit)
     this._balance = opts.balance
+    this._max = opts.max
     this._initialized = false
     this._field = 'account'
   }
@@ -60,13 +61,25 @@ class Balance extends EventEmitter {
     return this.add(this._convert(amount).negated().toString())
   }
 
+  isValidOutgoing (amountString) {
+    let amount = this._convert(amountString)
+    return this._getNumber().then((balance) => {
+      let inMax = balance.add(amount).lte(this._max)
+      let positive = amount.gte(this._convert('0'))
+      if (!inMax) {
+        this.emit('over', balance)
+      }
+      return Promise.resolve(inMax && positive)
+    })
+  }
+
   isValidIncoming (amountString) {
     let amount = this._convert(amountString)
     return this._getNumber().then((balance) => {
       let inLimit = balance.sub(amount).gte(this._limit.negated())
       let positive = amount.gte(this._convert('0'))
       if (!inLimit) {
-        this.emit('settlement', balance)
+        this.emit('under', balance)
       }
       return Promise.resolve(inLimit && positive)
     })

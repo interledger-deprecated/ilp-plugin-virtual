@@ -26,6 +26,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       host: 'mqatt://test.mosquitto.org',
       token: token,
       limit: '1000',
+      max: '2000',
       balance: '0',
       account: 'nerd',
       prefix: 'test.nerd.',

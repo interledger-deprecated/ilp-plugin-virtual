@@ -30,6 +30,7 @@ describe('The Noob and the Nerd', function () {
         host: 'mqtt://test.mosquitto.org',
         token: token,
         limit: '1000',
+        max: '2000',
         balance: '0',
         account: 'nerd',
         secret: 'secret'
@@ -44,6 +45,7 @@ describe('The Noob and the Nerd', function () {
       prefix: 'test.nerd.',
       token: token,
       limit: '1000',
+      max: '2000',
       balance: '0',
       account: 'nerd',
       mockChannels: MockChannels,
@@ -412,6 +414,7 @@ describe('The Noob and the Nerd', function () {
         host: 'mqatt://test.mosquitto.org',
         token: token,
         limit: '1000',
+        max: '2000',
         balance: '0',
         account: 'nerd',
         prefix: 'test.tmpNerd.',

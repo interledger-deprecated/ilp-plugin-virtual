@@ -4,6 +4,7 @@ const EventEmitter = require('events')
 
 const Connection = require('../model/connection')
 const log = require('../util/log')('plugin')
+const uuid = require('uuid4')
 
 class NoobPluginVirtual extends EventEmitter {
 
@@ -39,9 +40,46 @@ class NoobPluginVirtual extends EventEmitter {
       this._receive(obj).catch(this._handle)
     })
 
+    this.settler = opts._optimisticPlugin
+    this.settleAddress = opts.settleAddress
+    this.maxBalance = opts.max
+
     this._expects = {}
     this._seen = {}
     this._fulfilled = {}
+
+    if (this.settler && this.settleAddress) {
+      this.on('settlement', (balance) => {
+        this.settler.send({
+          account: this.settleAddress,
+          amount: this._getSettleAmount(balance),
+          id: uuid()
+        })
+      })
+
+      this.settler.on('incoming_transfer', (transfer) => {
+        console.log('NOOB:', transfer)
+        if (transfer.account !== this.settleAddress) return
+        this._confirmSettle(transfer)
+      })
+    }
+  }
+
+  _confirmSettle (transfer) {
+    this.connection.send({
+      type: 'settled',
+      transfer: transfer
+    })
+  }
+
+  _getSettleAmount (balance) {
+    const balanceNumber = balance - 0
+    const maxNumber = this.maxBalance - 0
+
+    // amount that balance must increase by
+    const amount = ((balanceNumber + maxNumber) / 2 - balanceNumber) + ''
+    this._log('going to settle for ' + amount)
+    return amount
   }
 
   _log (msg) {

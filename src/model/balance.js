@@ -11,7 +11,7 @@ class Balance extends EventEmitter {
     this._store = opts.store
     this._limit = this._convert(opts.limit)
     this._balance = opts.balance
-    this._max = opts.max
+    this._max = this._convert(opts.max)
     this._initialized = false
     this._field = 'account'
   }

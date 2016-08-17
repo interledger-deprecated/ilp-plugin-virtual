@@ -104,8 +104,6 @@ class NerdPluginVirtual extends EventEmitter {
       })
 
       this.settler.on('incoming_transfer', (transfer) => {
-        console.log(transfer)
-        console.log(this.settleAddress)
         if (transfer.account !== this.settleAddress) return
         this._log('received a settlement for ' + transfer.amount)
         this._incomingSettle(transfer)

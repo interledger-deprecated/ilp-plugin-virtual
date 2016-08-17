@@ -52,8 +52,10 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(nerd)
   })
 
-  it('should run getAccount for compatability reasons', () => {
-    assert(nerd.getAccount() === 'nerd')
+  it('should run getAccount for compatibility reasons', () => {
+    return nerd.getAccount().then((account) => {
+      assert(account === 'nerd')
+    })
   })
 
   it('should instantiate the noob', () => {

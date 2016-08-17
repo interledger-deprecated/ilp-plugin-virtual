@@ -87,7 +87,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getAccount () {
-    return this.auth.account
+    return Promise.resolve(this.auth.account)
   }
 
   connect () {

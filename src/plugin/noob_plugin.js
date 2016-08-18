@@ -42,23 +42,22 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.settler = opts._optimisticPlugin
     this.settleAddress = opts.settleAddress
-    this.maxBalance = opts.max
+    this.settlePercent = opts.settlePercent || '0.5'
 
     this._expects = {}
     this._seen = {}
     this._fulfilled = {}
 
     if (this.settler && this.settleAddress) {
-      this.on('settlement', (balance) => {
+      this.on('_settlement', (obj) => {
         this.settler.send({
           account: this.settleAddress,
-          amount: this._getSettleAmount(balance),
+          amount: this._getSettleAmount(obj.balance, obj.max),
           id: uuid()
         })
       })
 
       this.settler.on('incoming_transfer', (transfer) => {
-        console.log('NOOB:', transfer)
         if (transfer.account !== this.settleAddress) return
         this._confirmSettle(transfer)
       })
@@ -72,12 +71,13 @@ class NoobPluginVirtual extends EventEmitter {
     })
   }
 
-  _getSettleAmount (balance) {
+  _getSettleAmount (balance, max) {
     const balanceNumber = balance - 0
-    const maxNumber = this.maxBalance - 0
+    const maxNumber = max - 0
+    const settlePercentNumber = this.settlePercent - 0
 
     // amount that balance must increase by
-    const amount = ((balanceNumber + maxNumber) / 2 - balanceNumber) + ''
+    const amount = ((maxNumber - balanceNumber) * settlePercentNumber) + ''
     this._log('going to settle for ' + amount)
     return amount
   }
@@ -185,6 +185,8 @@ class NoobPluginVirtual extends EventEmitter {
     } else if (obj.type === 'settlement') {
       this._log('received settlement notification.')
 
+      // internal settlement code requires more values
+      this.emit('_settlement', obj)
       this.emit('settlement', obj.balance)
 
       return Promise.resolve(null)

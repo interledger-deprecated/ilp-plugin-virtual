@@ -74,10 +74,20 @@ class NerdPluginVirtual extends EventEmitter {
     this.settleAddress = opts.settleAddress
     this.maxBalance = opts.max
 
+    // settlement is requested over this.warnMax
+    this.warnMax = opts.warnMax
+    
+    // settlement is requested under this.warnLimit
+    this.warnLimit = opts.warnLimit
+
+    this.settlePercent = opts.settlePercent || '0.5'
+
     this.balance = new Balance({
       store: opts._store,
       limit: opts.limit,
+      warnLimit: this.warnLimit,
       max: this.maxBalance,
+      warnMax: this.warnMax,
       balance: opts.balance
     })
     this.balance.on('_balanceChanged', (balance) => {
@@ -478,7 +488,8 @@ class NerdPluginVirtual extends EventEmitter {
       this._log('sending settlement notification: ' + balance)
       return this.connection.send({
         type: 'settlement',
-        balance: balance
+        balance: balance,
+        max: this.maxBalance
       })
     })
   }
@@ -602,9 +613,10 @@ class NerdPluginVirtual extends EventEmitter {
   _getSettleAmount (balance) {
     const balanceNumber = balance - 0
     const limitNumber = this.limit - 0
+    const settlePercentNumber = this.settlePercent - 0
 
     // amount that balance must increase by
-    return (balanceNumber - (balanceNumber - limitNumber) / 2) + ''
+    return ((balanceNumber + limitNumber) * this.settlePercent) + ''
   }
 
   _outgoingSettle (transfer) {

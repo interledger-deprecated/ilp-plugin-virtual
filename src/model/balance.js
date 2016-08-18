@@ -12,6 +12,8 @@ class Balance extends EventEmitter {
     this._limit = this._convert(opts.limit)
     this._balance = opts.balance
     this._max = this._convert(opts.max)
+    this._warnMax = this._convert(opts.warnMax)
+    this._warnLimit = this._convert(opts.warnLimit)
     this._initialized = false
     this._field = 'account'
   }
@@ -65,8 +67,9 @@ class Balance extends EventEmitter {
     let amount = this._convert(amountString)
     return this._getNumber().then((balance) => {
       let inMax = balance.add(amount).lte(this._max)
+      let inWarn = balance.add(amount).lte(this._warnMax)
       let positive = amount.gte(this._convert('0'))
-      if (!inMax) {
+      if (!inWarn) {
         this.emit('over', balance)
       }
       return Promise.resolve(inMax && positive)
@@ -77,8 +80,9 @@ class Balance extends EventEmitter {
     let amount = this._convert(amountString)
     return this._getNumber().then((balance) => {
       let inLimit = balance.sub(amount).gte(this._limit.negated())
+      let inWarn = balance.sub(amount).gte(this._warnLimit.negated())
       let positive = amount.gte(this._convert('0'))
-      if (!inLimit) {
+      if (!inWarn) {
         this.emit('under', balance)
       }
       return Promise.resolve(inLimit && positive)

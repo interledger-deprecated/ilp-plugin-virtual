@@ -33,61 +33,97 @@ let noob = null
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
-  it('should create the nerd and the noob', () => {
-    let objStore = newSqliteStore()
-    nerd = new PluginVirtual({
-      _store: objStore,
-      _optimisticPlugin: plugin1,
-      settleAddress: 'example.plugin2',
-      host: 'mqatt://test.mosquitto.org',
-      token: token,
-      limit: '1',
-      warnLimit: '1',
-      max: '2',
-      warnMax: '2',
-      balance: '0',
-      account: 'test.nerd.nerd',
-      prefix: 'test.nerd.',
-      mockConnection: MockConnection,
-      mockChannels: MockChannels,
-      secret: 'secret'
-    })
+  let next = Promise.resolve(null)
 
-    noob = new PluginVirtual({
-      _store: {},
-      _optimisticPlugin: plugin2,
-      settleAddress: 'example.plugin1',
-      host: 'mqatt://test.mosquitto.org',
-      token: token,
-      mockConnection: MockConnection,
-      mockChannels: MockChannels,
-      account: 'test.nerd.noob'
+  it('should create the nerd and the noob', () => {
+    next = next.then(() => {
+      let objStore = newSqliteStore()
+      nerd = new PluginVirtual({
+        _store: objStore,
+        _optimisticPlugin: plugin1,
+        settleAddress: 'example.plugin2',
+        host: 'mqatt://test.mosquitto.org',
+        token: token,
+        limit: '1',
+        warnLimit: '1',
+        max: '2',
+        warnMax: '2',
+        balance: '0',
+        account: 'test.nerd.nerd',
+        prefix: 'test.nerd.',
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
+        secret: 'secret'
+      })
+
+      noob = new PluginVirtual({
+        _store: {},
+        _optimisticPlugin: plugin2,
+        settleAddress: 'example.plugin1',
+        host: 'mqatt://test.mosquitto.org',
+        token: token,
+        mockConnection: MockConnection,
+        mockChannels: MockChannels,
+        account: 'test.nerd.noob'
+      })
     })
   })
 
   it('should connect the noob and the nerd', (done) => {
-    Promise.all([
-      noob.connect(),
-      nerd.connect(),
-      plugin1.connect(),
-      plugin2.connect()
-    ]).then(() => {
+    next = next.then(() => {
+      return Promise.all([
+        noob.connect(),
+        nerd.connect(),
+        plugin1.connect(),
+        plugin2.connect()
+      ])
+    }).then(() => {
       done()
     }).catch(done)
   })
 
   it('should trigger settlement on a big transfer', function (done) {
-    const id = uuid()
+    next = next.then(() => {
+      const id = uuid()
 
-    noob.once('balance', (balance) => {
-      assert.equal(balance, '1')
+      const p = new Promise((resolve) => {
+        noob.once('balance', (balance) => {
+          assert.equal(balance, '1')
+          resolve()
+        })
+      })
+
+      noob.send({
+        account: 'ilpdemo.red.alice',
+        amount: '10',
+        id: id
+      })
+
+      return p
+    }).then(() => {
       done()
-    })
+    }).catch(done)
+  })
 
-    noob.send({
-      account: 'ilpdemo.red.alice',
-      amount: '10',
-      id: id
-    })
+  it('should trigger settlement from the nerd to the noob', function (done) {
+    next = next.then(() => {
+      const id = uuid()
+      const p = new Promise((resolve) => {
+        noob.once('balance', (balance) => {
+          assert.equal(balance, '0')
+          resolve()
+        })
+      })
+
+      nerd.send({
+        account: 'ilpdemo.red.alice',
+        amount: '10',
+        id: id
+      })
+
+      return p
+    }).then(() => {
+      done()
+    }).catch(done)
   })
 })

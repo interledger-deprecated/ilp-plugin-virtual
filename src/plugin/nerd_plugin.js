@@ -73,6 +73,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.settler = opts._optimisticPlugin
     this.settleAddress = opts.settleAddress
     this.maxBalance = opts.max
+    this.limit = opts.limit
 
     // settlement is requested over this.warnMax
     this.warnMax = opts.warnMax
@@ -84,7 +85,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.balance = new Balance({
       store: opts._store,
-      limit: opts.limit,
+      limit: this.limit,
       warnLimit: this.warnLimit,
       max: this.maxBalance,
       warnMax: this.warnMax,

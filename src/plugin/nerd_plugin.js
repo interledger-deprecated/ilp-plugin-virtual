@@ -76,7 +76,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     // settlement is requested over this.warnMax
     this.warnMax = opts.warnMax
-    
+
     // settlement is requested under this.warnLimit
     this.warnLimit = opts.warnLimit
 
@@ -616,7 +616,7 @@ class NerdPluginVirtual extends EventEmitter {
     const settlePercentNumber = this.settlePercent - 0
 
     // amount that balance must increase by
-    return ((balanceNumber + limitNumber) * this.settlePercent) + ''
+    return ((balanceNumber + limitNumber) * settlePercentNumber) + ''
   }
 
   _outgoingSettle (transfer) {

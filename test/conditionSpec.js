@@ -9,12 +9,10 @@ mockRequire('../src/model/connection', MockConnection)
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
-const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
 
 let nerd = null
 let noob = null
-let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Conditional transfers with Nerd and Noob', function () {
@@ -55,7 +53,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       nerd.connect()
     ]).then(() => {
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   let fulfillment = 'cf:0:'
@@ -69,19 +67,19 @@ describe('Conditional transfers with Nerd and Noob', function () {
           assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
-      })
+      }).catch(done)
 
       nerd.send({
         id: 'first',
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
 
       return p
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should not count escrowed money in balance yet', (done) => {
@@ -90,7 +88,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
     }).then((balance) => {
       assert(balance === '0')
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should fulfill a UTP transaction as the noob', (done) => {
@@ -102,14 +100,14 @@ describe('Conditional transfers with Nerd and Noob', function () {
           assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
-      })
+      }).catch(done)
 
       noob.fulfillCondition('first', fulfillment)
 
       return p
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should have the correct balance after executing', (done) => {
@@ -118,7 +116,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
     }).then((balance) => {
       assert(balance === '100')
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should support UTP transfers with time limits noob->nerd', (done) => {
@@ -137,12 +135,12 @@ describe('Conditional transfers with Nerd and Noob', function () {
         amount: '200',
         executionCondition: condition,
         expiresAt: (new Date()).toString()
-      })
+      }).catch(done)
 
       return p
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should support UTP transfers with time limits nerd->noob', (done) => {
@@ -160,11 +158,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
         amount: '200',
         executionCondition: condition,
         expiresAt: (new Date()).toString()
-      })
+      }).catch(done)
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should cancel fulfillments submitted after timeout', (done) => {
@@ -195,7 +193,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should complete a UTP transfer with a time limit', (done) => {
@@ -216,7 +214,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         amount: '200',
         executionCondition: condition,
         expiresAt: time.toString()
-      })
+      }).catch(done)
 
       return p
     }).then(() => {
@@ -230,7 +228,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       return promise
     }).then(() => {
       done()
-    }).catch((err) => { console.error(err) })
+    }).catch(done)
   })
 
   it('should submit a UTP transaction as the nerd', (done) => {
@@ -254,11 +252,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
           resolve()
         })
       })
-      nerd.fulfillCondition('third', fulfillment)
+      nerd.fulfillCondition('third', fulfillment).catch(done)
       return Promise.all([noobPromise, nerdPromise])
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should complain on fulfilling a nonexistant transfer', (done) => {
@@ -273,7 +271,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should be able to execute a transfer noob -> nerd', (done) => {
@@ -289,7 +287,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       const p = new Promise((resolve) => {
@@ -298,11 +296,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
           resolve()
         })
       })
-      noob.fulfillCondition('fourth', fulfillment)
+      noob.fulfillCondition('fourth', fulfillment).catch(done)
       return p
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should complain on fulfilling an transfer twice', (done) => {
@@ -317,7 +315,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should complain when an OTP transfer is fulfilled', (done) => {
@@ -333,7 +331,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         id: 'fifth',
         account: 'x',
         amount: '10'
-      })
+      }).catch(done)
       return p
     }).then(() => {
       let promise = new Promise((resolve) => {
@@ -346,7 +344,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should complain if transfer is given incorrect fulfillment', (done) => {
@@ -362,7 +360,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       let promise = new Promise((resolve) => {
@@ -375,7 +373,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should be able to prematurely reject transfer as nerd', (done) => {
@@ -391,7 +389,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       let promise = Promise.all([
@@ -408,11 +406,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
           })
         })
       ])
-      nerd.rejectIncomingTransfer('seventh')
+      nerd.rejectIncomingTransfer('seventh').catch(done)
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should be able to prematurely reject transfer as noob', (done) => {
@@ -428,7 +426,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       let promise = Promise.all([
@@ -445,11 +443,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
           })
         })
       ])
-      noob.rejectIncomingTransfer('eighth')
+      noob.rejectIncomingTransfer('eighth').catch(done)
       return promise
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should not be able to reject outgoing transfer as noob', (done) => {
@@ -465,7 +463,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       return noob.rejectIncomingTransfer('ninth')
@@ -475,7 +473,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         'transfer must be incoming'
       )
       done()
-    })
+    }).catch(done)
   })
 
   it('should not be able to reject outgoing transfer as nerd', (done) => {
@@ -491,7 +489,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         account: 'x',
         amount: '100',
         executionCondition: condition
-      })
+      }).catch(done)
       return p
     }).then(() => {
       return nerd.rejectIncomingTransfer('tenth')
@@ -501,7 +499,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         'transfer must be incoming'
       )
       done()
-    })
+    }).catch(done)
   })
 
   it('should not be able to reject nonexistant transfer as noob', (done) => {
@@ -513,7 +511,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         'must be an existing transfer with a condition'
       )
       done()
-    })
+    }).catch(done)
   })
 
   it('should not be able to reject nonexistant transfer as nerd', (done) => {
@@ -525,7 +523,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
         'must be an existing transfer with a condition'
       )
       done()
-    })
+    }).catch(done)
   })
 
   it('should disconnect gracefully', (done) => {
@@ -533,6 +531,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
       noob.disconnect()
       nerd.disconnect()
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 })

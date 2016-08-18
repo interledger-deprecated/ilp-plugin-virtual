@@ -20,7 +20,7 @@ describe('ObjectStore', function () {
     }).then((value) => {
       assert(value === undefined)
       done()
-    })
+    }).catch(done)
   })
 })
 
@@ -48,7 +48,7 @@ describe('SqliteStore', function () {
     }).then((value) => {
       assert(value === 'v')
       done()
-    }).catch((err) => { console.error(err) })
+    }).catch(done)
   })
 })
 
@@ -69,7 +69,7 @@ describe('TransferLog', function () {
     }).then((exists) => {
       assert(exists)
       done()
-    })
+    }).catch(done)
   })
 
   it('should delete something', (done) => {

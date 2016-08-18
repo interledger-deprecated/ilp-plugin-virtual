@@ -9,34 +9,7 @@ mockRequire('../src/model/connection', MockConnection)
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
-const log = require('../src/util/log')('test')
-const cc = require('five-bells-condition')
 const uuid = require('uuid4')
-
-/*
-const PluginBells = require('ilp-plugin-bells')
-const plugin1 = new PluginBells({
-  account: 'https://red.ilpdemo.org/ledger/accounts/alice',
-  password: 'alice',
-  prefix: 'ilpdemo.red.'
-})
-const plugin2 = new PluginBells({
-  account: 'https://red.ilpdemo.org/ledger/accounts/stefan',
-  password: 'stefan',
-  prefix: 'ilpdemo.red.'
-})
-const PluginEth = require('ilp-plugin-ethereum')
-const plugin1 = new PluginEth({
-  provider: 'http://localhost:8545',
-  account: '0x900e20dc8dfaa3c835ac3858cde4fbf35031f838',
-  prefix: 'ethereum.'
-})
-const plugin2 = new PluginEth({
-  provider: 'http://localhost:8545',
-  account: '0x3d674dbfb1b0bc96ae738129df5be40e5b809998',
-  prefix: 'ethereum.'
-})
-*/
 
 const EventEmitter = require('events')
 const OptimisticPlugin = require('./helpers/optimisticPlugin')
@@ -57,7 +30,6 @@ const plugin2 = new OptimisticPlugin({
 
 let nerd = null
 let noob = null
-let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
@@ -66,7 +38,6 @@ describe('Automatic settlement', function () {
     nerd = new PluginVirtual({
       _store: objStore,
       _optimisticPlugin: plugin1,
-//      settleAddress: 'ethereum.0x3d674dbfb1b0bc96ae738129df5be40e5b809998',
       settleAddress: 'example.plugin2',
       host: 'mqatt://test.mosquitto.org',
       token: token,
@@ -85,7 +56,6 @@ describe('Automatic settlement', function () {
     noob = new PluginVirtual({
       _store: {},
       _optimisticPlugin: plugin2,
-//      settleAddress: 'ethereum.0x900e20dc8dfaa3c835ac3858cde4fbf35031f838',
       settleAddress: 'example.plugin1',
       host: 'mqatt://test.mosquitto.org',
       token: token,
@@ -95,16 +65,15 @@ describe('Automatic settlement', function () {
     })
   })
 
-  let next = null
   it('should connect the noob and the nerd', (done) => {
-    next = Promise.all([
+    Promise.all([
       noob.connect(),
       nerd.connect(),
       plugin1.connect(),
       plugin2.connect()
     ]).then(() => {
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should trigger settlement on a big transfer', function (done) {
@@ -114,7 +83,7 @@ describe('Automatic settlement', function () {
       assert.equal(balance, '1')
       done()
     })
-    
+
     noob.send({
       account: 'ilpdemo.red.alice',
       amount: '10',

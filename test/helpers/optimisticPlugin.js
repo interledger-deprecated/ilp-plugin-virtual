@@ -16,7 +16,7 @@ class OptimisticPlugin extends EventEmitter {
     })
     return Promise.resolve(null)
   }
-  
+
   disconnect () { return Promise.resolve(null) }
 
   send (transfer) {

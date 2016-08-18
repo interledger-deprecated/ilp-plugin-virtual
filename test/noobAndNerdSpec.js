@@ -9,12 +9,10 @@ mockRequire('../src/model/connection', MockConnection)
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
-const log = require('../src/util/log')('test')
 
 let nerd = null
 let noob = null
 let noob2 = null
-let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
 let store1 = newObjStore()
 
@@ -80,7 +78,7 @@ describe('The Noob and the Nerd', function () {
       nerd.connect()
     ]).then(() => {
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should be able to log errors in the connection', (done) => {
@@ -96,7 +94,7 @@ describe('The Noob and the Nerd', function () {
     }).then((balance) => {
       assert(balance === '0')
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should getInfo() without errors', (done) => {
@@ -104,7 +102,7 @@ describe('The Noob and the Nerd', function () {
       noob.getInfo()
       nerd.getInfo()
       done()
-    })
+    }).catch(done)
   })
 
   it('should getConnectors() without errors', (done) => {
@@ -112,7 +110,7 @@ describe('The Noob and the Nerd', function () {
       noob.getConnectors()
       nerd.getConnectors()
       done()
-    })
+    }).catch(done)
   })
 
   it('should keep track of whether it`s connected', (done) => {
@@ -120,7 +118,7 @@ describe('The Noob and the Nerd', function () {
       assert(noob.isConnected())
       assert(nerd.isConnected())
       done()
-    })
+    }).catch(done)
   })
 
   it('should acknowledge a valid transfer noob -> nerd', (done) => {
@@ -132,7 +130,7 @@ describe('The Noob and the Nerd', function () {
           done()
           resolve()
         })
-      })
+      }).catch(done)
 
       noob.send({
         id: 'first',
@@ -141,7 +139,7 @@ describe('The Noob and the Nerd', function () {
       })
 
       return p
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should represent the right balance after a sent transfer', (done) => {
@@ -150,7 +148,7 @@ describe('The Noob and the Nerd', function () {
     }).then((balance) => {
       assert(balance === '-10')
       done()
-    })
+    }).catch(done)
   })
 
   it('should reject a transfer that puts the balance under limit', (done) => {
@@ -162,7 +160,7 @@ describe('The Noob and the Nerd', function () {
       }).catch(() => {
         done()
       })
-    })
+    }).catch(done)
   })
 
   it('should trigger settlement when balance under limit', (done) => {
@@ -181,7 +179,7 @@ describe('The Noob and the Nerd', function () {
       })
 
       return p
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should add balance when nerd sends money to noob', (done) => {
@@ -192,13 +190,13 @@ describe('The Noob and the Nerd', function () {
           assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
-      })
+      }).catch(done)
 
       nerd.send({
         id: 'third',
         account: 'x',
         amount: '100'
-      })
+      }).catch(done)
 
       return p
     }).then(() => {
@@ -207,7 +205,7 @@ describe('The Noob and the Nerd', function () {
     }).then((balance) => {
       assert(balance === '90')
       done()
-    })
+    }).catch(done)
   })
 
   it('should create a second noob', (done) => {
@@ -229,7 +227,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should have the same balance for both noobs', (done) => {
@@ -238,7 +236,7 @@ describe('The Noob and the Nerd', function () {
     }).then((balance) => {
       assert(balance === '90')
       done()
-    })
+    }).catch(done)
   })
 
   it('should notify both noobs on a received transfer', (done) => {
@@ -265,18 +263,18 @@ describe('The Noob and the Nerd', function () {
             resolve()
           })
         })
-      ])
+      ]).catch(done)
 
       nerd.send({
         id: 'fourth',
         account: 'x',
         amount: '100'
-      })
+      }).catch(done)
 
       return p
     }).then(() => {
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 
   it('should send a reply from noob -> nerd', (done) => {
@@ -293,7 +291,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should send a reply from nerd -> noob', (done) => {
@@ -310,7 +308,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should reject a false acknowledge from the noob', (done) => {
@@ -329,7 +327,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should reject a repeat transfer from the noob', (done) => {
@@ -341,7 +339,7 @@ describe('The Noob and the Nerd', function () {
       }).catch(() => {
         done()
       })
-    })
+    }).catch(done)
   })
 
   it('should emit false reject if a fake transfer is rejected', (done) => {
@@ -360,7 +358,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should not give an error if a real transfer is rejected', (done) => {
@@ -374,7 +372,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should give error if the noob sends invalid message type', (done) => {
@@ -391,7 +389,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should give error if the nerd sends invalid message type', (done) => {
@@ -408,7 +406,7 @@ describe('The Noob and the Nerd', function () {
       })
     }).then(() => {
       done()
-    })
+    }).catch(done)
   })
 
   it('should hold same balance when nerd is made with old db', (done) => {
@@ -431,7 +429,7 @@ describe('The Noob and the Nerd', function () {
     }).then((balance) => {
       assert(balance !== '0')
       done()
-    })
+    }).catch(done)
   })
 
   it('should disconnect gracefully', (done) => {
@@ -440,6 +438,6 @@ describe('The Noob and the Nerd', function () {
       noob2.disconnect()
       nerd.disconnect()
       done()
-    }).catch(handle)
+    }).catch(done)
   })
 })

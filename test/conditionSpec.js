@@ -1,7 +1,7 @@
 'use strict'
 
 const mockRequire = require('mock-require')
-const mock = require('./helpers/mockConnection')
+const mock = require('./mocks/mockConnection')
 const MockConnection = mock.MockConnection
 const MockChannels = mock.MockChannels
 mockRequire('../src/model/connection', MockConnection)
@@ -9,12 +9,10 @@ mockRequire('../src/model/connection', MockConnection)
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
-const log = require('../src/util/log')('test')
 const cc = require('five-bells-condition')
 
 let nerd = null
 let noob = null
-let handle = (err) => { log.log(err) }
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Conditional transfers with Nerd and Noob', function () {
@@ -25,8 +23,11 @@ describe('Conditional transfers with Nerd and Noob', function () {
       _store: objStore,
       host: 'mqatt://test.mosquitto.org',
       token: token,
-      limit: '1000',
-      balance: '0',
+      initialBalance: '0',
+      maxBalance: '2000',
+      minBalance: '-1000',
+      settleIfUnder: '-1000',
+      settleIfOver: '2000',
       account: 'nerd',
       prefix: 'test.nerd.',
       mockConnection: MockConnection,
@@ -45,140 +46,115 @@ describe('Conditional transfers with Nerd and Noob', function () {
     assert.isObject(nerd)
   })
 
-  let next = null
-  it('should connect the noob and the nerd', (done) => {
-    next = Promise.all([
+  it('should connect the noob and the nerd', () => {
+    return Promise.all([
       noob.connect(),
       nerd.connect()
-    ]).then(() => {
-      done()
-    }).catch(handle)
+    ])
   })
 
   let fulfillment = 'cf:0:'
   let condition = cc.fulfillmentToCondition(fulfillment)
 
-  it('should acknowledge a UTP transaction', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        nerd.once('outgoing_prepare', (transfer, message) => {
-          assert(transfer.id === 'first')
-          assert(transfer.ledger === 'test.nerd.')
-          resolve()
-        })
+  it('should acknowledge a UTP transaction', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('outgoing_prepare', (transfer, message) => {
+        assert(transfer.id === 'first')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
       })
+    })
 
-      nerd.send({
-        id: 'first',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
+    nerd.send({
+      id: 'first',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
 
-      return p
-    }).then(() => {
-      done()
+    return p
+  })
+
+  it('should not count escrowed money in balance yet', () => {
+    return noob.getBalance().then((balance) => {
+        assert(balance === '0')
     })
   })
 
-  it('should not count escrowed money in balance yet', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
-      assert(balance === '0')
-      done()
-    }).catch(handle)
-  })
-
-  it('should fulfill a UTP transaction as the noob', (done) => {
-    next = next.then(() => {
-    }).then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('incoming_fulfill', (transfer, fulfillment) => {
-          assert(transfer.id === 'first')
-          assert(transfer.ledger === 'test.nerd.')
-          resolve()
-        })
+  it('should fulfill a UTP transaction as the noob', () => {
+    const p = new Promise((resolve) => {
+      noob.once('incoming_fulfill', (transfer, fulfillment) => {
+        assert(transfer.id === 'first')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
       })
-
-      noob.fulfillCondition('first', fulfillment)
-
-      return p
-    }).then(() => {
-      done()
     })
+
+    noob.fulfillCondition('first', fulfillment)
+
+    return p
   })
 
-  it('should have the correct balance after executing', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
+  it('should have the correct balance after executing', () => {
+    return noob.getBalance().then((balance) => {
       assert(balance === '100')
-      done()
-    }).catch(handle)
-  })
-
-  it('should support UTP transfers with time limits noob->nerd', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('outgoing_cancel', (transfer, message) => {
-          assert(transfer.id === 'time_out')
-          assert(transfer.ledger === 'test.nerd.')
-          resolve()
-        })
-      })
-
-      noob.send({
-        id: 'time_out',
-        account: 'x',
-        amount: '200',
-        executionCondition: condition,
-        expiresAt: (new Date()).toString()
-      })
-
-      return p
-    }).then(() => {
-      done()
     })
   })
 
-  it('should support UTP transfers with time limits nerd->noob', (done) => {
-    next = next.then(() => {
-      let promise = new Promise((resolve) => {
-        nerd.once('outgoing_cancel', (transfer, message) => {
-          assert(transfer.id === 'time_out_3')
-          assert(transfer.ledger === 'test.nerd.')
-          resolve()
-        })
+  it('should support UTP transfers with time limits noob->nerd', () => {
+    const p = new Promise((resolve) => {
+      noob.once('outgoing_cancel', (transfer, message) => {
+        assert(transfer.id === 'time_out')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
       })
-      nerd.send({
-        id: 'time_out_3',
-        account: 'x',
-        amount: '200',
-        executionCondition: condition,
-        expiresAt: (new Date()).toString()
-      })
-      return promise
-    }).then(() => {
-      done()
     })
+
+    noob.send({
+      id: 'time_out',
+      account: 'x',
+      amount: '200',
+      executionCondition: condition,
+      expiresAt: (new Date()).toString()
+    })
+
+    return p
   })
 
-  it('should cancel fulfillments submitted after timeout', (done) => {
+  it('should support UTP transfers with time limits nerd->noob', () => {
+    const promise = new Promise((resolve) => {
+      nerd.once('outgoing_cancel', (transfer, message) => {
+        assert(transfer.id === 'time_out_3')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
+      })
+    })
+
+    nerd.send({
+      id: 'time_out_3',
+      account: 'x',
+      amount: '200',
+      executionCondition: condition,
+      expiresAt: (new Date()).toString()
+    })
+
+    return promise
+  })
+
+  it('should cancel fulfillments submitted after timeout', () => {
     let time = new Date()
     time.setSeconds(time.getSeconds() + 1)
 
-    next = next.then(() => {
-      nerd.once('_timing', () => {
-        clearTimeout(nerd.timers['time_out_2'])
-      })
-      return noob.send({
-        id: 'time_out_2',
-        account: 'x',
-        amount: '200',
-        executionCondition: condition,
-        expiresAt: time.toString()
-      })
+    nerd.once('_timing', () => {
+      clearTimeout(nerd.timers['time_out_2'])
+    })
+
+    return noob.send({
+      id: 'time_out_2',
+      account: 'x',
+      amount: '200',
+      executionCondition: condition,
+      expiresAt: time.toString()
     }).then(() => {
       return new Promise((resolve) => {
         setTimeout(() => {
@@ -190,32 +166,18 @@ describe('Conditional transfers with Nerd and Noob', function () {
           resolve()
         })
       })
-    }).then(() => {
-      done()
     })
   })
 
-  it('should complete a UTP transfer with a time limit', (done) => {
-    next = next.then(() => {
-      let time = new Date()
-      time.setSeconds(time.getSeconds() + 4)
+  it('should complete a UTP transfer with a time limit', () => {
+    let time = new Date()
+    time.setSeconds(time.getSeconds() + 4)
 
-      const p = new Promise((resolve) => {
-        noob.once('outgoing_prepare', (transfer, message) => {
-          assert(transfer.id === 'time_complete')
-          resolve()
-        })
+    const p = new Promise((resolve) => {
+      noob.once('outgoing_prepare', (transfer, message) => {
+        assert(transfer.id === 'time_complete')
+        resolve()
       })
-
-      noob.send({
-        id: 'time_complete',
-        account: 'x',
-        amount: '200',
-        executionCondition: condition,
-        expiresAt: time.toString()
-      })
-
-      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
         noob.once('outgoing_fulfill', (transfer, fulfill) => {
@@ -225,19 +187,25 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
       nerd.fulfillCondition('time_complete', fulfillment)
       return promise
-    }).then(() => {
-      done()
-    }).catch((err) => { console.error(err) })
+    })
+
+    noob.send({
+      id: 'time_complete',
+      account: 'x',
+      amount: '200',
+      executionCondition: condition,
+      expiresAt: time.toString()
+    })
+
+    return p
   })
 
-  it('should submit a UTP transaction as the nerd', (done) => {
-    next = next.then(() => {
-      return nerd.send({
-        id: 'third',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
+  it('should submit a UTP transaction as the nerd', () => {
+    return nerd.send({
+      id: 'third',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
     }).then(() => {
       const noobPromise = new Promise((resolve) => {
         noob.once('incoming_fulfill', (transfer, message) => {
@@ -251,43 +219,29 @@ describe('Conditional transfers with Nerd and Noob', function () {
           resolve()
         })
       })
-      nerd.fulfillCondition('third', fulfillment)
+      nerd.fulfillCondition('third', fulfillment).catch()
       return Promise.all([noobPromise, nerdPromise])
-    }).then(() => {
-      done()
     })
   })
 
-  it('should complain on fulfilling a nonexistant transfer', (done) => {
-    next = next.then(() => {
-      let promise = new Promise((resolve) => {
-        nerd.once('exception', (err) => {
-          assert(err.message === 'got transfer ID for nonexistant transfer')
-          resolve()
-        })
+  it('should complain on fulfilling a nonexistant transfer', () => {
+    const promise = new Promise((resolve) => {
+      nerd.once('exception', (err) => {
+        assert(err.message === 'got transfer ID for nonexistant transfer')
+        resolve()
       })
-      nerd.fulfillCondition('nonexistant', 'garbage')
-      return promise
-    }).then(() => {
-      done()
     })
+
+    nerd.fulfillCondition('nonexistant', 'garbage')
+    return promise
   })
 
-  it('should be able to execute a transfer noob -> nerd', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('outgoing_prepare', (transfer, message) => {
-          assert(transfer.id === 'fourth')
-          resolve()
-        })
+  it('should be able to execute a transfer noob -> nerd', () => {
+    const p = new Promise((resolve) => {
+      noob.once('outgoing_prepare', (transfer, message) => {
+        assert(transfer.id === 'fourth')
+        resolve()
       })
-      noob.send({
-        id: 'fourth',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
       const p = new Promise((resolve) => {
         noob.once('outgoing_fulfill', (transfer, message) => {
@@ -295,43 +249,37 @@ describe('Conditional transfers with Nerd and Noob', function () {
           resolve()
         })
       })
-      noob.fulfillCondition('fourth', fulfillment)
+      noob.fulfillCondition('fourth', fulfillment).catch()
       return p
-    }).then(() => {
-      done()
     })
+
+    noob.send({
+      id: 'fourth',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
   })
 
-  it('should complain on fulfilling an transfer twice', (done) => {
-    next = next.then(() => {
-      let promise = new Promise((resolve) => {
-        nerd.once('exception', (err) => {
-          assert(err.message === 'this transfer has already been fulfilled')
-          resolve()
-        })
+  it('should complain on fulfilling an transfer twice', () => {
+    const promise = new Promise((resolve) => {
+      nerd.once('exception', (err) => {
+        assert(err.message === 'this transfer has already been fulfilled')
+        resolve()
       })
-      nerd.fulfillCondition('first', fulfillment)
-      return promise
-    }).then(() => {
-      done()
     })
+    nerd.fulfillCondition('first', fulfillment)
+    return promise
   })
 
-  it('should complain when an OTP transfer is fulfilled', (done) => {
-    next = next.then(() => {
-    }).then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('outgoing_transfer', (transfer, message) => {
-          assert(transfer.id === 'fifth')
-          resolve()
-        })
+  it('should complain when an OTP transfer is fulfilled', () => {
+    const p = new Promise((resolve) => {
+      noob.once('outgoing_transfer', (transfer, message) => {
+        assert(transfer.id === 'fifth')
+        resolve()
       })
-      noob.send({
-        id: 'fifth',
-        account: 'x',
-        amount: '10'
-      })
-      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
         nerd.once('exception', (err) => {
@@ -341,26 +289,23 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
       nerd.fulfillCondition('fifth', fulfillment)
       return promise
-    }).then(() => {
-      done()
     })
+
+    noob.send({
+      id: 'fifth',
+      account: 'x',
+      amount: '10'
+    })
+
+    return p
   })
 
-  it('should complain if transfer is given incorrect fulfillment', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        nerd.once('outgoing_prepare', (transfer, message) => {
-          assert(transfer.id === 'sixth')
-          resolve()
-        })
+  it('should complain if transfer is given incorrect fulfillment', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('outgoing_prepare', (transfer, message) => {
+        assert(transfer.id === 'sixth')
+        resolve()
       })
-      nerd.send({
-        id: 'sixth',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
       let promise = new Promise((resolve) => {
         nerd.once('exception', (err) => {
@@ -370,28 +315,24 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
       nerd.fulfillCondition('sixth', 'garbage')
       return promise
-    }).then(() => {
-      done()
+    })
+
+    nerd.send({
+      id: 'sixth',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
     })
   })
 
-  it('should be able to prematurely reject transfer as nerd', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        nerd.once('incoming_prepare', (transfer, message) => {
-          assert(transfer.id === 'seventh')
-          resolve()
-        })
+  it('should be able to prematurely reject transfer as nerd', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('incoming_prepare', (transfer, message) => {
+        assert(transfer.id === 'seventh')
+        resolve()
       })
-      noob.send({
-        id: 'seventh',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
-      let promise = Promise.all([
+      const promise = Promise.all([
         new Promise((resolve) => {
           nerd.once('incoming_reject', (transfer, msg) => {
             assert(msg === 'manually rejected')
@@ -405,28 +346,26 @@ describe('Conditional transfers with Nerd and Noob', function () {
           })
         })
       ])
-      nerd.rejectIncomingTransfer('seventh')
+      nerd.rejectIncomingTransfer('seventh').catch()
       return promise
-    }).then(() => {
-      done()
     })
+
+    noob.send({
+      id: 'seventh',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
   })
 
-  it('should be able to prematurely reject transfer as noob', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('incoming_prepare', (transfer, message) => {
-          assert(transfer.id === 'eighth')
-          resolve()
-        })
+  it('should be able to prematurely reject transfer as noob', () => {
+    const p = new Promise((resolve) => {
+      noob.once('incoming_prepare', (transfer, message) => {
+        assert(transfer.id === 'eighth')
+        resolve()
       })
-      nerd.send({
-        id: 'eighth',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
       let promise = Promise.all([
         new Promise((resolve) => {
@@ -442,28 +381,26 @@ describe('Conditional transfers with Nerd and Noob', function () {
           })
         })
       ])
-      noob.rejectIncomingTransfer('eighth')
+      noob.rejectIncomingTransfer('eighth').catch()
       return promise
-    }).then(() => {
-      done()
     })
+
+    nerd.send({
+      id: 'eighth',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
   })
 
-  it('should not be able to reject outgoing transfer as noob', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        nerd.once('incoming_prepare', (transfer, message) => {
-          assert(transfer.id === 'ninth')
-          resolve()
-        })
+  it('should not be able to reject outgoing transfer as noob', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('incoming_prepare', (transfer, message) => {
+        assert(transfer.id === 'ninth')
+        resolve()
       })
-      noob.send({
-        id: 'ninth',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
       return noob.rejectIncomingTransfer('ninth')
     }).catch((err) => {
@@ -471,25 +408,24 @@ describe('Conditional transfers with Nerd and Noob', function () {
         err.message,
         'transfer must be incoming'
       )
-      done()
     })
+
+    noob.send({
+      id: 'ninth',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
   })
 
-  it('should not be able to reject outgoing transfer as nerd', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('incoming_prepare', (transfer, message) => {
-          assert(transfer.id === 'tenth')
-          resolve()
-        })
+  it('should not be able to reject outgoing transfer as nerd', () => {
+    const p = new Promise((resolve) => {
+      noob.once('incoming_prepare', (transfer, message) => {
+        assert(transfer.id === 'tenth')
+        resolve()
       })
-      nerd.send({
-        id: 'tenth',
-        account: 'x',
-        amount: '100',
-        executionCondition: condition
-      })
-      return p
     }).then(() => {
       return nerd.rejectIncomingTransfer('tenth')
     }).catch((err) => {
@@ -497,39 +433,40 @@ describe('Conditional transfers with Nerd and Noob', function () {
         err.message,
         'transfer must be incoming'
       )
-      done()
     })
+
+    nerd.send({
+      id: 'tenth',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
   })
 
-  it('should not be able to reject nonexistant transfer as noob', (done) => {
-    next = next.then(() => {
-      return noob.rejectIncomingTransfer('garbage')
-    }).catch((err) => {
+  it('should not be able to reject nonexistant transfer as noob', () => {
+    return noob.rejectIncomingTransfer('garbage').catch((err) => {
       assert.equal(
         err.message,
         'must be an existing transfer with a condition'
       )
-      done()
     })
   })
 
-  it('should not be able to reject nonexistant transfer as nerd', (done) => {
-    next = next.then(() => {
-      return noob.rejectIncomingTransfer('garbage')
-    }).catch((err) => {
+  it('should not be able to reject nonexistant transfer as nerd', () => {
+    return noob.rejectIncomingTransfer('garbage').catch((err) => {
       assert.equal(
         err.message,
         'must be an existing transfer with a condition'
       )
-      done()
     })
   })
 
-  it('should disconnect gracefully', (done) => {
-    next.then(() => {
-      noob.disconnect()
+  it('should disconnect gracefully', () => {
+    return Promise.all([
+      noob.disconnect(),
       nerd.disconnect()
-      done()
-    }).catch(handle)
+    ])
   })
 })

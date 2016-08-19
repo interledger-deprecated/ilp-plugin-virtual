@@ -7,6 +7,7 @@ const Connection = require('../model/connection')
 const Transfer = require('../model/transfer')
 const TransferLog = require('../model/transferlog').TransferLog
 const log = require('../util/log')('plugin')
+const uuid = require('uuid4')
 
 const cc = require('five-bells-condition')
 
@@ -26,8 +27,11 @@ class NerdPluginVirtual extends EventEmitter {
   * @param {string} opts.account name of your PluginVirtual (can be anything)
   * @param {string} opts.prefix ilp address of this ledger
   * @param {string} opts.token channel to connect to in MQTT server
-  * @param {string} opts.limit numeric string representing credit limit
-  * @param {string} opts.balance numeric string representing starting balance
+  * @param {string} opts.initialBalance numeric string representing starting balance
+  * @param {string} opts.minBalance numeric string representing lowest balance
+  * @param {string} opts.maxBalance numeric string representing highest balance
+  * @param {string} opts.settleIfUnder if a transfer would put balance under this amount, settle is emitted
+  * @param {string} opts.settleIfOver if a transfer would put balance over this amount, settle is emitted
   * @param {string} opts.host hostname of MQTT server
   * @param {object} opts.info object to be returned by getInfo
   */
@@ -69,21 +73,52 @@ class NerdPluginVirtual extends EventEmitter {
       this._receive(obj).catch(this._handle)
     })
 
+    this.settler = opts._optimisticPlugin
+    this.settleAddress = opts.settleAddress
+    this.maxBalance = opts.maxBalance
+    this.minBalance = opts.minBalance
+
+    this.settleIfOver = opts.settleIfOver
+    this.settleIfUnder = opts.settleIfUnder
+    this.settlePercent = opts.settlePercent || '0.5'
+
     this.balance = new Balance({
       store: opts._store,
-      limit: opts.limit,
-      balance: opts.balance
+      min: this.minBalance,
+      max: this.maxBalance,
+      settleIfUnder: this.settleIfUnder,
+      settleIfOver: this.settleIfOver,
+      initialBalance: opts.initialBalance
     })
     this.balance.on('_balanceChanged', (balance) => {
       this._log('balance changed to ' + balance)
       this.emit('_balanceChanged', balance)
       this._sendBalance()
     })
-    this.balance.on('settlement', (balance) => {
+    this.balance.on('under', (balance) => {
       this._log('you should settle your balance of ' + balance)
-      this.emit('settlement', balance)
       this._sendSettle()
     })
+    this.balance.on('over', (balance) => {
+      this._log('you should settle your balance of ' + balance)
+      this.emit('settlement', balance)
+    })
+
+    if (this.settler && this.settleAddress) {
+      this.on('settlement', (balance) => {
+        this.settler.send({
+          account: this.settleAddress,
+          amount: this._getSettleAmount(balance),
+          id: uuid()
+        })
+      })
+
+      this.settler.on('incoming_transfer', (transfer) => {
+        if (transfer.account !== this.settleAddress) return
+        this._log('received a settlement for ' + transfer.amount)
+        this._incomingSettle(transfer)
+      })
+    }
   }
 
   getAccount () {
@@ -133,7 +168,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.storeOutgoing(transfer)
     }).then(() => {
-      return this.balance.isValidIncoming(transfer.amount)
+      return this.balance.checkAndSettleOutgoing(transfer.amount)
     }).then((valid) => {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
@@ -376,6 +411,9 @@ class NerdPluginVirtual extends EventEmitter {
       return this._sendInfo()
     } else if (obj.type === 'prefix') {
       return this._sendPrefix()
+    } else if (obj.type === 'settled') {
+      this._log('settled for amount ' + obj.transfer.amount)
+      return this._outgoingSettle(obj.transfer)
     } else {
       this._handle(new Error('Invalid message received'))
     }
@@ -450,7 +488,8 @@ class NerdPluginVirtual extends EventEmitter {
       this._log('sending settlement notification: ' + balance)
       return this.connection.send({
         type: 'settlement',
-        balance: balance
+        balance: balance,
+        max: this.maxBalance
       })
     })
   }
@@ -477,7 +516,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.storeIncoming(transfer)
     }).then(() => {
-      return this.balance.isValidIncoming(transfer.amount)
+      return this.balance.checkAndSettleIncoming(transfer.amount)
     }).then((valid) => {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
@@ -569,6 +608,27 @@ class NerdPluginVirtual extends EventEmitter {
       promises.push(this.transferLog.fulfill(transfer))
     }
     return Promise.all(promises)
+  }
+
+  _getSettleAmount (balance) {
+    const balanceNumber = balance - 0
+    const minNumber = this.minBalance - 0
+    const settlePercentNumber = this.settlePercent - 0
+
+    // amount that balance must decrease by
+    return ((balanceNumber - minNumber) * settlePercentNumber) + ''
+  }
+
+  _outgoingSettle (transfer) {
+    return this.balance.sub(transfer.amount).then(() => {
+      return this._sendBalance()
+    })
+  }
+
+  _incomingSettle (transfer) {
+    return this.balance.add(transfer.amount).then(() => {
+      return this._sendBalance()
+    })
   }
 
   _log (msg) {

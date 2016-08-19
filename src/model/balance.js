@@ -9,8 +9,11 @@ class Balance extends EventEmitter {
     super()
 
     this._store = opts.store
-    this._limit = this._convert(opts.limit)
-    this._balance = opts.balance
+    this._initialBalance = opts.initialBalance
+    this._min = this._convert(opts.min)
+    this._max = this._convert(opts.max)
+    this._settleIfOver = this._convert(opts.settleIfOver)
+    this._settleIfUnder = this._convert(opts.settleIfUnder)
     this._initialized = false
     this._field = 'account'
   }
@@ -19,7 +22,7 @@ class Balance extends EventEmitter {
     this._initialized = true
     return this._store.get(this._field).then((balance) => {
       if (balance === undefined) {
-        return this._store.put(this._field, this._balance)
+        return this._store.put(this._field, this._initialBalance)
       }
     })
   }
@@ -60,15 +63,29 @@ class Balance extends EventEmitter {
     return this.add(this._convert(amount).negated().toString())
   }
 
-  isValidIncoming (amountString) {
+  checkAndSettleOutgoing (amountString) {
     let amount = this._convert(amountString)
     return this._getNumber().then((balance) => {
-      let inLimit = balance.sub(amount).gte(this._limit.negated())
+      let inMax = balance.add(amount).lte(this._max)
+      let inWarn = balance.add(amount).lte(this._settleIfOver)
       let positive = amount.gte(this._convert('0'))
-      if (!inLimit) {
-        this.emit('settlement', balance)
+      if (!inWarn) {
+        this.emit('over', balance)
       }
-      return Promise.resolve(inLimit && positive)
+      return Promise.resolve(inMax && positive)
+    })
+  }
+
+  checkAndSettleIncoming (amountString) {
+    let amount = this._convert(amountString)
+    return this._getNumber().then((balance) => {
+      let inMin = balance.sub(amount).gte(this._min)
+      let inWarn = balance.sub(amount).gte(this._settleIfUnder)
+      let positive = amount.gte(this._convert('0'))
+      if (!inWarn) {
+        this.emit('under', balance)
+      }
+      return Promise.resolve(inMin && positive)
     })
   }
 }

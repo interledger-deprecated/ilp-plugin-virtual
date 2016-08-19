@@ -27,8 +27,11 @@ class NerdPluginVirtual extends EventEmitter {
   * @param {string} opts.account name of your PluginVirtual (can be anything)
   * @param {string} opts.prefix ilp address of this ledger
   * @param {string} opts.token channel to connect to in MQTT server
-  * @param {string} opts.limit numeric string representing credit limit
-  * @param {string} opts.balance numeric string representing starting balance
+  * @param {string} opts.initialBalance numeric string representing starting balance
+  * @param {string} opts.minBalance numeric string representing lowest balance
+  * @param {string} opts.maxBalance numeric string representing highest balance
+  * @param {string} opts.settleIfUnder if a transfer would put balance under this amount, settle is emitted
+  * @param {string} opts.settleIfOver if a transfer would put balance over this amount, settle is emitted
   * @param {string} opts.host hostname of MQTT server
   * @param {object} opts.info object to be returned by getInfo
   */
@@ -72,24 +75,20 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.settler = opts._optimisticPlugin
     this.settleAddress = opts.settleAddress
-    this.maxBalance = opts.max
-    this.limit = opts.limit
+    this.maxBalance = opts.maxBalance
+    this.minBalance = opts.minBalance
 
-    // settlement is requested over this.warnMax
-    this.warnMax = opts.warnMax
-
-    // settlement is requested under this.warnLimit
-    this.warnLimit = opts.warnLimit
-
+    this.settleIfOver = opts.settleIfOver
+    this.settleIfUnder = opts.settleIfUnder
     this.settlePercent = opts.settlePercent || '0.5'
 
     this.balance = new Balance({
       store: opts._store,
-      limit: this.limit,
-      warnLimit: this.warnLimit,
+      min: this.minBalance,
       max: this.maxBalance,
-      warnMax: this.warnMax,
-      balance: opts.balance
+      settleIfUnder: this.settleIfUnder,
+      settleIfOver: this.settleIfOver,
+      initialBalance: opts.initialBalance
     })
     this.balance.on('_balanceChanged', (balance) => {
       this._log('balance changed to ' + balance)
@@ -169,7 +168,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.storeOutgoing(transfer)
     }).then(() => {
-      return this.balance.isValidOutgoing(transfer.amount)
+      return this.balance.checkAndSettleOutgoing(transfer.amount)
     }).then((valid) => {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
@@ -517,7 +516,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.transferLog.storeIncoming(transfer)
     }).then(() => {
-      return this.balance.isValidIncoming(transfer.amount)
+      return this.balance.checkAndSettleIncoming(transfer.amount)
     }).then((valid) => {
       const validAmount = (typeof transfer.amount === 'string' &&
         !isNaN(transfer.amount - 0))
@@ -613,11 +612,11 @@ class NerdPluginVirtual extends EventEmitter {
 
   _getSettleAmount (balance) {
     const balanceNumber = balance - 0
-    const limitNumber = this.limit - 0
+    const minNumber = this.minBalance - 0
     const settlePercentNumber = this.settlePercent - 0
 
-    // amount that balance must increase by
-    return ((balanceNumber + limitNumber) * settlePercentNumber) + ''
+    // amount that balance must decrease by
+    return ((balanceNumber - minNumber) * settlePercentNumber) + ''
   }
 
   _outgoingSettle (transfer) {

@@ -1,7 +1,7 @@
 'use strict'
 
 const mockRequire = require('mock-require')
-const mock = require('./helpers/mockConnection')
+const mock = require('./mocks/mockConnection')
 const MockConnection = mock.MockConnection
 const MockChannels = mock.MockChannels
 mockRequire('../src/model/connection', MockConnection)
@@ -27,11 +27,11 @@ describe('The Noob and the Nerd', function () {
         _store: store1,
         host: 'mqtt://test.mosquitto.org',
         token: token,
-        limit: '1000',
-        warnLimit: '1000',
-        max: '2000',
-        warnMax: '2000',
-        balance: '0',
+        initialBalance: '0',
+        maxBalance: '2000',
+        minBalance: '-1000',
+        settleIfUnder: '-1000',
+        settleIfOver: '2000',
         account: 'nerd',
         secret: 'secret'
       })
@@ -44,11 +44,11 @@ describe('The Noob and the Nerd', function () {
       host: 'mqtt://test.mosquitto.org',
       prefix: 'test.nerd.',
       token: token,
-      limit: '1000',
-      warnLimit: '1000',
-      max: '2000',
-      warnMax: '2000',
-      balance: '0',
+      initialBalance: '0',
+      maxBalance: '2000',
+      minBalance: '-1000',
+      settleIfUnder: '-1000',
+      settleIfOver: '2000',
       account: 'nerd',
       mockChannels: MockChannels,
       secret: 'secret'
@@ -415,11 +415,11 @@ describe('The Noob and the Nerd', function () {
         _store: store1,
         host: 'mqatt://test.mosquitto.org',
         token: token,
-        limit: '1000',
-        warnLimit: '1000',
-        max: '2000',
-        warnMax: '2000',
-        balance: '0',
+        initialBalance: '0',
+        maxBalance: '2000',
+        minBalance: '-1000',
+        settleIfUnder: '-1000',
+        settleIfOver: '2000',
         account: 'nerd',
         prefix: 'test.tmpNerd.',
         mockChannels: MockChannels,

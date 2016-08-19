@@ -1,6 +1,6 @@
 const EventEmitter = require('events')
 
-class OptimisticPlugin extends EventEmitter {
+class MockOptimisticPlugin extends EventEmitter {
   constructor (opts) {
     super()
 
@@ -34,4 +34,4 @@ class OptimisticPlugin extends EventEmitter {
   }
 }
 
-module.exports = OptimisticPlugin
+module.exports = MockOptimisticPlugin

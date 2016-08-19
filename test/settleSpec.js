@@ -1,7 +1,7 @@
 'use strict'
 
 const mockRequire = require('mock-require')
-const mock = require('./helpers/mockConnection')
+const mock = require('./mocks/mockConnection')
 const MockConnection = mock.MockConnection
 const MockChannels = mock.MockChannels
 mockRequire('../src/model/connection', MockConnection)
@@ -12,7 +12,7 @@ const newSqliteStore = require('./helpers/sqliteStore')
 const uuid = require('uuid4')
 
 const EventEmitter = require('events')
-const OptimisticPlugin = require('./helpers/optimisticPlugin')
+const OptimisticPlugin = require('./mocks/mockOptimisticPlugin')
 
 const channels = [ new EventEmitter(), new EventEmitter() ]
 const plugin1 = new OptimisticPlugin({
@@ -44,11 +44,11 @@ describe('Automatic settlement', function () {
         settleAddress: 'example.plugin2',
         host: 'mqatt://test.mosquitto.org',
         token: token,
-        limit: '1',
-        warnLimit: '1',
-        max: '2',
-        warnMax: '2',
-        balance: '0',
+        initialBalance: '0',
+        minBalance: '-1',
+        maxBalance: '2',
+        settleIfUnder: '-1',
+        settleIfOver: '2',
         account: 'test.nerd.nerd',
         prefix: 'test.nerd.',
         mockConnection: MockConnection,

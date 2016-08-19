@@ -71,253 +71,205 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(noob)
   })
 
-  let next = null
-  it('should connect to the mosquitto server', (done) => {
-    next = Promise.all([
+  it('should connect to the mosquitto server', () => {
+    return Promise.all([
       noob.connect(),
       nerd.connect()
-    ]).then(() => {
-      done()
-    }).catch(done)
+    ])
   })
 
-  it('should be able to log errors in the connection', (done) => {
-    next = next.then(() => {
-      noob.connection._handle('fake error!')
-      done()
+  it('should be able to log errors in the connection', () => {
+    noob.connection._handle('fake error!')
+  })
+
+  it('should have a zero balance at the start', () => {
+    return noob.getBalance().then((balance) => {
+      assert(balance === '0')
     })
   })
 
-  it('should have a zero balance at the start', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
-      assert(balance === '0')
-      done()
-    }).catch(done)
-  })
-
-  it('should getInfo() without errors', (done) => {
-    next = next.then(() => {
-      noob.getInfo()
+  it('should getInfo() without errors', () => {
+    return Promise.all([
+      noob.getInfo(),
       nerd.getInfo()
-      done()
-    }).catch(done)
+    ])
   })
 
-  it('should getConnectors() without errors', (done) => {
-    next = next.then(() => {
-      noob.getConnectors()
-      nerd.getConnectors()
-      done()
-    }).catch(done)
+  it('should getConnectors() without errors', () => {
+    noob.getConnectors(),
+    nerd.getConnectors()
   })
 
-  it('should keep track of whether it`s connected', (done) => {
-    next = next.then(() => {
-      assert(noob.isConnected())
-      assert(nerd.isConnected())
-      done()
-    }).catch(done)
+  it('should keep track of whether it`s connected', () => {
+    assert(noob.isConnected())
+    assert(nerd.isConnected())
   })
 
-  it('should acknowledge a valid transfer noob -> nerd', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('outgoing_transfer', (transfer, message) => {
-          assert(transfer.id === 'first')
-          assert(transfer.ledger === 'test.nerd.')
-          done()
-          resolve()
-        })
-      }).catch(done)
-
-      noob.send({
-        id: 'first',
-        account: 'x',
-        amount: '10'
+  it('should acknowledge a valid transfer noob -> nerd', () => {
+    const p = new Promise((resolve) => {
+      noob.once('outgoing_transfer', (transfer, message) => {
+        assert(transfer.id === 'first')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
       })
+    })
 
-      return p
-    }).catch(done)
+    noob.send({
+      id: 'first',
+      account: 'x',
+      amount: '10'
+    })
+
+    return p
   })
 
-  it('should represent the right balance after a sent transfer', (done) => {
-    next = next.then(() => {
-      return noob.getBalance()
-    }).then((balance) => {
+  it('should represent the right balance after a sent transfer', () => {
+    return noob.getBalance().then((balance) => {
       assert(balance === '-10')
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should reject a transfer that puts the balance under limit', (done) => {
-    next = next.then(() => {
-      return noob.send({
-        id: 'second',
-        account: 'x',
-        amount: '1000'
-      }).catch(() => {
-        done()
-      })
-    }).catch(done)
+  it('should reject a transfer that puts the balance under limit', () => {
+    return noob.send({
+      id: 'second',
+      account: 'x',
+      amount: '1000'
+    }).catch((e) => {
+      assert(e) 
+    })
   })
 
-  it('should trigger settlement when balance under limit', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        noob.once('settlement', (balance) => {
-          done()
-          resolve()
-        })
+  it('should trigger settlement when balance under limit', () => {
+    const p = new Promise((resolve) => {
+      noob.once('settlement', (balance) => {
+        resolve()
       })
+    })
 
-      noob.send({
-        id: 'secondish',
-        account: 'x',
-        amount: '1000'
-      })
+    noob.send({
+      id: 'secondish',
+      account: 'x',
+      amount: '1000'
+    })
 
-      return p
-    }).catch(done)
+    return p
   })
 
-  it('should add balance when nerd sends money to noob', (done) => {
-    next = next.then(() => {
-      const p = new Promise((resolve) => {
-        nerd.once('outgoing_transfer', (transfer, message) => {
-          assert(transfer.id === 'third')
-          assert(transfer.ledger === 'test.nerd.')
-          resolve()
-        })
-      }).catch(done)
-
-      nerd.send({
-        id: 'third',
-        account: 'x',
-        amount: '100'
-      }).catch(done)
-
-      return p
-    }).then(() => {
+  it('should add balance when nerd sends money to noob', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('outgoing_transfer', (transfer, message) => {
+        assert(transfer.id === 'third')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
+      })
     }).then(() => {
       return noob.getBalance()
     }).then((balance) => {
       assert(balance === '90')
-      done()
-    }).catch(done)
+    })
+
+    nerd.send({
+      id: 'third',
+      account: 'x',
+      amount: '100'
+    })
+
+    return p
   })
 
-  it('should create a second noob', (done) => {
-    next = next.then(() => {
-      noob2 = new PluginVirtual({
-        _store: {},
-        host: 'mqtt://test.mosquitto.org',
-        token: token,
-        mockChannels: MockChannels,
-        account: 'noob2'
+  it('should create a second noob', () => {
+    noob2 = new PluginVirtual({
+      _store: {},
+      host: 'mqtt://test.mosquitto.org',
+      token: token,
+      mockChannels: MockChannels,
+      account: 'noob2'
+    })
+    assert.isObject(noob2)
+
+    return new Promise((resolve) => {
+      noob2.once('connect', () => {
+        resolve()
       })
-      assert.isObject(noob2)
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob2.once('connect', () => {
-          resolve()
-        })
-        noob2.connect()
-      })
-    }).then(() => {
-      done()
-    }).catch(done)
+      noob2.connect()
+    })
   })
 
-  it('should have the same balance for both noobs', (done) => {
-    next = next.then(() => {
-      return noob2.getBalance()
-    }).then((balance) => {
+  it('should have the same balance for both noobs', () => {
+    return noob2.getBalance().then((balance) => {
       assert(balance === '90')
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should notify both noobs on a received transfer', (done) => {
-    next = next.then(() => {
-      const p = Promise.all([
-        new Promise((resolve) => {
-          noob.once('incoming_transfer', (transfer, message) => {
-            assert(transfer.id === 'fourth')
-            assert(transfer.ledger === 'test.nerd.')
-            resolve()
-          })
-        }),
-        new Promise((resolve) => {
-          noob2.once('incoming_transfer', (transfer, message) => {
-            assert(transfer.id === 'fourth')
-            assert(transfer.ledger === 'test.nerd.')
-            resolve()
-          })
-        }),
-        new Promise((resolve) => {
-          nerd.once('outgoing_transfer', (transfer, message) => {
-            assert(transfer.id === 'fourth')
-            assert(transfer.ledger === 'test.nerd.')
-            resolve()
-          })
-        })
-      ]).catch(done)
-
-      nerd.send({
-        id: 'fourth',
-        account: 'x',
-        amount: '100'
-      }).catch(done)
-
-      return p
-    }).then(() => {
-      done()
-    }).catch(done)
-  })
-
-  it('should send a reply from noob -> nerd', (done) => {
-    next = next.then(() => {
-      noob.replyToTransfer('second', 'I have a message')
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('reply', (transfer, message) => {
-          assert(transfer.id === 'second')
-          assert(transfer.ledger === 'test.nerd.')
-          assert(message.toString() === 'I have a message')
-          resolve()
-        })
-      })
-    }).then(() => {
-      done()
-    }).catch(done)
-  })
-
-  it('should send a reply from nerd -> noob', (done) => {
-    next = next.then(() => {
-      nerd.replyToTransfer('fourth', 'I have a message too')
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('reply', (transfer, message) => {
+  it('should notify both noobs on a received transfer', () => {
+    const p = Promise.all([
+      new Promise((resolve) => {
+        noob.once('incoming_transfer', (transfer, message) => {
           assert(transfer.id === 'fourth')
           assert(transfer.ledger === 'test.nerd.')
-          assert(message.toString() === 'I have a message too')
+          resolve()
+        })
+      }),
+      new Promise((resolve) => {
+        noob2.once('incoming_transfer', (transfer, message) => {
+          assert(transfer.id === 'fourth')
+          assert(transfer.ledger === 'test.nerd.')
+          resolve()
+        })
+      }),
+      new Promise((resolve) => {
+        nerd.once('outgoing_transfer', (transfer, message) => {
+          assert(transfer.id === 'fourth')
+          assert(transfer.ledger === 'test.nerd.')
           resolve()
         })
       })
-    }).then(() => {
-      done()
-    }).catch(done)
+    ])
+
+    nerd.send({
+      id: 'fourth',
+      account: 'x',
+      amount: '100'
+    })
+
+    return p
   })
 
-  it('should reject a false acknowledge from the noob', (done) => {
-    next = next.then(() => {
-      return noob.connection.send({
-        type: 'acknowledge',
-        transfer: {id: 'fake'},
-        message: 'fake acknowledge'
+  it('should send a reply from noob -> nerd', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('reply', (transfer, message) => {
+        assert(transfer.id === 'second')
+        assert(transfer.ledger === 'test.nerd.')
+        assert(message.toString() === 'I have a message')
+        resolve()
       })
+    })
+
+    noob.replyToTransfer('second', 'I have a message')
+
+    return p
+  })
+
+  it('should send a reply from nerd -> noob', () => {
+    const p = new Promise((resolve) => {
+      noob.once('reply', (transfer, message) => {
+        assert(transfer.id === 'fourth')
+        assert(transfer.ledger === 'test.nerd.')
+        assert(message.toString() === 'I have a message too')
+        resolve()
+      })
+    })
+
+    nerd.replyToTransfer('fourth', 'I have a message too')
+
+    return p
+  })
+
+  it('should reject a false acknowledge from the noob', () => {
+    return noob.connection.send({
+      type: 'acknowledge',
+      transfer: {id: 'fake'},
+      message: 'fake acknowledge'
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('_falseAcknowledge', (transfer) => {
@@ -325,30 +277,24 @@ describe('The Noob and the Nerd', function () {
           resolve()
         })
       })
-    }).then(() => {
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should reject a repeat transfer from the noob', (done) => {
-    next = next.then(() => {
-      return noob.send({
-        id: 'first',
-        amount: '100',
-        account: 'x'
-      }).catch(() => {
-        done()
-      })
-    }).catch(done)
+  it('should reject a repeat transfer from the noob', () => {
+    return noob.send({
+      id: 'first',
+      amount: '100',
+      account: 'x'
+    }).catch((e) => {
+      assert(e)
+    })
   })
 
-  it('should emit false reject if a fake transfer is rejected', (done) => {
-    next = next.then(() => {
-      return noob.connection.send({
-        type: 'reject',
-        transfer: {id: 'notreal'},
-        message: 'fake reject'
-      })
+  it('should emit false reject if a fake transfer is rejected', () => {
+    return noob.connection.send({
+      type: 'reject',
+      transfer: {id: 'notreal'},
+      message: 'fake reject'
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('_falseReject', (transfer) => {
@@ -356,30 +302,22 @@ describe('The Noob and the Nerd', function () {
           resolve()
         })
       })
-    }).then(() => {
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should not give an error if a real transfer is rejected', (done) => {
+  it('should not give an error if a real transfer is rejected', () => {
   // it's harmless to complete a transfer that is already completed if
   // the reject is to a completed transfer.
-    next = next.then(() => {
-      return noob.connection.send({
-        type: 'reject',
-        transfer: {id: 'first'},
-        message: 'late reject'
-      })
-    }).then(() => {
-      done()
-    }).catch(done)
+    return noob.connection.send({
+      type: 'reject',
+      transfer: {id: 'first'},
+      message: 'late reject'
+    })
   })
 
-  it('should give error if the noob sends invalid message type', (done) => {
-    next = next.then(() => {
-      return noob.connection.send({
-        type: 'garbage'
-      })
+  it('should give error if the noob sends invalid message type', () => {
+    return noob.connection.send({
+      type: 'garbage'
     }).then(() => {
       return new Promise((resolve) => {
         nerd.once('exception', (err) => {
@@ -387,16 +325,12 @@ describe('The Noob and the Nerd', function () {
           resolve()
         })
       })
-    }).then(() => {
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should give error if the nerd sends invalid message type', (done) => {
-    next = next.then(() => {
-      return nerd.connection.send({
-        type: 'garbage'
-      })
+  it('should give error if the nerd sends invalid message type', () => {
+    return nerd.connection.send({
+      type: 'garbage'
     }).then(() => {
       return new Promise((resolve) => {
         noob.once('exception', (err) => {
@@ -404,40 +338,35 @@ describe('The Noob and the Nerd', function () {
           resolve()
         })
       })
-    }).then(() => {
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should hold same balance when nerd is made with old db', (done) => {
-    next = next.then(() => {
-      let tmpNerd = new PluginVirtual({
-        _store: store1,
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        initialBalance: '0',
-        maxBalance: '2000',
-        minBalance: '-1000',
-        settleIfUnder: '-1000',
-        settleIfOver: '2000',
-        account: 'nerd',
-        prefix: 'test.tmpNerd.',
-        mockChannels: MockChannels,
-        secret: 'secret'
-      })
-      return tmpNerd.getBalance()
-    }).then((balance) => {
+  it('should hold same balance when nerd is made with old db', () => {
+    let tmpNerd = new PluginVirtual({
+      _store: store1,
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      initialBalance: '0',
+      maxBalance: '2000',
+      minBalance: '-1000',
+      settleIfUnder: '-1000',
+      settleIfOver: '2000',
+      account: 'nerd',
+      prefix: 'test.tmpNerd.',
+      mockChannels: MockChannels,
+      secret: 'secret'
+    })
+
+    return tmpNerd.getBalance().then((balance) => {
       assert(balance !== '0')
-      done()
-    }).catch(done)
+    })
   })
 
-  it('should disconnect gracefully', (done) => {
-    next.then(() => {
-      noob.disconnect()
-      noob2.disconnect()
-      nerd.disconnect()
-      done()
-    }).catch(done)
+  it('should disconnect gracefully', () => {
+    return Promise.all([
+      noob.disconnect(),
+      noob2.disconnect(),
+      nerd.disconnect(),
+    ])
   })
 })

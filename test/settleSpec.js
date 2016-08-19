@@ -33,97 +33,81 @@ let noob = null
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
-  let next = Promise.resolve(null)
 
   it('should create the nerd and the noob', () => {
-    next = next.then(() => {
-      let objStore = newSqliteStore()
-      nerd = new PluginVirtual({
-        _store: objStore,
-        _optimisticPlugin: plugin1,
-        settleAddress: 'example.plugin2',
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        initialBalance: '0',
-        minBalance: '-1',
-        maxBalance: '2',
-        settleIfUnder: '-1',
-        settleIfOver: '2',
-        account: 'test.nerd.nerd',
-        prefix: 'test.nerd.',
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        secret: 'secret'
-      })
+    let objStore = newSqliteStore()
+    nerd = new PluginVirtual({
+      _store: objStore,
+      _optimisticPlugin: plugin1,
+      settleAddress: 'example.plugin2',
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      initialBalance: '0',
+      minBalance: '-1',
+      maxBalance: '2',
+      settleIfUnder: '-1',
+      settleIfOver: '2',
+      account: 'test.nerd.nerd',
+      prefix: 'test.nerd.',
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      secret: 'secret'
+    })
 
-      noob = new PluginVirtual({
-        _store: {},
-        _optimisticPlugin: plugin2,
-        settleAddress: 'example.plugin1',
-        host: 'mqatt://test.mosquitto.org',
-        token: token,
-        mockConnection: MockConnection,
-        mockChannels: MockChannels,
-        account: 'test.nerd.noob'
-      })
+    noob = new PluginVirtual({
+      _store: {},
+      _optimisticPlugin: plugin2,
+      settleAddress: 'example.plugin1',
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      account: 'test.nerd.noob'
     })
   })
 
-  it('should connect the noob and the nerd', (done) => {
-    next = next.then(() => {
-      return Promise.all([
-        noob.connect(),
-        nerd.connect(),
-        plugin1.connect(),
-        plugin2.connect()
-      ])
-    }).then(() => {
-      done()
-    }).catch(done)
+  it('should connect the noob and the nerd', () => {
+    return Promise.all([
+      noob.connect(),
+      nerd.connect(),
+      plugin1.connect(),
+      plugin2.connect()
+    ])
   })
 
-  it('should trigger settlement on a big transfer', function (done) {
-    next = next.then(() => {
-      const id = uuid()
-
-      const p = new Promise((resolve) => {
-        noob.once('balance', (balance) => {
-          assert.equal(balance, '1')
-          resolve()
-        })
+  it('should trigger settlement on a big transfer', function () {
+    const id = uuid()
+    const p = new Promise((resolve) => {
+      noob.once('balance', (balance) => {
+        assert.equal(balance, '1')
+        resolve()
       })
+    })
 
-      noob.send({
-        account: 'ilpdemo.red.alice',
-        amount: '10',
-        id: id
-      })
+    noob.send({
+      account: 'ilpdemo.red.alice',
+      amount: '10',
+      id: id
+    })
 
-      return p
-    }).then(() => {
-      done()
-    }).catch(done)
+    return p
   })
 
-  it('should trigger settlement from the nerd to the noob', function (done) {
-    next = next.then(() => {
-      const id = uuid()
-      const p = new Promise((resolve) => {
-        noob.once('balance', (balance) => {
-          assert.equal(balance, '0')
-          resolve()
-        })
+  it('should trigger settlement from the nerd to the noob', function () {
+    const id = uuid()
+    const p = new Promise((resolve) => {
+      noob.once('balance', (balance) => {
+        assert.equal(balance, '0')
+        resolve()
       })
+    })
 
-      nerd.send({
-        account: 'ilpdemo.red.alice',
-        amount: '10',
-        id: id
-      })
+    nerd.send({
+      account: 'ilpdemo.red.alice',
+      amount: '10',
+      id: id
+    })
 
-      return p
-    }).then(() => {
-      done()
-    }).catch(done)
+    return p
   })
 })

@@ -65,7 +65,7 @@ describe('TransferLog', function () {
   let next = null
   it('should add something', (done) => {
     next = tlog.storeOutgoing({id: 'transfer'}).then(() => {
-      return tlog.exists({id: 'transfer'})
+      return tlog.exists('transfer')
     }).then((exists) => {
       assert(exists)
       done()
@@ -74,9 +74,9 @@ describe('TransferLog', function () {
 
   it('should delete something', (done) => {
     next = next.then(() => {
-      return tlog.del({id: 'transfer'})
+      return tlog.del('transfer')
     }).then(() => {
-      return tlog.exists({id: 'transfer'})
+      return tlog.exists('transfer')
     }).then((exists) => {
       assert(!exists)
       done()
@@ -85,7 +85,7 @@ describe('TransferLog', function () {
 
   it('should not contain something nonexistant', (done) => {
     next = next.then(() => {
-      return tlog.getTypeId('transfer')
+      return tlog.getType('transfer')
     }).then((type) => {
       assert(type === undefined)
       done()

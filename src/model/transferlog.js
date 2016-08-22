@@ -11,7 +11,7 @@ class TransferLog {
     this.outgoing = 'o'
   }
 
-  getId (transferId) {
+  get (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
         return Promise.resolve(JSON.parse(json).transfer)
@@ -21,11 +21,7 @@ class TransferLog {
     })
   }
 
-  get (transfer) {
-    return this.getId(transfer.id)
-  }
-
-  getTypeId (transferId) {
+  getType (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
         return Promise.resolve(JSON.parse(json).type)
@@ -33,10 +29,6 @@ class TransferLog {
         return Promise.resolve(undefined)
       }
     })
-  }
-
-  getType (transfer) {
-    return this.getTypeId(transfer.id)
   }
 
   store (transfer, type) {
@@ -52,35 +44,47 @@ class TransferLog {
     return this.store(transfer, this.incoming)
   }
 
-  exists (transfer) {
-    return this.get(transfer).then((storedTransfer) => {
+  exists (transferId) {
+    return this.get(transferId).then((storedTransfer) => {
       return Promise.resolve(storedTransfer !== undefined)
     })
   }
 
-  del (transfer) {
-    return this._del('t' + transfer.id)
+  del (transferId) {
+    return this._del('t' + transferId)
   }
 
-  complete (transfer) {
+  complete (transferId) {
     // TODO: more efficient way of doing this
-    return this._put('c' + transfer.id, 'complete')
+    return this._put('c' + transferId, 'complete')
   }
 
-  isComplete (transfer) {
-    return this._get('c' + transfer.id).then((data) => {
+  isComplete (transferId) {
+    return this._get('c' + transferId).then((data) => {
       return Promise.resolve(data !== undefined)
     })
   }
 
-  fulfill (transfer) {
+  fulfill (transferId, fulfillment) {
     // TODO: more efficient way of doing this
-    return this._put('f' + transfer.id, 'complete')
+    return this._get('t' + transferId).then((json) => {
+      const obj = Object.assign(JSON.parse(json), {fulfillment: fulfillment})
+      return this._put('t' + transferId, JSON.stringify(obj))
+    }).then(() => {
+      return this._put('f' + transferId, 'complete')
+    })
   }
 
-  isFulfilled (transfer) {
-    return this._get('f' + transfer.id).then((data) => {
+  isFulfilled (transferId) {
+    return this._get('f' + transferId).then((data) => {
       return Promise.resolve(data !== undefined)
+    })
+  }
+
+  getFulfillment (transferId) {
+    return this._get('t' + transferId).then((json) => {
+      const obj = JSON.parse(json)
+      return Promise.resolve(obj && obj.fulfillment) // can be undefined
     })
   }
 }

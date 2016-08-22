@@ -156,7 +156,7 @@ class NerdPluginVirtual extends EventEmitter {
 
   send (transfer) {
     transfer.ledger = this.prefix
-    return this.transferLog.get(transfer).then((storedTransfer) => {
+    return this.transferLog.get(transfer.id).then((storedTransfer) => {
       if (storedTransfer) {
         this.emit('_repeatTransfer', transfer)
         return this._rejectTransfer(transfer, 'repeat transfer id').then(() => {
@@ -216,7 +216,7 @@ class NerdPluginVirtual extends EventEmitter {
     let fulfillment = fulfillmentBuffer.toString()
     let transfer = null
     this._log('fulfilling: ' + fulfillment)
-    return this.transferLog.getId(transferId).then((storedTransfer) => {
+    return this.transferLog.get(transferId).then((storedTransfer) => {
       transfer = storedTransfer
       return this._fulfillConditionLocal(transfer, fulfillment)
     }).catch(this._handle)
@@ -225,14 +225,14 @@ class NerdPluginVirtual extends EventEmitter {
   rejectIncomingTransfer (transferId) {
     let transfer = null
     this._log('rejecting incoming transfer: ' + transferId)
-    return this.transferLog.getId(transferId).then((storedTransfer) => {
+    return this.transferLog.get(transferId).then((storedTransfer) => {
       transfer = storedTransfer
       if (!storedTransfer || !storedTransfer.executionCondition) {
         throw new Error(
           'invalid transfer id; must be an existing transfer with a condition'
         )
       } else {
-        return this.transferLog.getType(storedTransfer)
+        return this.transferLog.getType(storedTransfer.id)
       }
     }).then((type) => {
       if (type !== this.transferLog.incoming) {
@@ -241,7 +241,7 @@ class NerdPluginVirtual extends EventEmitter {
         return this.balance.add(transfer.amount)
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer)
+      return this.transferLog.fulfill(transfer.id)
     }).then(() => {
       this.emit('incoming_reject', transfer, 'manually rejected')
       return this.connection.send({
@@ -267,7 +267,7 @@ class NerdPluginVirtual extends EventEmitter {
       throw new Error('got transfer ID for OTP transfer')
     }
 
-    return this.transferLog.isFulfilled(transfer).then((fulfilled) => {
+    return this.transferLog.isFulfilled(transfer.id).then((fulfilled) => {
       if (fulfilled) {
         throw new Error('this transfer has already been fulfilled')
       } else {
@@ -295,7 +295,7 @@ class NerdPluginVirtual extends EventEmitter {
     // because there is only one balance, kept, money is not _actually_ kept
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
-    return this.transferLog.getType(transfer).then((type) => {
+    return this.transferLog.getType(transfer.id).then((type) => {
       if (type === this.transferLog.outgoing) {
         this.emit('outgoing_fulfill', transfer, fulfillmentBuffer)
         return this.balance.add(transfer.amount)
@@ -304,9 +304,9 @@ class NerdPluginVirtual extends EventEmitter {
         return Promise.resolve(null)
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer)
+      return this.transferLog.fulfill(transfer.id)
     }).then(() => {
-      return this.transferLog.getType(transfer)
+      return this.transferLog.getType(transfer.id)
     }).then((type) => {
       return this.connection.send({
         type: 'fulfill_execution_condition',
@@ -319,7 +319,7 @@ class NerdPluginVirtual extends EventEmitter {
 
   _timeOutTransfer (transfer) {
     let transactionType = null
-    return this.transferLog.getType(transfer).then((type) => {
+    return this.transferLog.getType(transfer.id).then((type) => {
       transactionType = type
       if (type === this.transferLog.incoming) {
         this.emit('incoming_cancel', transfer, 'timed out')
@@ -328,7 +328,7 @@ class NerdPluginVirtual extends EventEmitter {
         this.emit('outgoing_cancel', transfer, 'timed out')
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer)
+      return this.transferLog.fulfill(transfer.id)
     }).then(() => {
       return this.connection.send({
         type: 'reject',
@@ -357,7 +357,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   replyToTransfer (transferId, replyMessage) {
-    return this.transferLog.getId(transferId).then((storedTransfer) => {
+    return this.transferLog.get(transferId).then((storedTransfer) => {
       return this.connection.send({
         type: 'reply',
         transfer: storedTransfer,
@@ -391,13 +391,13 @@ class NerdPluginVirtual extends EventEmitter {
       return this._handleReject(obj.transfer)
     } else if (obj.type === 'reply') {
       this._log('received a reply on tid: ' + obj.transferId)
-      return this.transferLog.getId(obj.transferId).then((transfer) => {
+      return this.transferLog.get(obj.transferId).then((transfer) => {
         this.emit('reply', transfer, new Buffer(obj.message))
         return Promise.resolve(null)
       })
     } else if (obj.type === 'fulfillment') {
       this._log('received a fulfillment for tid: ' + obj.transferId)
-      return this.transferLog.getId(obj.transferId).then((transfer) => {
+      return this.transferLog.get(obj.transferId).then((transfer) => {
         this.emit('fulfillment', transfer, new Buffer(obj.fulfillment))
         return this._fulfillConditionLocal(transfer, obj.fulfillment)
       })
@@ -420,7 +420,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _handleReject (transfer) {
-    return this.transferLog.exists(transfer).then((exists) => {
+    return this.transferLog.exists(transfer.id).then((exists) => {
       if (exists) {
         this._completeTransfer(transfer)
       } else {
@@ -431,7 +431,7 @@ class NerdPluginVirtual extends EventEmitter {
 
   _handleManualReject (transferId, message) {
     let transfer = null
-    return this.transferLog.getId(transferId).then((storedTransfer) => {
+    return this.transferLog.get(transferId).then((storedTransfer) => {
       transfer = storedTransfer
       if (!transfer || !transfer.executionCondition) {
         this._sendManualRejectFailure(
@@ -440,7 +440,7 @@ class NerdPluginVirtual extends EventEmitter {
         )
         throw new Error()
       } else {
-        return this.transferLog.getType(transfer)
+        return this.transferLog.getType(transfer.id)
       }
     }).then((type) => {
       if (type !== this.transferLog.outgoing) {
@@ -449,7 +449,7 @@ class NerdPluginVirtual extends EventEmitter {
           'transfer must be incoming'
         )
       } else {
-        return this.transferLog.fulfill(transfer)
+        return this.transferLog.fulfill(transfer.id)
       }
     }).then(() => {
       this.emit('outgoing_reject', transfer, message)
@@ -504,7 +504,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _handleTransfer (transfer) {
-    return this.transferLog.get(transfer).then((storedTransfer) => {
+    return this.transferLog.get(transfer.id).then((storedTransfer) => {
       if (storedTransfer) {
         this.emit('_repeatTransfer', transfer)
         return this._rejectTransfer(transfer, 'repeat transfer id').then(() => {
@@ -533,9 +533,9 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _handleAcknowledge (transfer) {
-    return this.transferLog.get(transfer).then((storedTransfer) => {
+    return this.transferLog.get(transfer.id).then((storedTransfer) => {
       if (Transfer.equals(storedTransfer, transfer)) {
-        return this.transferLog.isComplete(transfer)
+        return this.transferLog.isComplete(transfer.id)
       } else {
         this._falseAcknowledge(transfer)
       }
@@ -562,7 +562,7 @@ class NerdPluginVirtual extends EventEmitter {
       let now = new Date()
       let expiry = new Date(transfer.expiresAt)
       this.timers[transfer.id] = setTimeout(() => {
-        this.transferLog.isFulfilled(transfer).then((isFulfilled) => {
+        this.transferLog.isFulfilled(transfer.id).then((isFulfilled) => {
           if (!isFulfilled) {
             this._timeOutTransfer(transfer)
             this._log('automatic time out on tid: ' + transfer.id)
@@ -577,7 +577,7 @@ class NerdPluginVirtual extends EventEmitter {
   _acceptTransfer (transfer) {
     this._log('sending out an ACK for tid: ' + transfer.id)
 
-    return this.transferLog.getType(transfer).then((direction) => {
+    return this.transferLog.getType(transfer.id).then((direction) => {
       const dir = (direction === this.transferLog.incoming)
         ? 'incoming' : 'outgoing'
       const type = (transfer.executionCondition) ? 'prepare' : 'transfer'
@@ -603,9 +603,9 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _completeTransfer (transfer) {
-    let promises = [this.transferLog.complete(transfer)]
+    let promises = [this.transferLog.complete(transfer.id)]
     if (!transfer.executionCondition) {
-      promises.push(this.transferLog.fulfill(transfer))
+      promises.push(this.transferLog.fulfill(transfer.id))
     }
     return Promise.all(promises)
   }

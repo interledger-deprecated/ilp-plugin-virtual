@@ -33,7 +33,6 @@ let noob = null
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
-
   it('should create the nerd and the noob', () => {
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({

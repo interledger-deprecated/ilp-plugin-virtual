@@ -83,8 +83,9 @@ class TransferLog {
 
   getFulfillment (transferId) {
     return this._get('t' + transferId).then((json) => {
-      const obj = JSON.parse(json)
-      return Promise.resolve(obj && obj.fulfillment) // can be undefined
+      const obj = json && JSON.parse(json)
+      const result = obj && obj.fulfillment
+      return Promise.resolve(result || null)
     })
   }
 }

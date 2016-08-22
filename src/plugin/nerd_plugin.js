@@ -212,6 +212,10 @@ class NerdPluginVirtual extends EventEmitter {
     return Promise.resolve(this.info)
   }
 
+  getFulfillment (transferId) {
+    return this.transferLog.getFulfillment(transferId)
+  }
+
   fulfillCondition (transferId, fulfillmentBuffer) {
     let fulfillment = fulfillmentBuffer.toString()
     let transfer = null
@@ -241,7 +245,7 @@ class NerdPluginVirtual extends EventEmitter {
         return this.balance.add(transfer.amount)
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer.id)
+      return this.transferLog.fulfill(transfer.id, undefined)
     }).then(() => {
       this.emit('incoming_reject', transfer, 'manually rejected')
       return this.connection.send({
@@ -304,7 +308,7 @@ class NerdPluginVirtual extends EventEmitter {
         return Promise.resolve(null)
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer.id)
+      return this.transferLog.fulfill(transfer.id, fulfillment)
     }).then(() => {
       return this.transferLog.getType(transfer.id)
     }).then((type) => {
@@ -328,7 +332,7 @@ class NerdPluginVirtual extends EventEmitter {
         this.emit('outgoing_cancel', transfer, 'timed out')
       }
     }).then(() => {
-      return this.transferLog.fulfill(transfer.id)
+      return this.transferLog.fulfill(transfer.id, undefined)
     }).then(() => {
       return this.connection.send({
         type: 'reject',
@@ -414,9 +418,22 @@ class NerdPluginVirtual extends EventEmitter {
     } else if (obj.type === 'settled') {
       this._log('settled for amount ' + obj.transfer.amount)
       return this._outgoingSettle(obj.transfer)
+    } else if (obj.type === 'get_fulfillment') {
+      this._log('received request for a fulfillment on tid:' + obj.transferId)
+      return this._sendFulfillment(obj.transferId)
     } else {
       this._handle(new Error('Invalid message received'))
     }
+  }
+
+  _sendFulfillment (transferId) {
+    return this.getFulfillment(transferId).then((fulfillment) => {
+      return this.connection.send({
+        type: 'get_fulfillment',
+        transferId: transferId,
+        fulfillment: fulfillment
+      })
+    })
   }
 
   _handleReject (transfer) {
@@ -449,7 +466,7 @@ class NerdPluginVirtual extends EventEmitter {
           'transfer must be incoming'
         )
       } else {
-        return this.transferLog.fulfill(transfer.id)
+        return this.transferLog.fulfill(transfer.id, undefined)
       }
     }).then(() => {
       this.emit('outgoing_reject', transfer, message)
@@ -605,7 +622,7 @@ class NerdPluginVirtual extends EventEmitter {
   _completeTransfer (transfer) {
     let promises = [this.transferLog.complete(transfer.id)]
     if (!transfer.executionCondition) {
-      promises.push(this.transferLog.fulfill(transfer.id))
+      promises.push(this.transferLog.fulfill(transfer.id, undefined))
     }
     return Promise.all(promises)
   }

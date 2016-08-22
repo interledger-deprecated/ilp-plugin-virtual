@@ -98,7 +98,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should getConnectors() without errors', () => {
-    noob.getConnectors(),
+    noob.getConnectors()
     nerd.getConnectors()
   })
 
@@ -137,7 +137,7 @@ describe('The Noob and the Nerd', function () {
       account: 'x',
       amount: '1000'
     }).catch((e) => {
-      assert(e) 
+      assert(e)
     })
   })
 
@@ -368,7 +368,7 @@ describe('The Noob and the Nerd', function () {
     return Promise.all([
       noob.disconnect(),
       noob2.disconnect(),
-      nerd.disconnect(),
+      nerd.disconnect()
     ])
   })
 })

@@ -215,6 +215,12 @@ class NoobPluginVirtual extends EventEmitter {
       this.emit('_manual_reject_success', obj.transfer.id)
 
       return Promise.resolve(null)
+    } else if (obj.type === 'get_fulfillment') {
+      this._log('received fulfillment for tid: ' + obj.transferId)
+
+      this.emit('_get_fulfillment', obj)
+
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -331,6 +337,22 @@ class NoobPluginVirtual extends EventEmitter {
       type: 'reply',
       transferId: transferId,
       message: replyMessage
+    })
+  }
+
+  getFulfillment (transferId) {
+    this.connection.send({
+      type: 'get_fulfillment',
+      transferId: transferId
+    })
+    return new Promise((resolve) => {
+      const received = false
+      this.on('_get_fulfillment', (obj) => {
+        if (received || obj.transferId !== transferId) {
+          return
+        }
+        resolve(obj.fulfillment)
+      })
     })
   }
 

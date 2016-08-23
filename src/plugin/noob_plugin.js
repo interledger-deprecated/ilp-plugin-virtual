@@ -382,5 +382,11 @@ class NoobPluginVirtual extends EventEmitter {
       }).catch(this._handle)
     })
   }
+
+  getAccount () {
+    return this.getPrefix().then((prefix) => {
+      return Promise.resolve(prefix + this._account)
+    })
+  }
 }
 module.exports = NoobPluginVirtual

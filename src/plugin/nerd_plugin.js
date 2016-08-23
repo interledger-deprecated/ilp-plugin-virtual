@@ -47,6 +47,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
     this.auth = opts
+    this._account = opts.account
     this.store = opts._store
     this.timers = {}
 
@@ -122,7 +123,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getAccount () {
-    return Promise.resolve(this.auth.account)
+    return Promise.resolve(this.prefix + this._account)
   }
 
   connect () {

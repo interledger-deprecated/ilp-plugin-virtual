@@ -213,6 +213,16 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getFulfillment (transferId) {
+    return this._getFulfillment(transferId).then((fulfillment) => {
+      if (!fulfillment) {
+        return Promise.reject(null)
+      } else {
+        return Promise.resolve(fulfillment)
+      }
+    })
+  }
+
+  _getFulfillment (transferId) {
     return this.transferLog.getFulfillment(transferId)
   }
 
@@ -299,7 +309,9 @@ class NerdPluginVirtual extends EventEmitter {
     // because there is only one balance, kept, money is not _actually_ kept
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
-    return this.transferLog.getType(transfer.id).then((type) => {
+    return this.transferLog.fulfill(transfer.id, fulfillment).then(() => {
+      return this.transferLog.getType(transfer.id)
+    }).then((type) => {
       if (type === this.transferLog.outgoing) {
         this.emit('outgoing_fulfill', transfer, fulfillmentBuffer)
         return this.balance.add(transfer.amount)
@@ -307,8 +319,6 @@ class NerdPluginVirtual extends EventEmitter {
         this.emit('incoming_fulfill', transfer, fulfillmentBuffer)
         return Promise.resolve(null)
       }
-    }).then(() => {
-      return this.transferLog.fulfill(transfer.id, fulfillment)
     }).then(() => {
       return this.transferLog.getType(transfer.id)
     }).then((type) => {
@@ -430,7 +440,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _sendFulfillment (transferId) {
-    return this.getFulfillment(transferId).then((fulfillment) => {
+    return this._getFulfillment(transferId).then((fulfillment) => {
       return this.connection.send({
         type: 'get_fulfillment',
         transferId: transferId,

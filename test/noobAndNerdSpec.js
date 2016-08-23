@@ -91,7 +91,7 @@ describe('The Noob and the Nerd', function () {
     ])
   })
 
-  it('should run getAccount for compatibility reasons', () => {
+  it('should run getAccount', () => {
     return Promise.all([
       nerd.getAccount().then((account) => {
         assert(account === 'test.nerd.nerd')

@@ -106,13 +106,13 @@ describe('Conditional transfers with Nerd and Noob', function () {
     ])
   })
 
-  it('should return null from getFulfillment of nonexistant transfer', () => {
+  it('should return error from getFulfillment of nonexistant transfer', () => {
     return Promise.all([
-      noob.getFulfillment('garbage').then((f) => {
-        assert.equal(f, null)
+      new Promise((resolve) => {
+        noob.getFulfillment('garbage').catch(() => { resolve() })
       }),
-      nerd.getFulfillment('garbage').then((f) => {
-        assert.equal(f, null)
+      new Promise((resolve) => {
+        nerd.getFulfillment('garbage').catch(() => { resolve() })
       })
     ])
   })

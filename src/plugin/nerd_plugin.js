@@ -61,6 +61,7 @@ class NerdPluginVirtual extends EventEmitter {
     this.transferLog = new TransferLog(opts._store)
 
     this.prefix = opts.prefix
+    this.connector = opts.connector
 
     if (typeof opts.prefix !== 'string') {
       throw new TypeError('Expected opts.prefix to be a string, received: ' +
@@ -150,9 +151,7 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    // the connection is only between two plugins for now, so the
-    // list is empty
-    return Promise.resolve([])
+    return Promise.resolve([this.connector])
   }
 
   send (transfer) {
@@ -422,6 +421,9 @@ class NerdPluginVirtual extends EventEmitter {
     } else if (obj.type === 'get_fulfillment') {
       this._log('received request for a fulfillment on tid:' + obj.transferId)
       return this._sendFulfillment(obj.transferId)
+    } else if (obj.type === 'get_connectors') {
+      this._log('received request for connectors')
+      return this._sendConnectors()
     } else {
       this._handle(new Error('Invalid message received'))
     }
@@ -433,6 +435,15 @@ class NerdPluginVirtual extends EventEmitter {
         type: 'get_fulfillment',
         transferId: transferId,
         fulfillment: fulfillment
+      })
+    })
+  }
+
+  _sendConnectors () {
+    return this.getConnectors().then((connectors) => {
+      return this.connection.send({
+        type: 'get_connectors',
+        connectors: connectors
       })
     })
   }

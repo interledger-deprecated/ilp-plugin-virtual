@@ -221,6 +221,12 @@ class NoobPluginVirtual extends EventEmitter {
       this.emit('_get_fulfillment', obj)
 
       return Promise.resolve(null)
+    } else if (obj.type === 'get_connectors') {
+      this._log('received connectors')
+
+      this.emit('_get_connectors', obj)
+
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -265,9 +271,14 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    // the connection is only between two plugins for now, so the
-    // list is empty
-    return Promise.resolve([])
+    this.connection.send({
+      type: 'get_connectors'
+    })
+    return new Promise((resolve) => {
+      this.once('_get_connectors', (obj) => {
+        resolve(obj.connectors)
+      })
+    })
   }
 
   send (outgoingTransfer) {

@@ -76,6 +76,11 @@ class NerdPluginVirtual extends EventEmitter {
     })
 
     this.settler = opts._optimisticPlugin
+    if (typeof opts._optimisticPlugin === 'string') {
+      const plugin = require(opts._optimisticPlugin)
+      this.settler = new plugin(opts._optimisticPluginOpts)
+    }
+
     this.settleAddress = opts.settleAddress
     this.maxBalance = opts.maxBalance
     this.minBalance = opts.minBalance
@@ -246,10 +251,10 @@ class NerdPluginVirtual extends EventEmitter {
           'invalid transfer id; must be an existing transfer with a condition'
         )
       } else {
-        return this.transferLog.getType(storedTransfer.id)
+        return this.transferLog.getDirection(storedTransfer.id)
       }
-    }).then((type) => {
-      if (type !== this.transferLog.incoming) {
+    }).then((dir) => {
+      if (dir !== this.transferLog.incoming) {
         throw new Error('transfer must be incoming')
       } else {
         return this.balance.add(transfer.amount)
@@ -310,21 +315,21 @@ class NerdPluginVirtual extends EventEmitter {
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
     return this.transferLog.fulfill(transfer.id, fulfillment).then(() => {
-      return this.transferLog.getType(transfer.id)
-    }).then((type) => {
-      if (type === this.transferLog.outgoing) {
+      return this.transferLog.getDirection(transfer.id)
+    }).then((dir) => {
+      if (dir === this.transferLog.outgoing) {
         this.emit('outgoing_fulfill', transfer, fulfillmentBuffer)
         return this.balance.add(transfer.amount)
-      } else { // if (type === this.transferLog.incoming)
+      } else { // if (dir === this.transferLog.incoming)
         this.emit('incoming_fulfill', transfer, fulfillmentBuffer)
         return Promise.resolve(null)
       }
     }).then(() => {
-      return this.transferLog.getType(transfer.id)
-    }).then((type) => {
+      return this.transferLog.getDirection(transfer.id)
+    }).then((dir) => {
       return this.connection.send({
         type: 'fulfill_execution_condition',
-        toNerd: (type === this.transferLog.incoming),
+        toNerd: (dir === this.transferLog.incoming),
         transfer: transfer,
         fulfillment: fulfillment
       })
@@ -332,10 +337,10 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _timeOutTransfer (transfer) {
-    let transactionType = null
-    return this.transferLog.getType(transfer.id).then((type) => {
-      transactionType = type
-      if (type === this.transferLog.incoming) {
+    let transactionDirection = null
+    return this.transferLog.getDirection(transfer.id).then((dir) => {
+      transactionDirection = dir
+      if (dir === this.transferLog.incoming) {
         this.emit('incoming_cancel', transfer, 'timed out')
         return this.balance.add(transfer.amount)
       } else {
@@ -346,7 +351,7 @@ class NerdPluginVirtual extends EventEmitter {
     }).then(() => {
       return this.connection.send({
         type: 'reject',
-        toNerd: (transactionType === this.transferLog.incoming),
+        toNerd: (transactionDirection === this.transferLog.incoming),
         transfer: transfer,
         message: 'timed out'
       })
@@ -479,10 +484,10 @@ class NerdPluginVirtual extends EventEmitter {
         )
         throw new Error()
       } else {
-        return this.transferLog.getType(transfer.id)
+        return this.transferLog.getDirection(transfer.id)
       }
-    }).then((type) => {
-      if (type !== this.transferLog.outgoing) {
+    }).then((dir) => {
+      if (dir !== this.transferLog.outgoing) {
         this._sendManualRejectFailure(
           transfer.id,
           'transfer must be incoming'
@@ -616,7 +621,7 @@ class NerdPluginVirtual extends EventEmitter {
   _acceptTransfer (transfer) {
     this._log('sending out an ACK for tid: ' + transfer.id)
 
-    return this.transferLog.getType(transfer.id).then((direction) => {
+    return this.transferLog.getDirection(transfer.id).then((direction) => {
       const dir = (direction === this.transferLog.incoming)
         ? 'incoming' : 'outgoing'
       const type = (transfer.executionCondition) ? 'prepare' : 'transfer'

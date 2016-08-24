@@ -41,6 +41,10 @@ class NoobPluginVirtual extends EventEmitter {
     })
 
     this.settler = opts._optimisticPlugin
+    if (typeof opts._optimisticPlugin === 'string') {
+      const plugin = require(opts._optimisticPlugin)
+      this.settler = new plugin(opts._optimisticPluginOpts)
+    }
     this.settleAddress = opts.settleAddress
     this.settlePercent = opts.settlePercent || '0.5'
 

@@ -85,7 +85,7 @@ describe('TransferLog', function () {
 
   it('should not contain something nonexistant', (done) => {
     next = next.then(() => {
-      return tlog.getType('transfer')
+      return tlog.getDirection('transfer')
     }).then((type) => {
       assert(type === undefined)
       done()

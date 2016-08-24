@@ -21,20 +21,20 @@ class TransferLog {
     })
   }
 
-  getType (transferId) {
+  getDirection (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).type)
+        return Promise.resolve(JSON.parse(json).direction)
       } else {
         return Promise.resolve(undefined)
       }
     })
   }
 
-  store (transfer, type) {
+  store (transfer, direction) {
     return (this._put('t' + transfer.id, JSON.stringify({
       transfer: transfer,
-      type: type
+      direction: direction
     })))
   }
   storeOutgoing (transfer) {

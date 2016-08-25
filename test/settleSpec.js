@@ -13,6 +13,7 @@ const uuid = require('uuid4')
 
 const EventEmitter = require('events')
 const OptimisticPlugin = require('./mocks/mockOptimisticPlugin')
+mockRequire('ilp-plugin-mock', OptimisticPlugin)
 
 const channels = [ new EventEmitter(), new EventEmitter() ]
 const plugin1 = new OptimisticPlugin({
@@ -33,7 +34,6 @@ let noob = null
 let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
-
   it('should create the nerd and the noob', () => {
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
@@ -64,6 +64,54 @@ describe('Automatic settlement', function () {
       mockChannels: MockChannels,
       account: 'test.nerd.noob'
     })
+  })
+
+  it('should create optimistic plugins with options as noob', () => {
+    const noob2 = new PluginVirtual({
+      _store: {},
+      _optimisticPlugin: 'ilp-plugin-mock',
+      _optimisticPluginOpts: {
+        channels: channels,
+        index: 1,
+        address: 'example.plugin2',
+        prefix: 'example.'
+      },
+      settleAddress: 'example.plugin1',
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      account: 'test.nerd.noob'
+    })
+    assert.equal(typeof noob2.settler, 'object')
+  })
+
+  it('should create optimistic plugins with options as nerd', () => {
+    let objStore2 = newSqliteStore()
+    const nerd2 = new PluginVirtual({
+      _store: objStore2,
+      _optimisticPlugin: 'ilp-plugin-mock',
+      _optimisticPluginOpts: {
+        channels: channels,
+        index: 1,
+        address: 'example.plugin2',
+        prefix: 'example.'
+      },
+      settleAddress: 'example.plugin2',
+      host: 'mqatt://test.mosquitto.org',
+      token: token,
+      initialBalance: '0',
+      minBalance: '-1',
+      maxBalance: '2',
+      settleIfUnder: '-1',
+      settleIfOver: '2',
+      account: 'test.nerd.nerd',
+      prefix: 'test.nerd.',
+      mockConnection: MockConnection,
+      mockChannels: MockChannels,
+      secret: 'secret'
+    })
+    assert.equal(typeof nerd2.settler, 'object')
   })
 
   it('should connect the noob and the nerd', () => {

@@ -56,12 +56,6 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(nerd)
   })
 
-  it('should run getAccount for compatibility reasons', () => {
-    return nerd.getAccount().then((account) => {
-      assert(account === 'nerd')
-    })
-  })
-
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
       _store: {},
@@ -97,8 +91,19 @@ describe('The Noob and the Nerd', function () {
     ])
   })
 
+  it('should run getAccount', () => {
+    return Promise.all([
+      nerd.getAccount().then((account) => {
+        assert(account === 'test.nerd.nerd')
+      }),
+      noob.getAccount().then((account) => {
+        assert(account === 'test.nerd.noob')
+      })
+    ])
+  })
+
   it('should getConnectors() without errors', () => {
-    noob.getConnectors(),
+    noob.getConnectors()
     nerd.getConnectors()
   })
 
@@ -137,7 +142,7 @@ describe('The Noob and the Nerd', function () {
       account: 'x',
       amount: '1000'
     }).catch((e) => {
-      assert(e) 
+      assert(e)
     })
   })
 
@@ -368,7 +373,7 @@ describe('The Noob and the Nerd', function () {
     return Promise.all([
       noob.disconnect(),
       noob2.disconnect(),
-      nerd.disconnect(),
+      nerd.disconnect()
     ])
   })
 })

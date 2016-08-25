@@ -41,6 +41,10 @@ class NoobPluginVirtual extends EventEmitter {
     })
 
     this.settler = opts._optimisticPlugin
+    if (typeof opts._optimisticPlugin === 'string') {
+      const plugin = require(opts._optimisticPlugin)
+      this.settler = new plugin(opts._optimisticPluginOpts)
+    }
     this.settleAddress = opts.settleAddress
     this.settlePercent = opts.settlePercent || '0.5'
 
@@ -215,6 +219,18 @@ class NoobPluginVirtual extends EventEmitter {
       this.emit('_manual_reject_success', obj.transfer.id)
 
       return Promise.resolve(null)
+    } else if (obj.type === 'get_fulfillment') {
+      this._log('received fulfillment for tid: ' + obj.transferId)
+
+      this.emit('_get_fulfillment', obj)
+
+      return Promise.resolve(null)
+    } else if (obj.type === 'get_connectors') {
+      this._log('received connectors')
+
+      this.emit('_get_connectors', obj)
+
+      return Promise.resolve(null)
     } else {
       this._handle(new Error('Invalid message received'))
       return Promise.resolve(null)
@@ -259,9 +275,14 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    // the connection is only between two plugins for now, so the
-    // list is empty
-    return Promise.resolve([])
+    this.connection.send({
+      type: 'get_connectors'
+    })
+    return new Promise((resolve) => {
+      this.once('_get_connectors', (obj) => {
+        resolve(obj.connectors)
+      })
+    })
   }
 
   send (outgoingTransfer) {
@@ -334,6 +355,26 @@ class NoobPluginVirtual extends EventEmitter {
     })
   }
 
+  getFulfillment (transferId) {
+    this.connection.send({
+      type: 'get_fulfillment',
+      transferId: transferId
+    })
+    return new Promise((resolve, reject) => {
+      const received = false
+      this.on('_get_fulfillment', (obj) => {
+        if (received || obj.transferId !== transferId) {
+          return
+        }
+        if (!obj.fulfillment) {
+          reject(null)
+        } else {
+          resolve(obj.fulfillment)
+        }
+      })
+    })
+  }
+
   rejectIncomingTransfer (transferId) {
     this._log('sending out a manual reject on tid: ' + transferId)
     return new Promise((resolve, reject) => {
@@ -358,6 +399,12 @@ class NoobPluginVirtual extends EventEmitter {
         transferId: transferId,
         message: 'manually rejected'
       }).catch(this._handle)
+    })
+  }
+
+  getAccount () {
+    return this.getPrefix().then((prefix) => {
+      return Promise.resolve(prefix + this._account)
     })
   }
 }

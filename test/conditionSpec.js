@@ -77,7 +77,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
   it('should not count escrowed money in balance yet', () => {
     return noob.getBalance().then((balance) => {
-        assert(balance === '0')
+      assert(balance === '0')
     })
   })
 
@@ -93,6 +93,28 @@ describe('Conditional transfers with Nerd and Noob', function () {
     noob.fulfillCondition('first', fulfillment)
 
     return p
+  })
+
+  it('should recover the fulfillment from a fulfilled transfer', () => {
+    return Promise.all([
+      noob.getFulfillment('first').then((f) => {
+        assert.equal(f, fulfillment)
+      }),
+      nerd.getFulfillment('first').then((f) => {
+        assert.equal(f, fulfillment)
+      })
+    ])
+  })
+
+  it('should return error from getFulfillment of nonexistant transfer', () => {
+    return Promise.all([
+      new Promise((resolve) => {
+        noob.getFulfillment('garbage').catch(() => { resolve() })
+      }),
+      new Promise((resolve) => {
+        nerd.getFulfillment('garbage').catch(() => { resolve() })
+      })
+    ])
   })
 
   it('should have the correct balance after executing', () => {
@@ -323,6 +345,8 @@ describe('Conditional transfers with Nerd and Noob', function () {
       amount: '100',
       executionCondition: condition
     })
+
+    return p
   })
 
   it('should be able to prematurely reject transfer as nerd', () => {

@@ -52,8 +52,11 @@ class NoobPluginVirtual extends EventEmitter {
     this._seen = {}
     this._fulfilled = {}
 
-    if (this.settler && this.settleAddress) {
+    if (this.settler) {
       this.on('_settlement', (obj) => {
+        this.settleAddress = obj.settleAddress || this.settleAddress
+        if (!this.settleAddress) return
+
         this.settler.send({
           account: this.settleAddress,
           amount: this._getSettleAmount(obj.balance, obj.max),
@@ -119,6 +122,10 @@ class NoobPluginVirtual extends EventEmitter {
     if (obj.type === 'transfer' && !this._seenTransfer(obj.transfer.id)) {
       this._seeTransfer(obj.transfer.id)
       this._log('received a Transfer with tid: ' + obj.transfer.id)
+
+      if (obj.settleAddress) {
+        this.settleAddress = obj.settleAddress
+      }
 
       if (obj.transfer.executionCondition) {
         this.emit('incoming_prepare', obj.transfer)
@@ -311,9 +318,14 @@ class NoobPluginVirtual extends EventEmitter {
 
       this.getPrefix().then((prefix) => {
         outgoingTransfer.ledger = prefix
+        if (this.settler) {
+          return this.settler.getAccount()
+        }
+      }).then((account) => {
         this.connection.send({
           type: 'transfer',
-          transfer: outgoingTransfer
+          transfer: outgoingTransfer,
+          settleAddress: account
         }).catch(this._handle)
       }).catch(this._handle)
     })

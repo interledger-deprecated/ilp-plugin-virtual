@@ -111,8 +111,10 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('settlement', balance)
     })
 
-    if (this.settler && this.settleAddress) {
+    if (this.settler) {
       this.on('settlement', (balance) => {
+        if (!this.settleAddress) return
+
         this.settler.send({
           account: this.settleAddress,
           amount: this._getSettleAmount(balance),
@@ -210,9 +212,16 @@ class NerdPluginVirtual extends EventEmitter {
         }
       })
 
-      this.connection.send({
-        type: 'transfer',
-        transfer: outgoingTransfer
+      Promise.resolve(null).then(() => {
+        if (this.settler) {
+          return this.settler.getAccount() 
+        }
+      }).then((account) => {
+        return this.connection.send({
+          type: 'transfer',
+          transfer: outgoingTransfer,
+          settleAddress: account
+        })
       }).catch(this._handle)
     })
   }
@@ -393,6 +402,11 @@ class NerdPluginVirtual extends EventEmitter {
     if (obj.type === 'transfer') {
       this._log('received a Transfer with tid: ' + obj.transfer.id)
 
+      if (obj.settleAddress) {
+        this._log('got settlement address')
+        this.settleAddress = obj.settleAddress
+      }
+
       return this._handleTransfer(obj.transfer)
     } else if (obj.type === 'acknowledge') {
       this._log('received an ACK on tid: ' + obj.transfer.id)
@@ -532,12 +546,22 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _sendSettle () {
-    return this.balance.get().then((balance) => {
+    // only send settlement notification when settlement is enabled
+    if (!this.settler) return
+
+    return Promise.all([
+      this.balance.get(),
+      this.settler.getAccount()
+    ]).then((values) => {
+      const balance = values[0]
+      const address = values[1]
+
       this._log('sending settlement notification: ' + balance)
       return this.connection.send({
         type: 'settlement',
         balance: balance,
-        max: this.maxBalance
+        max: this.maxBalance,
+        settleAddress: address
       })
     })
   }

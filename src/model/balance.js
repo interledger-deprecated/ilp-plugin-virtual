@@ -16,6 +16,18 @@ class Balance extends EventEmitter {
     this._settleIfUnder = this._convert(opts.settleIfUnder)
     this._initialized = false
     this._field = 'account'
+
+    if (!this._initialBalance && this._initialBalance !== 0) {
+      throw new Error('initialBalance is required')
+    } else if (this._min.isNaN()) {
+      throw new Error('min must exist and be a valid number')
+    } else if (this._max.isNaN()) {
+      throw new Error('max must exist and be a valid number')
+    } else if (this._settleIfUnder.isNaN()) {
+      throw new Error('settleIfUnder must exist and be a valid number')
+    } else if (this._settleIfOver.isNaN()) {
+      throw new Error('settleIfOver must exist and be a valid number')
+    }
   }
 
   _initialize () {

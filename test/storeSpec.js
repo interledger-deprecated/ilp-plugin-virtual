@@ -99,11 +99,68 @@ describe('Balance', function () {
 
   it('should create an object', () => {
     obj = newObjStore()
-    balance = new Balance(obj)
+    balance = new Balance({
+      initialBalance: 0,
+      min: 0,
+      max: 1,
+      settleIfOver: 1,
+      settleIfUnder: 0,
+      _store: obj
+    })
   })
 
   it('should yield NaN when converting invalid amount', () => {
     let nan = balance._convert('oaiwdoiawdmawo')
     assert(nan.isNaN())
+  })
+
+  it('should throw error when created with invalid initialBalance', () => {
+    assert.throws(() => (new Balance({
+      initialBalance: null,
+      min: 0,
+      max: 1,
+      settleIfOver: 1,
+      settleIfUnder: 0
+    })), 'initialBalance is required')
+  })
+
+  it('should throw error when created with invalid min', () => {
+    assert.throws(() => (new Balance({
+      initialBalance: 0,
+      min: 'aomwdawoimd',
+      max: 1,
+      settleIfOver: 1,
+      settleIfUnder: 0
+    })), 'min must exist and be a valid number')
+  })
+
+  it('should throw error when created with invalid max', () => {
+    assert.throws(() => (new Balance({
+      initialBalance: 0,
+      min: 0,
+      max: ['a', 'b', 'c'],
+      settleIfOver: 1,
+      settleIfUnder: 0
+    })), 'max must exist and be a valid number')
+  })
+
+  it('should throw error when created with invalid settleIfOver', () => {
+    assert.throws(() => (new Balance({
+      initialBalance: 0,
+      min: 0,
+      max: 1,
+      settleIfOver: {'a':[]},
+      settleIfUnder: 0
+    })), 'settleIfOver must exist and be a valid number')
+  })
+
+  it('should throw error when created with invalid settleIfUnder', () => {
+    assert.throws(() => (new Balance({
+      initialBalance: 0,
+      min: 0,
+      max: 1,
+      settleIfOver: 1,
+      settleIfUnder: undefined
+    })), 'settleIfUnder must exist and be a valid number')
   })
 })

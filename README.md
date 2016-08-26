@@ -45,3 +45,24 @@ When instantiating the plugin, your `opts` need the correct fields.
   "host": "host of MQTT server"
 }
 ```
+
+## Usage (with Optimistic Plugin)
+
+You can also run `ilp-plugin-virtual` such that it will automatically settle its balance when it reaches its
+`settleIfOver` or `settleIfUnder`. In order to do this, the nerd _and_ the noob require some extra configuration.
+In addition to the fields listed above, the nerd and the noob each need to have either:
+
+```js
+"_optimisticPlugin": new IlpPluginExample({ /* opts here */ })
+```
+
+or
+
+```js
+"_optimisticPlugin": "ilp-plugin-example",
+"_optimisticPluginOpts": {
+  // opts for optimistic plugin constructor here
+}
+```
+
+In either case, `ilp-plugin-example` must be accessible.

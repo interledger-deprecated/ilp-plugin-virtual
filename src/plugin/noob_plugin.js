@@ -3,7 +3,7 @@
 const EventEmitter = require('events')
 
 const Connection = require('../model/connection')
-const log = require('../util/log')('plugin')
+const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 
 class NoobPluginVirtual extends EventEmitter {

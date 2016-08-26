@@ -6,7 +6,7 @@ const Balance = require('../model/balance')
 const Connection = require('../model/connection')
 const Transfer = require('../model/transfer')
 const TransferLog = require('../model/transferlog').TransferLog
-const log = require('../util/log')('plugin')
+const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 
 const cc = require('five-bells-condition')

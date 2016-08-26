@@ -259,6 +259,10 @@ class NoobPluginVirtual extends EventEmitter {
         resolve(null)
       })
       this.connection.connect()
+    }).then(() => {
+      if (this.settler) {
+        this.settler.connect()
+      }
     })
   }
 

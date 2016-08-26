@@ -117,9 +117,7 @@ describe('Automatic settlement', function () {
   it('should connect the noob and the nerd', () => {
     return Promise.all([
       noob.connect(),
-      nerd.connect(),
-      plugin1.connect(),
-      plugin2.connect()
+      nerd.connect()
     ])
   })
 

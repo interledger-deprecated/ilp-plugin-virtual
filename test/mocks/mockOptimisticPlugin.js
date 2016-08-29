@@ -32,6 +32,10 @@ class MockOptimisticPlugin extends EventEmitter {
     )
     this.emit('outgoing_transfer', transfer)
   }
+
+  getAccount () {
+    return Promise.resolve(this.address)
+  }
 }
 
 module.exports = MockOptimisticPlugin

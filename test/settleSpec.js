@@ -39,7 +39,6 @@ describe('Automatic settlement', function () {
     nerd = new PluginVirtual({
       _store: objStore,
       _optimisticPlugin: plugin1,
-      settleAddress: 'example.plugin2',
       host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
@@ -57,7 +56,6 @@ describe('Automatic settlement', function () {
     noob = new PluginVirtual({
       _store: {},
       _optimisticPlugin: plugin2,
-      settleAddress: 'example.plugin1',
       host: 'mqatt://test.mosquitto.org',
       token: token,
       mockConnection: MockConnection,
@@ -76,7 +74,6 @@ describe('Automatic settlement', function () {
         address: 'example.plugin2',
         prefix: 'example.'
       },
-      settleAddress: 'example.plugin1',
       host: 'mqatt://test.mosquitto.org',
       token: token,
       mockConnection: MockConnection,
@@ -97,7 +94,6 @@ describe('Automatic settlement', function () {
         address: 'example.plugin2',
         prefix: 'example.'
       },
-      settleAddress: 'example.plugin2',
       host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',

@@ -146,22 +146,6 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should trigger settlement when balance under limit', () => {
-    const p = new Promise((resolve) => {
-      noob.once('settlement', (balance) => {
-        resolve()
-      })
-    })
-
-    noob.send({
-      id: 'secondish',
-      account: 'x',
-      amount: '1000'
-    })
-
-    return p
-  })
-
   it('should add balance when nerd sends money to noob', () => {
     const p = new Promise((resolve) => {
       nerd.once('outgoing_transfer', (transfer, message) => {

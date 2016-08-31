@@ -382,6 +382,8 @@ class NoobPluginVirtual extends EventEmitter {
         if (received || obj.transferId !== transferId) {
           return
         }
+        received = true
+
         if (!obj.fulfillment) {
           reject(null)
         } else {

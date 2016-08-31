@@ -256,21 +256,6 @@ describe('The Noob and the Nerd', function () {
     return p
   })
 
-  it('should reject a false acknowledge from the noob', () => {
-    return noob.connection.send({
-      type: 'acknowledge',
-      transfer: {id: 'fake'},
-      message: 'fake acknowledge'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('_falseAcknowledge', (transfer) => {
-          assert(transfer.id === 'fake')
-          resolve()
-        })
-      })
-    })
-  })
-
   it('should reject a repeat transfer from the noob', () => {
     return noob.send({
       id: 'first',
@@ -281,21 +266,6 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should emit false reject if a fake transfer is rejected', () => {
-    return noob.connection.send({
-      type: 'reject',
-      transfer: {id: 'notreal'},
-      message: 'fake reject'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('_falseReject', (transfer) => {
-          assert(transfer.id === 'notreal')
-          resolve()
-        })
-      })
-    })
-  })
-
   it('should not give an error if a real transfer is rejected', () => {
   // it's harmless to complete a transfer that is already completed if
   // the reject is to a completed transfer.
@@ -303,32 +273,6 @@ describe('The Noob and the Nerd', function () {
       type: 'reject',
       transfer: {id: 'first'},
       message: 'late reject'
-    })
-  })
-
-  it('should give error if the noob sends invalid message type', () => {
-    return noob.connection.send({
-      type: 'garbage'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('exception', (err) => {
-          assert(err.message === 'Invalid message received')
-          resolve()
-        })
-      })
-    })
-  })
-
-  it('should give error if the nerd sends invalid message type', () => {
-    return nerd.connection.send({
-      type: 'garbage'
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('exception', (err) => {
-          assert(err.message === 'Invalid message received')
-          resolve()
-        })
-      })
     })
   })
 

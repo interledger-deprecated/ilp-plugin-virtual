@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "istanbul test -- _mocha",
-    "verbose-test": "DEBUG=ilp-plugin-virtual,ethereum,connection,test,server,ilp-plugin-virtual:err,connection:err,test:err,server:err istanbul test -- _mocha"
+    "verbose-test": "DEBUG=ilp-plugin-virtual,rpc,ethereum,test,server,ilp-plugin-virtual:err,connection:err,test:err,server:err istanbul test -- _mocha"
   },
   "repository": {
     "type": "git",
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "bignumber.js": "^2.3.0",
+    "co": "^4.6.0",
     "debug": "^2.2.0",
     "five-bells-condition": "^3.2.0",
     "mock-require": "^1.3.0",

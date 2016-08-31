@@ -377,11 +377,13 @@ class NoobPluginVirtual extends EventEmitter {
       transferId: transferId
     })
     return new Promise((resolve, reject) => {
-      const received = false
+      let received = false
       this.on('_get_fulfillment', (obj) => {
         if (received || obj.transferId !== transferId) {
           return
         }
+        received = true
+
         if (!obj.fulfillment) {
           reject(null)
         } else {

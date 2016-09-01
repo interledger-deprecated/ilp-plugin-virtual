@@ -2,7 +2,6 @@
 
 const Errors = require('../util/errors')
 const InvalidFieldsError = Errors.InvalidFieldsError
-const UnreachableError = Errors.UnreachableError
 const TransferNotFoundError = Errors.TransferNotFoundError
 const MissingFulfillmentError = Errors.MissingFulfillmentError
 const RepeatError = Errors.RepeatError
@@ -14,7 +13,6 @@ const co = require('co')
 const Balance = require('../model/balance')
 const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
-const Transfer = require('../model/transfer')
 const TransferLog = require('../model/transferlog').TransferLog
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
@@ -85,8 +83,8 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.settler = opts._optimisticPlugin
     if (typeof opts._optimisticPlugin === 'string') {
-      const plugin = require(opts._optimisticPlugin)
-      this.settler = new plugin(opts._optimisticPluginOpts)
+      const Plugin = require(opts._optimisticPlugin)
+      this.settler = new Plugin(opts._optimisticPluginOpts)
     }
 
     this.settleAddress = opts.settleAddress
@@ -136,7 +134,7 @@ class NerdPluginVirtual extends EventEmitter {
         })
       })
     }
-    
+
     this.rpc.addMethod('getPrefix', () => {
       return this.getPrefix()
     })
@@ -245,7 +243,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const settleAddress = this.settler && (yield this.settler.getAccount())
     yield this.rpc.call('send', [transfer, settleAddress])
-    
+
     if (!transfer.executionCondition) {
       yield this.balance.add(transfer.amount)
       this.emit('outgoing_transfer', transfer)
@@ -292,18 +290,15 @@ class NerdPluginVirtual extends EventEmitter {
 
   * _fulfillConditionLocal (transferId, fulfillment) {
     const transfer = yield this.transferLog.get(transferId)
-    
 
     if (!transfer || !transfer.executionCondition) {
       throw new TransferNotFoundError('no conditional transfer exists with the given id')
     }
 
-
     const fulfilled = yield this.transferLog.isFulfilled(transfer.id)
     if (fulfilled) {
       throw new RepeatError('this transfer has already been fulfilled')
     }
-
 
     const execute = transfer.executionCondition
     const time = new Date()
@@ -367,10 +362,10 @@ class NerdPluginVirtual extends EventEmitter {
     } else { // if (dir === this.transferLog.incoming)
       this.emit('incoming_fulfill', transfer, fulfillmentBuffer)
     }
-    
+
     return {
       transfer: transfer,
-      direction: (dir === this.transferLog.outgoing)? 'incoming':'outgoing'
+      direction: (dir === this.transferLog.outgoing) ? 'incoming' : 'outgoing'
     }
   }
 
@@ -388,7 +383,7 @@ class NerdPluginVirtual extends EventEmitter {
     yield this.rpc.call('cancel', [
       transfer,
       'timed out',
-      (dir === this.transferLog.incoming)? 'outgoing':'incoming'
+      (dir === this.transferLog.incoming) ? 'outgoing' : 'incoming'
     ])
   }
 
@@ -440,7 +435,7 @@ class NerdPluginVirtual extends EventEmitter {
     if (settleAddress) {
       this.settleAddress = settleAddress
     }
-  
+
     const stored = yield this.transferLog.get(transfer.id)
     if (stored) {
       yield this._rejectTransfer(transfer, 'repeat transfer id')
@@ -470,7 +465,7 @@ class NerdPluginVirtual extends EventEmitter {
     } else {
       this.emit('incoming_transfer', transfer)
     }
-  
+
     this._handleTimer(transfer)
 
     return true

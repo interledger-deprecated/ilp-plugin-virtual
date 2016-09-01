@@ -1,7 +1,6 @@
 'use strict'
 
 const EventEmitter = require('events')
-const co = require('co')
 
 const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
@@ -45,8 +44,8 @@ class NoobPluginVirtual extends EventEmitter {
     // set up the settler
     this.settler = opts._optimisticPlugin
     if (typeof opts._optimisticPlugin === 'string') {
-      const plugin = require(opts._optimisticPlugin)
-      this.settler = new plugin(opts._optimisticPluginOpts)
+      const Plugin = require(opts._optimisticPlugin)
+      this.settler = new Plugin(opts._optimisticPluginOpts)
     }
     this.settleAddress = opts.settleAddress
     this.settlePercent = opts.settlePercent || '0.5'
@@ -70,7 +69,7 @@ class NoobPluginVirtual extends EventEmitter {
         amount: this._getSettleAmount(balance, max),
         id: uuid()
       })
-      
+
       return Promise.resolve(null)
     })
 
@@ -178,7 +177,6 @@ class NoobPluginVirtual extends EventEmitter {
     }).then((account) => {
       return this.rpc.call('send', [outgoingTransfer, account])
     }).then(() => {
-
       if (outgoingTransfer.executionCondition) {
         this.emit('outgoing_prepare', outgoingTransfer)
       } else {

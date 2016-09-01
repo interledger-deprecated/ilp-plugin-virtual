@@ -149,7 +149,7 @@ describe('Balance', function () {
       initialBalance: 0,
       min: 0,
       max: 1,
-      settleIfOver: {'a':[]},
+      settleIfOver: { 'a': [] },
       settleIfUnder: 0
     })), 'settleIfOver must exist and be a valid number')
   })

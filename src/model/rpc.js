@@ -54,7 +54,7 @@ class JsonRpc1 extends EventEmitter {
       console.error('relaying error of type:', e.name)
       response.error = { type: e.name, message: e.message }
     }
-    
+
     this._log('sending reponse', response)
     this._connection.send(response)
   }
@@ -80,7 +80,7 @@ class JsonRpc1 extends EventEmitter {
 
           reject(e)
         } else {
-          resolve(response.result) 
+          resolve(response.result)
         }
       })
     })

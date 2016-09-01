@@ -51,7 +51,7 @@ class JsonRpc1 extends EventEmitter {
     try {
       response.result = yield this._methods[request.method].apply(this._that, request.params)
     } catch (e) {
-      console.error('relaying error of type:', e.name)
+      this._log('relaying error of type:', e.name)
       response.error = { type: e.name, message: e.message }
     }
 

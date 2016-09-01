@@ -146,6 +146,30 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
+  it('should reject a transfer with an invalid amount (noob)', () => {
+    return noob.send({
+      id: 'invalid_amount',
+      account: 'x',
+      amount: 'garbage'
+    }).then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'InvalidFieldsError')
+    })
+  })
+
+  it('should reject a transfer with an invalid amount (nerd)', () => {
+    return nerd.send({
+      id: 'invalid_amount_2',
+      account: 'x',
+      amount: 'garbage'
+    }).then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'InvalidFieldsError')
+    })
+  })
+
   it('should add balance when nerd sends money to noob', () => {
     const p = new Promise((resolve) => {
       nerd.once('outgoing_transfer', (transfer, message) => {
@@ -256,13 +280,39 @@ describe('The Noob and the Nerd', function () {
     return p
   })
 
+  it('should error replying to nonexistant transfer (noob)', () => {
+    return noob.replyToTransfer('nonexistant', 'another message').then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'TransferNotFoundError')
+    })
+  })
+
+  it('should error replying to nonexistant transfer (nerd)', () => {
+    return nerd.replyToTransfer('nonexistant', 'another message').then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'TransferNotFoundError')
+    })
+  })
+
   it('should reject a repeat transfer from the noob', () => {
     return noob.send({
       id: 'first',
       amount: '100',
       account: 'x'
     }).catch((e) => {
-      assert(e)
+      assert.equal(e.name, 'RepeatError')
+    })
+  })
+
+  it('should reject a repeat transfer from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '100',
+      account: 'x'
+    }).catch((e) => {
+      assert.equal(e.name, 'RepeatError')
     })
   })
 

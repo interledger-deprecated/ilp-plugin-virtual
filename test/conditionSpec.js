@@ -117,6 +117,40 @@ describe('Conditional transfers with Nerd and Noob', function () {
     ])
   })
 
+  it('should return MissingFulfillmentError from prepared transfer', () => {
+    const p = new Promise((resolve) => {
+      nerd.once('outgoing_prepare', (transfer) => {
+        assert(transfer.id === 'prepared')
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
+      })
+    }).then(() => {
+      return Promise.all([
+        new Promise((resolve) => {
+          noob.getFulfillment('prepared').catch((e) => {
+            assert.equal(e.name, 'MissingFulfillmentError')
+            resolve()
+          })
+        }),
+        new Promise((resolve) => {
+          nerd.getFulfillment('prepared').catch((e) => {
+            assert.equal(e.name, 'MissingFulfillmentError')
+            resolve()
+          })
+        })
+      ])
+    })
+
+    nerd.send({
+      id: 'prepared',
+      account: 'x',
+      amount: '100',
+      executionCondition: condition
+    })
+
+    return p
+  })
+
   it('should have the correct balance after executing', () => {
     return noob.getBalance().then((balance) => {
       assert(balance === '100')
@@ -323,7 +357,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       })
     }).then(() => {
       return new Promise((resolve) => {
-        nerd.fulfillCondition('sixth', 'garbage').catch((e) => {
+        nerd.fulfillCondition('sixth', 'cf:0:abc').catch((e) => {
           assert(e.name === 'NotAcceptedError')
           resolve()
         })
@@ -343,7 +377,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
   it('should be able to prematurely reject transfer as nerd', () => {
     const p = new Promise((resolve) => {
       nerd.once('incoming_prepare', (transfer, message) => {
-        console.log('HERE IN THE PREPARE')
         assert(transfer.id === 'seventh')
         resolve()
       })
@@ -386,14 +419,12 @@ describe('Conditional transfers with Nerd and Noob', function () {
       let promise = Promise.all([
         new Promise((resolve) => {
           noob.once('incoming_reject', (transfer, msg) => {
-            console.log('it got listened in noob')
             assert.equal(transfer.id, 'eighth')
             resolve()
           })
         }),
         new Promise((resolve) => {
           nerd.once('outgoing_reject', (transfer, msg) => {
-            console.log('it got listened in nerd')
             assert.equal(transfer.id, 'eighth')
             resolve()
           })
@@ -411,6 +442,22 @@ describe('Conditional transfers with Nerd and Noob', function () {
     })
 
     return p
+  })
+
+  it('should not be able to reject nonexistant transfer as noob', () => {
+    return noob.rejectIncomingTransfer('nonexistant').then(() => {
+      assert(false)
+    }).catch((err) => {
+      assert.equal(err.name, 'TransferNotFoundError')
+    })
+  })
+
+  it('should not be able to reject nonexistant transfer as nerd', () => {
+    return nerd.rejectIncomingTransfer('nonexistant').then(() => {
+      assert(false)
+    }).catch((err) => {
+      assert.equal(err.name, 'TransferNotFoundError')
+    })
   })
 
   it('should not be able to reject outgoing transfer as noob', () => {

@@ -7,8 +7,8 @@ class TransferLog {
     this._get = store.get
     this._put = store.put
     this._del = store.del
-    this.incoming = 'i'
-    this.outgoing = 'o'
+    this.incoming = 'incoming'
+    this.outgoing = 'outgoing'
   }
 
   get (transferId) {

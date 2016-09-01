@@ -5,13 +5,6 @@ class InvalidFieldsError extends Error {
   }
 }
 
-class UnreachableError extends Error {
-  constructor () {
-    super(...arguments)
-    this.name = 'UnreachableError'
-  }
-}
-
 class TransferNotFoundError extends Error {
   constructor () {
     super(...arguments)
@@ -42,7 +35,6 @@ class NotAcceptedError extends Error {
 
 module.exports = {
   InvalidFieldsError,
-  UnreachableError,
   TransferNotFoundError,
   MissingFulfillmentError,
   RepeatError,

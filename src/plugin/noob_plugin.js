@@ -30,13 +30,6 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.connected = false
 
-    // create error handling functions
-    let that = this
-    this._handle = (err) => {
-      that.emit('exception', err)
-      throw err
-    }
-
     // establish connections
     this.connection = new Connection(opts)
     this.rpc = new JsonRpc1(this.connection, this)

@@ -46,12 +46,6 @@ class NerdPluginVirtual extends EventEmitter {
   constructor (opts) {
     super()
 
-    let that = this
-    this._handle = (err) => {
-      that.emit('exception', err)
-      throw err
-    }
-
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
     this.auth = opts
@@ -195,6 +189,7 @@ class NerdPluginVirtual extends EventEmitter {
       if (this.settler) {
         this.settler.connect()
       }
+      return Promise.resolve(null)
     })
   }
 
@@ -230,7 +225,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const valid = yield this.balance.checkAndSettleOutgoing(transfer.amount)
     const validAmount = (typeof transfer.amount === 'string' &&
-      !isNaN(transfer.amount - 0))
+      !isNaN(transfer.amount - 0) && (transfer.amount - 0 >= 0))
     const validAccount = (typeof transfer.account === 'string')
 
     if (!validAmount || !validAccount) {
@@ -253,6 +248,8 @@ class NerdPluginVirtual extends EventEmitter {
 
     yield this._completeTransfer(transfer)
     this._handleTimer(transfer)
+
+    return Promise.resolve(null)
   }
 
   getInfo () {
@@ -300,6 +297,12 @@ class NerdPluginVirtual extends EventEmitter {
       throw new RepeatError('this transfer has already been fulfilled')
     }
 
+    try {
+      cc.fromFulfillmentUri(fulfillment)
+    } catch (e) {
+      throw new InvalidFieldsError('malformed fulfillment')
+    }
+
     const execute = transfer.executionCondition
     const time = new Date()
     const expiresAt = new Date(transfer.expiresAt)
@@ -330,6 +333,11 @@ class NerdPluginVirtual extends EventEmitter {
     const dir = yield this.transferLog.getDirection(transfer.id)
     if (dir !== this.transferLog.incoming) {
       throw new NotAcceptedError('transfer must be incoming')
+    }
+
+    const fulfilled = yield this.transferLog.isFulfilled(transferId)
+    if (fulfilled) {
+      throw new RepeatError('transfer is already complete')
     }
 
     yield this.balance.add(transfer.amount)
@@ -415,6 +423,11 @@ class NerdPluginVirtual extends EventEmitter {
       throw new NotAcceptedError('you must be receiver to reject')
     }
 
+    const fulfilled = yield this.transferLog.isFulfilled(transferId)
+    if (fulfilled) {
+      throw new RepeatError('transfer is already complete')
+    }
+
     yield this.transferLog.fulfill(transfer.id, undefined)
     this.emit('outgoing_reject', transfer, message)
 
@@ -438,8 +451,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const stored = yield this.transferLog.get(transfer.id)
     if (stored) {
-      yield this._rejectTransfer(transfer, 'repeat transfer id')
-      throw new Error('repeat transfer id')
+      throw new RepeatError('repeat transfer id')
     }
 
     yield this.transferLog.storeIncoming(transfer)
@@ -488,7 +500,7 @@ class NerdPluginVirtual extends EventEmitter {
             this._log('automatic time out on tid: ' + transfer.id)
             co.wrap(this._timeOutTransfer).call(this, transfer)
           }
-        }).catch(this._handle)
+        })
       }, expiry - now)
       // for debugging purposes
       this.emit('_timing', transfer.id)
@@ -509,18 +521,6 @@ class NerdPluginVirtual extends EventEmitter {
 
     // amount that balance must decrease by
     return ((balanceNumber - minNumber) * settlePercentNumber) + ''
-  }
-
-  _outgoingSettle (transfer) {
-    return this.balance.sub(transfer.amount).then(() => {
-      return this._sendBalance()
-    })
-  }
-
-  _incomingSettle (transfer) {
-    return this.balance.add(transfer.amount).then(() => {
-      return this._sendBalance()
-    })
   }
 
   _log (msg) {

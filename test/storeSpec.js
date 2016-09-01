@@ -72,6 +72,13 @@ describe('TransferLog', function () {
     }).catch(done)
   })
 
+  it('should test if something is complete', (done) => {
+    next = tlog.isComplete('transfer').then((res) => {
+      assert.isFalse(res)
+      done()
+    }).catch(done)
+  })
+
   it('should delete something', (done) => {
     next = next.then(() => {
       return tlog.del('transfer')

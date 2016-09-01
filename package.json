@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "istanbul test -- _mocha",
-    "verbose-test": "DEBUG=ilp-plugin-virtual,rpc,ethereum,test,server,ilp-plugin-virtual:err,connection:err,test:err,server:err istanbul test -- _mocha"
+    "verbose-test": "DEBUG=* istanbul test -- _mocha"
   },
   "repository": {
     "type": "git",

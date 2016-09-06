@@ -330,8 +330,8 @@ class NerdPluginVirtual extends EventEmitter {
       throw new TransferNotFoundError('no conditional transfer found with that id')
     }
 
-    const dir = yield this.transferLog.getDirection(transfer.id)
-    if (dir !== this.transferLog.incoming) {
+    const incoming = yield this.transferLog.isIncoming(transfer.id)
+    if (!incoming) {
       throw new NotAcceptedError('transfer must be incoming')
     }
 
@@ -363,24 +363,25 @@ class NerdPluginVirtual extends EventEmitter {
 
     yield this.transferLog.fulfill(transfer.id, fulfillment)
 
-    const dir = yield this.transferLog.getDirection(transfer.id)
-    if (dir === this.transferLog.outgoing) {
+    const incoming = yield this.transferLog.isIncoming(transfer.id)
+    if (!incoming) {
       this.emit('outgoing_fulfill', transfer, fulfillmentBuffer)
       yield this.balance.add(transfer.amount)
-    } else { // if (dir === this.transferLog.incoming)
+    } else { // if (incoming)
       this.emit('incoming_fulfill', transfer, fulfillmentBuffer)
     }
 
     return {
       transfer: transfer,
-      direction: (dir === this.transferLog.outgoing) ? 'incoming' : 'outgoing'
+      // switch the direction
+      direction: (incoming) ? 'outgoing' : 'incoming'
     }
   }
 
   * _timeOutTransfer (transfer) {
-    const dir = yield this.transferLog.getDirection(transfer.id)
+    const incoming = yield this.transferLog.isIncoming(transfer.id)
 
-    if (dir === this.transferLog.incoming) {
+    if (incoming) {
       this.emit('incoming_cancel', transfer, 'timed out')
       yield this.balance.add(transfer.amount)
     } else {
@@ -391,7 +392,8 @@ class NerdPluginVirtual extends EventEmitter {
     yield this.rpc.call('cancel', [
       transfer,
       'timed out',
-      (dir === this.transferLog.incoming) ? 'outgoing' : 'incoming'
+      // switch the direction
+      incoming ? 'outgoing' : 'incoming'
     ])
   }
 
@@ -418,8 +420,8 @@ class NerdPluginVirtual extends EventEmitter {
       throw new TransferNotFoundError('no conditional transfer with id ' + transferId)
     }
 
-    const dir = yield this.transferLog.getDirection(transfer.id)
-    if (dir !== this.transferLog.outgoing) {
+    const incoming = yield this.transferLog.isIncoming(transfer.id)
+    if (incoming) {
       throw new NotAcceptedError('you must be receiver to reject')
     }
 

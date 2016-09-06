@@ -21,27 +21,27 @@ class TransferLog {
     })
   }
 
-  getDirection (transferId) {
+  isIncoming (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).direction)
+        return Promise.resolve(JSON.parse(json).isIncoming)
       } else {
         return Promise.resolve(undefined)
       }
     })
   }
 
-  store (transfer, direction) {
+  store (transfer, incoming) {
     return (this._put('t' + transfer.id, JSON.stringify({
       transfer: transfer,
-      direction: direction
+      isIncoming: incoming
     })))
   }
   storeOutgoing (transfer) {
-    return this.store(transfer, this.outgoing)
+    return this.store(transfer, false)
   }
   storeIncoming (transfer) {
-    return this.store(transfer, this.incoming)
+    return this.store(transfer, true)
   }
 
   exists (transferId) {

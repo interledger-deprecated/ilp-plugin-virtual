@@ -124,7 +124,7 @@ class NerdPluginVirtual extends EventEmitter {
         if (transfer.account !== this.settleAddress) return
         this._log('received a settlement for ' + transfer.amount)
         this.balance.add(transfer.amount).then(() => {
-          return this.balance.get()
+          return this.rpc.call('settled', [])
         })
       })
     }

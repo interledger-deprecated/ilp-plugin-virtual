@@ -42,6 +42,7 @@ class NoobPluginVirtual extends EventEmitter {
     }
     this.settleAddress = opts.settleAddress
     this.settlePercent = opts.settlePercent || '0.5'
+    this.settling = false
 
     // register callbacks for the settler
     if (this.settler) {
@@ -55,15 +56,22 @@ class NoobPluginVirtual extends EventEmitter {
     // add handlers to rpc
     this.rpc.addMethod('settle', (address, balance, max) => {
       this.settleAddress = address || this.settleAddress
-      if (!this.settleAddress) return
+      if (!this.settleAddress || this.settling) return
 
+      this.settling = true
       this.settler.send({
         account: this.settleAddress,
         amount: this._getSettleAmount(balance, max),
         id: uuid()
+      }).catch((e) => {
+        this.settling = false
       })
 
       return Promise.resolve(null)
+    })
+
+    this.rpc.addMethod('settled', () => {
+      this.settling = false
     })
 
     this.rpc.addMethod('send', (transfer, settleAddress) => {

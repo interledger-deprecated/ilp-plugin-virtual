@@ -2,6 +2,7 @@
 const EventEmitter = require('events')
 const log = require('../util/log')('connection')
 const mqtt = require('mqtt')
+const base64url = require('base64url')
 
 class Connection extends EventEmitter {
 
@@ -10,8 +11,11 @@ class Connection extends EventEmitter {
 
     this.config = config
     this.name = config.account
-    this.host = config.host
     this.token = config.token
+
+    const tokenObj = JSON.parse(base64url.decode(this.token))
+    this.channel = tokenObj.channel
+    this.host = tokenObj.host
 
     this.client = null
 
@@ -20,8 +24,8 @@ class Connection extends EventEmitter {
       this.isNoob = false
     }
 
-    this.recvChannel = (this.isNoob ? 'noob_' : 'nerd_') + this.token
-    this.sendChannel = (this.isNoob ? 'nerd_' : 'noob_') + this.token
+    this.recvChannel = (this.isNoob ? 'noob_' : 'nerd_') + this.channel
+    this.sendChannel = (this.isNoob ? 'nerd_' : 'noob_') + this.channel
   }
 
   _log (msg) {

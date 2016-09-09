@@ -71,7 +71,7 @@ class NerdPluginVirtual extends EventEmitter {
         typeof opts.prefix)
     }
 
-    let connectionOpts = opts
+    let connectionOpts = Object.assign({}, opts)
     if (typeof opts.token === 'object') {
       const tokenBlob = base64url(JSON.stringify(opts.token))
       this._log('token object encoded as: ' + tokenBlob)
@@ -118,7 +118,10 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.balance.on('over', (balance) => {
       this._log('settling your balance of ' + balance)
-      if (!this.settleAddress || !this.settler) return
+      if (!this.settleAddress || !this.settler) {
+        this._log('settlement address and/or optimistic plugin are missing')
+        return
+      }
 
       this.settler.send({
         account: this.settleAddress,
@@ -274,8 +277,12 @@ class NerdPluginVirtual extends EventEmitter {
       throw new TransferNotFoundError(transferId + ' not found')
     }
 
+    const fulfilled = yield this.transferLog.isFulfilled(transferId)
     const fulfillment = yield this.transferLog.getFulfillment(transferId)
-    if (!fulfillment) {
+
+    if (!fulfillment && fulfilled) {
+      throw new TimedOutError(trasferId + ' has been cancelled')
+    } else if (!fulfillment) {
       throw new MissingFulfillmentError(transferId + ' has not been fulfilled')
     }
 
@@ -300,11 +307,6 @@ class NerdPluginVirtual extends EventEmitter {
       throw new TransferNotFoundError('no conditional transfer exists with the given id')
     }
 
-    const fulfilled = yield this.transferLog.isFulfilled(transfer.id)
-    if (fulfilled) {
-      throw new RepeatError('this transfer has already been fulfilled')
-    }
-
     try {
       cc.fromFulfillmentUri(fulfillment)
     } catch (e) {
@@ -317,10 +319,16 @@ class NerdPluginVirtual extends EventEmitter {
     const timedOut = (time > expiresAt)
 
     if (this._validate(fulfillment, execute) && !timedOut) {
+      const fulfilled = yield this.transferLog.isFulfilled(transfer.id)
+      if (fulfilled) {
+        this._log(transferId + ' has already been fulfilled')
+        return true
+      }
+
       return yield this._executeTransfer(transfer, fulfillment)
     } else if (timedOut) {
       yield this._timeOutTransfer(transfer)
-      throw new RepeatError('this transfer has already timed out')
+      throw new TimedOutError('this transfer has already timed out')
     }
 
     throw new NotAcceptedError('invalid fulfillment')

@@ -321,8 +321,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
   it('should complain on fulfilling an transfer twice', () => {
     return new Promise((resolve) => {
-      nerd.fulfillCondition('first', fulfillment).catch((e) => {
-        assert.equal(e.name, 'RepeatError')
+      nerd.fulfillCondition('first', fulfillment).then(() => {
         resolve()
       })
     })

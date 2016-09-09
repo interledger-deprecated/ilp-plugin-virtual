@@ -292,6 +292,15 @@ describe('Conditional transfers with Nerd and Noob', function () {
     })
   })
 
+  it('should complain on fulfilling a malformed transfer', () => {
+    return new Promise((resolve) => {
+      nerd.fulfillCondition('first', 'garbage').catch((e) => {
+        assert.equal(e.name, 'InvalidFieldsError')
+        resolve()
+      })
+    })
+  })
+
   it('should be able to execute a transfer noob -> nerd', () => {
     const p = new Promise((resolve) => {
       noob.once('outgoing_prepare', (transfer, message) => {
@@ -444,6 +453,22 @@ describe('Conditional transfers with Nerd and Noob', function () {
     })
 
     return p
+  })
+
+  it('should not be able to reject transfer twice as nerd', () => {
+    return nerd.rejectIncomingTransfer('seventh').then(() => {
+      assert(false)
+    }).catch((err) => {
+      assert.equal(err.name, 'RepeatError')
+    })
+  })
+
+  it('should not be able to reject transfer twice as noob', () => {
+    return noob.rejectIncomingTransfer('eighth').then(() => {
+      assert(false)
+    }).catch((err) => {
+      assert.equal(err.name, 'RepeatError')
+    })
   })
 
   it('should not be able to reject nonexistant transfer as noob', () => {

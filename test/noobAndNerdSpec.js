@@ -59,6 +59,26 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(nerd)
   })
 
+  it('should instantiate the nerd with token as object', () => {
+    const tmpNerd = new PluginVirtual({
+      _store: store1,
+      prefix: 'test.nerd.',
+      token: {
+        channel: require('crypto').randomBytes(8).toString('hex'),
+        host: 'mqtt://test.mosquitto.org'
+      },
+      initialBalance: '0',
+      maxBalance: '2000',
+      minBalance: '-1000',
+      settleIfUnder: '-1000',
+      settleIfOver: '2000',
+      account: 'nerd',
+      mockChannels: MockChannels,
+      secret: 'secret'
+    })
+    assert.isObject(tmpNerd)
+  })
+
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
       _store: {},

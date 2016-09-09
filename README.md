@@ -17,10 +17,14 @@ When instantiating the plugin, your `opts` need the correct fields.
 
 ### opts.auth (Nerd)
 
-```json
+```js
 {
   "account": "can be anything; only used for logging",
-  "token": "channel name in MQTT server",
+  "token": "base64url encoded json containing 'host' and 'channel' for mqtt server",
+  "token": { // token can also be an object which gets encoded to the blob
+    "host": "http://mqtt.example/",
+    "channel": "secret channel name"
+  },
   "initialBalance": "starting balance of the trustline",
   "minBalance": "lowest balance allowed (can be negative)",
   "maxBalance": "highest balance allowed",
@@ -38,7 +42,7 @@ When instantiating the plugin, your `opts` need the correct fields.
 ```json
 {
   "account": "can be anything; only used for logging",
-  "token": "channel name in MQTT server",
+  "token": "base64url encoded json containing 'host' and 'channel' for mqtt server",
   "prefix": "prefix for ilp address",
   "settlePercent": "(default 0.5) in [0,1], proportion of distance between current balance and limit to settle to.",
   "balance": "starting balance of the trustline",

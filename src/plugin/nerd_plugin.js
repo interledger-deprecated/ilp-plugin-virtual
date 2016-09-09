@@ -4,8 +4,11 @@ const Errors = require('../util/errors')
 const InvalidFieldsError = Errors.InvalidFieldsError
 const TransferNotFoundError = Errors.TransferNotFoundError
 const MissingFulfillmentError = Errors.MissingFulfillmentError
-const RepeatError = Errors.RepeatError
+const DuplicateIdError = Errors.DuplicateIdError
+const AlreadyFulfilledError = Errors.AlreadyFulfilledError
+const AlreadyRolledBackError = Errors.AlreadyRolledBackError
 const NotAcceptedError = Errors.NotAcceptedError
+const TransferNotConditionalError = Errors.TransferNotConditionalError
 
 const EventEmitter = require('events')
 const co = require('co')
@@ -17,6 +20,22 @@ const TransferLog = require('../model/transferlog').TransferLog
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 const base64url = require('base64url')
+const transferEqual = (l, r) => {
+  try {
+    return (l.account === r.account &&
+      l.amount - 0 === r.amount - 0 &&
+      l.ledger === r.ledger &&
+      (l.executionCondition === r.executionCondition ||
+        l.executionCondition.toString() === r.executionCondition.toString()) &&
+      (l.noteToSelf === r.noteToSelf ||
+        l.noteToSelf.toString() === r.noteToSelf.toString()) &&
+      (l.data === r.data ||
+        l.data.toString() === r.data.toString()) &&
+      l.expiresAt === r.expiresAt)
+  } catch (e) {
+    return false
+  }
+}
 
 const cc = require('five-bells-condition')
 
@@ -228,8 +247,10 @@ class NerdPluginVirtual extends EventEmitter {
     transfer.ledger = this.prefix
 
     const stored = yield this.transferLog.get(transfer.id)
-    if (stored) {
-      throw new RepeatError('repeat transfer id')
+    if (stored && !transferEqual(stored, transfer)) {
+      throw new DuplicateIdError('repeat transfer id')
+    } else if (stored) {
+      return Promise.resolve(null)
     }
 
     yield this.transferLog.storeOutgoing(transfer)
@@ -275,13 +296,15 @@ class NerdPluginVirtual extends EventEmitter {
     const stored = yield this.transferLog.get(transferId)
     if (!stored) {
       throw new TransferNotFoundError(transferId + ' not found')
+    } else if (!stored.executionCondition) {
+      throw new TransferNotConditionalError(transferId + ' is not conditional')
     }
 
     const fulfilled = yield this.transferLog.isFulfilled(transferId)
     const fulfillment = yield this.transferLog.getFulfillment(transferId)
 
     if (!fulfillment && fulfilled) {
-      throw new TimedOutError(trasferId + ' has been cancelled')
+      throw new AlreadyRolledBackError(transferId + ' has been cancelled')
     } else if (!fulfillment) {
       throw new MissingFulfillmentError(transferId + ' has not been fulfilled')
     }
@@ -303,8 +326,10 @@ class NerdPluginVirtual extends EventEmitter {
   * _fulfillConditionLocal (transferId, fulfillment) {
     const transfer = yield this.transferLog.get(transferId)
 
-    if (!transfer || !transfer.executionCondition) {
-      throw new TransferNotFoundError('no conditional transfer exists with the given id')
+    if (!transfer) {
+      throw new TransferNotFoundError('no transfer exists with the given id')
+    } else if (!transfer.executionCondition) {
+      throw new TransferNotConditionalError(transferId + ' is not conditional')
     }
 
     try {
@@ -320,15 +345,20 @@ class NerdPluginVirtual extends EventEmitter {
 
     if (this._validate(fulfillment, execute) && !timedOut) {
       const fulfilled = yield this.transferLog.isFulfilled(transfer.id)
-      if (fulfilled) {
+      const existingFulfillment = yield this.transferLog.getFulfillment(transfer.id)
+      const rejected = fulfilled && !existingFulfillment
+
+      if (rejected) {
+        throw new AlreadyRolledBackError('this transfer has already been rejected')
+      } else if (fulfilled) {
         this._log(transferId + ' has already been fulfilled')
-        return true
+        return false
       }
 
       return yield this._executeTransfer(transfer, fulfillment)
     } else if (timedOut) {
       yield this._timeOutTransfer(transfer)
-      throw new TimedOutError('this transfer has already timed out')
+      throw new AlreadyRolledBackError('this transfer has already timed out')
     }
 
     throw new NotAcceptedError('invalid fulfillment')
@@ -342,8 +372,10 @@ class NerdPluginVirtual extends EventEmitter {
     this._log('rejecting incoming transfer: ' + transferId)
 
     const transfer = yield this.transferLog.get(transferId)
-    if (!transfer || !transfer.executionCondition) {
-      throw new TransferNotFoundError('no conditional transfer found with that id')
+    if (!transfer) {
+      throw new TransferNotFoundError('no transfer found with that id')
+    } else if (!transfer.executionCondition) {
+      throw new TransferNotConditionalError(transferId + ' is not conditional')
     }
 
     const incoming = yield this.transferLog.isIncoming(transfer.id)
@@ -352,8 +384,12 @@ class NerdPluginVirtual extends EventEmitter {
     }
 
     const fulfilled = yield this.transferLog.isFulfilled(transferId)
-    if (fulfilled) {
-      throw new RepeatError('transfer is already complete')
+    const fulfillment = yield this.transferLog.getFulfillment(transferId)
+    if (fulfillment) {
+      throw new AlreadyFulfilledError('transfer is already complete')
+    } else if (fulfilled) {
+      this._log(transferId + ' has already rolled back')
+      return
     }
 
     yield this.balance.add(transfer.amount)
@@ -432,8 +468,10 @@ class NerdPluginVirtual extends EventEmitter {
 
   * _handleReject (transferId, message) {
     const transfer = yield this.transferLog.get(transferId)
-    if (!transfer || !transfer.executionCondition) {
-      throw new TransferNotFoundError('no conditional transfer with id ' + transferId)
+    if (!transfer) {
+      throw new TransferNotFoundError('no transfer with id ' + transferId)
+    } else if (!transfer.executionCondition) {
+      throw new TransferNotConditionalError(transferId + ' is not conditional')
     }
 
     const incoming = yield this.transferLog.isIncoming(transfer.id)
@@ -442,8 +480,12 @@ class NerdPluginVirtual extends EventEmitter {
     }
 
     const fulfilled = yield this.transferLog.isFulfilled(transferId)
-    if (fulfilled) {
-      throw new RepeatError('transfer is already complete')
+    const fulfillment = yield this.transferLog.getFulfillment(transferId)
+    if (fulfillment) {
+      throw new AlreadyFulfilledError('transfer is already complete')
+    } else if (fulfilled) {
+      this._log(transferId + ' has already rolled back')
+      return null
     }
 
     yield this.transferLog.fulfill(transfer.id, undefined)
@@ -468,8 +510,10 @@ class NerdPluginVirtual extends EventEmitter {
     }
 
     const stored = yield this.transferLog.get(transfer.id)
-    if (stored) {
-      throw new RepeatError('repeat transfer id')
+    if (stored && !transferEqual(stored, transfer)) {
+      throw new DuplicateIdError('repeat transfer id')
+    } else if (stored) {
+      return false
     }
 
     yield this.transferLog.storeIncoming(transfer)

@@ -19,13 +19,6 @@ class MissingFulfillmentError extends Error {
   }
 }
 
-class RepeatError extends Error {
-  constructor () {
-    super(...arguments)
-    this.name = 'RepeatError'
-  }
-}
-
 class NotAcceptedError extends Error {
   constructor () {
     super(...arguments)
@@ -33,10 +26,41 @@ class NotAcceptedError extends Error {
   }
 }
 
+class AlreadyRolledBackError extends Error {
+  constructor () {
+    super(...arguments)
+    this.name = 'AlreadyRolledBackError'
+  }
+}
+
+class AlreadyFulfilledError extends Error {
+  constructor () {
+    super(...arguments)
+    this.name = 'AlreadyFulfilledError'
+  }
+}
+
+class DuplicateIdError extends Error {
+  constructor () {
+    super(...arguments)
+    this.name = 'DuplicateIdError'
+  }
+}
+
+class TransferNotConditionalError extends Error {
+  constructor () {
+    super(...arguments)
+    this.name = 'TransferNotConditionalError'
+  }
+}
+
 module.exports = {
+  AlreadyFulfilledError,
+  AlreadyRolledBackError,
   InvalidFieldsError,
   TransferNotFoundError,
+  TransferNotConditionalError,
+  DuplicateIdError,
   MissingFulfillmentError,
-  RepeatError,
   NotAcceptedError
 }

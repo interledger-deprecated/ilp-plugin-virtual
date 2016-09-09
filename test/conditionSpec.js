@@ -10,6 +10,7 @@ const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
 const cc = require('five-bells-condition')
+const uuid = require('uuid')
 
 const base64url = require('base64url')
 const token = base64url(JSON.stringify({
@@ -98,6 +99,77 @@ describe('Conditional transfers with Nerd and Noob', function () {
     return p
   })
 
+  it('should not be able to reject fulfilled transfer as noob', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      nerd.once('outgoing_prepare', (transfer) => {
+        assert(transfer.id === uid)
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
+      })
+
+      nerd.send({
+        id: uid,
+        account: 'x',
+        amount: '100',
+        executionCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        noob.once('incoming_fulfill', (transfer, fulfillment) => {
+          assert(transfer.id === uid)
+          assert(transfer.ledger === 'test.nerd.')
+          console.log('this bit')
+          resolve()
+        })
+
+        noob.fulfillCondition(uid, fulfillment)
+      })
+    }).then(() => {
+      return noob.rejectIncomingTransfer(uid).then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'AlreadyFulfilledError')
+      })
+    })
+  })
+
+  it('should not be able to reject fulfilled transfer as nerd', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      noob.once('outgoing_prepare', (transfer) => {
+        assert(transfer.id === uid)
+        assert(transfer.ledger === 'test.nerd.')
+        resolve()
+      })
+
+      noob.send({
+        id: uid,
+        account: 'x',
+        amount: '100',
+        executionCondition: condition
+      })
+    }).then(() => {
+      return new Promise((resolve) => {
+        nerd.once('incoming_fulfill', (transfer, fulfillment) => {
+          assert(transfer.id === uid)
+          assert(transfer.ledger === 'test.nerd.')
+          resolve()
+        })
+
+        nerd.fulfillCondition(uid, fulfillment)
+      })
+    }).then(() => {
+      return nerd.rejectIncomingTransfer(uid).then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'AlreadyFulfilledError')
+      })
+    })
+  })
+
   it('should recover the fulfillment from a fulfilled transfer', () => {
     return Promise.all([
       noob.getFulfillment('first').then((f) => {
@@ -112,12 +184,62 @@ describe('Conditional transfers with Nerd and Noob', function () {
   it('should return error from getFulfillment of nonexistant transfer', () => {
     return Promise.all([
       new Promise((resolve) => {
-        noob.getFulfillment('garbage').catch(() => { resolve() })
+        noob.getFulfillment('garbage').catch((e) => {
+          assert.equal(e.name, 'TransferNotFoundError')
+          resolve()
+        })
       }),
       new Promise((resolve) => {
-        nerd.getFulfillment('garbage').catch(() => { resolve() })
+        nerd.getFulfillment('garbage').catch((e) => {
+          assert.equal(e.name, 'TransferNotFoundError')
+          resolve()
+        })
       })
     ])
+  })
+
+  it('should return error from getFulfillment of optimistic transfer as nerd', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      noob.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      noob.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return nerd.getFulfillment(uid).then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
+    })
+  })
+
+  it('should return error from getFulfillment of optimistic transfer as noob', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      nerd.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      nerd.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return noob.getFulfillment(uid).then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
+    })
   })
 
   it('should return MissingFulfillmentError from prepared transfer', () => {
@@ -283,6 +405,50 @@ describe('Conditional transfers with Nerd and Noob', function () {
     })
   })
 
+  it('should complain on fulfilling an optimistic transfer from noob', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      noob.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      noob.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return nerd.fulfillCondition(uid, 'cf:0:abc').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
+    })
+  })
+
+  it('should complain on fulfilling an optimistic transfer from nerd', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      nerd.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      nerd.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return noob.fulfillCondition(uid, 'cf:0:abc').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
+    })
+  })
+
   it('should complain on fulfilling a nonexistant transfer', () => {
     return new Promise((resolve) => {
       nerd.fulfillCondition('nonexistant', 'garbage').catch((e) => {
@@ -334,30 +500,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
         resolve()
       })
     })
-  })
-
-  it('should complain when an OTP transfer is fulfilled', () => {
-    const p = new Promise((resolve) => {
-      noob.once('outgoing_transfer', (transfer, message) => {
-        assert(transfer.id === 'fifth')
-        resolve()
-      })
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.fulfillCondition('fifth', fulfillment).catch((e) => {
-          assert(e.name, 'TransferNotFoundError')
-          resolve()
-        })
-      })
-    })
-
-    noob.send({
-      id: 'fifth',
-      account: 'x',
-      amount: '10'
-    })
-
-    return p
   })
 
   it('should complain if transfer is given incorrect fulfillment', () => {
@@ -455,20 +597,27 @@ describe('Conditional transfers with Nerd and Noob', function () {
     return p
   })
 
-  it('should not be able to reject transfer twice as nerd', () => {
-    return nerd.rejectIncomingTransfer('seventh').then(() => {
-      assert(false)
-    }).catch((err) => {
-      assert.equal(err.name, 'RepeatError')
-    })
+  it('should not recover the fulfillment from a rejected transfer', () => {
+    return Promise.all([
+      noob.getFulfillment('eighth').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'AlreadyRolledBackError')
+      }),
+      nerd.getFulfillment('eighth').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'AlreadyRolledBackError')
+      })
+    ])
   })
 
-  it('should not be able to reject transfer twice as noob', () => {
-    return noob.rejectIncomingTransfer('eighth').then(() => {
-      assert(false)
-    }).catch((err) => {
-      assert.equal(err.name, 'RepeatError')
-    })
+  it('should be able to reject transfer twice as nerd', () => {
+    return nerd.rejectIncomingTransfer('seventh')
+  })
+
+  it('should be able to reject transfer twice as noob', () => {
+    return noob.rejectIncomingTransfer('eighth')
   })
 
   it('should not be able to reject nonexistant transfer as noob', () => {
@@ -556,6 +705,50 @@ describe('Conditional transfers with Nerd and Noob', function () {
         err.name,
         'TransferNotFoundError'
       )
+    })
+  })
+
+  it('should complain on rejecting optimistic transfer from noob', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      noob.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      noob.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return nerd.rejectIncomingTransfer(uid, 'cf:0:abc').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
+    })
+  })
+
+  it('should complain on rejecting optimistic transfer from noob', () => {
+    const uid = uuid()
+
+    return new Promise((resolve) => {
+      nerd.on('outgoing_transfer', () => {
+        resolve()
+      })
+
+      nerd.send({
+        id: uid,
+        amount: '1',
+        account: 'x'
+      })
+    }).then(() => {
+      return noob.rejectIncomingTransfer(uid, 'cf:0:abc').then(() => {
+        assert(false)
+      }).catch((e) => {
+        assert.equal(e.name, 'TransferNotConditionalError')
+      })
     })
   })
 

@@ -317,23 +317,61 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should reject a repeat transfer from the noob', () => {
+  it('should not reject a repeat transfer from the noob', () => {
+    return noob.send({
+      id: 'first',
+      amount: '10',
+      account: 'x'
+    })
+  })
+
+  it('should not reject a repeat transfer from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '10',
+      account: 'x'
+    })
+  })
+
+  it('should reject a non-matching repeat transfer from the noob', () => {
     return noob.send({
       id: 'first',
       amount: '100',
       account: 'x'
     }).catch((e) => {
-      assert.equal(e.name, 'RepeatError')
+      assert.equal(e.name, 'DuplicateIdError')
     })
   })
 
-  it('should reject a repeat transfer from the nerd', () => {
+  it('should reject a non-matching repeat transfer from the nerd', () => {
     return nerd.send({
       id: 'first',
       amount: '100',
       account: 'x'
     }).catch((e) => {
-      assert.equal(e.name, 'RepeatError')
+      assert.equal(e.name, 'DuplicateIdError')
+    })
+  })
+
+  it('should reject a non-matching repeat transfer with extra field from the noob', () => {
+    return noob.send({
+      id: 'first',
+      amount: '10',
+      account: 'x',
+      data: new Buffer('')
+    }).catch((e) => {
+      assert.equal(e.name, 'DuplicateIdError')
+    })
+  })
+
+  it('should reject a repeat transfer with extra field from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '10',
+      account: 'x',
+      data: new Buffer('')
+    }).catch((e) => {
+      assert.equal(e.name, 'DuplicateIdError')
     })
   })
 

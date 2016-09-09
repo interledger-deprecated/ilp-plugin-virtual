@@ -177,7 +177,9 @@ class NoobPluginVirtual extends EventEmitter {
       }
     }).then((account) => {
       return this.rpc.call('send', [outgoingTransfer, account])
-    }).then(() => {
+    }).then((res) => {
+      if (!res) return Promise.resolve(null)
+
       if (outgoingTransfer.executionCondition) {
         this.emit('outgoing_prepare', outgoingTransfer)
       } else {
@@ -206,6 +208,8 @@ class NoobPluginVirtual extends EventEmitter {
     this._log('fulfilling condition of ' + transferId)
     return this.rpc.call('fulfillCondition', [transferId, fulfillment])
       .then((res) => {
+        if (!res) return Promise.resolve(null)
+
         this.emit(res.direction + '_fulfill', res.transfer, fulfillment)
       })
   }
@@ -224,7 +228,9 @@ class NoobPluginVirtual extends EventEmitter {
     this._log('sending out a manual reject on tid: ' + transferId)
     return this.rpc.call('rejectIncomingTransfer', [transferId])
       .then((transfer) => {
-        this.emit('incoming_reject', transfer)
+        if (transfer) {
+          this.emit('incoming_reject', transfer)
+        }
       })
   }
 

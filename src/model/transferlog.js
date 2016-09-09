@@ -14,7 +14,18 @@ class TransferLog {
   get (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).transfer)
+        const transfer = JSON.parse(json).transfer
+        return Promise.resolve({
+          id: transfer.id,
+          account: transfer.account,
+          ledger: transfer.ledger,
+          amount: transfer.amount,
+          data: transfer.data,
+          noteToSelf: transfer.noteToSelf,
+          executionCondition: transfer.executionCondition,
+          expiresAt: transfer.expiresAt,
+          custom: transfer.custom
+        })
       } else {
         return Promise.resolve(undefined)
       }

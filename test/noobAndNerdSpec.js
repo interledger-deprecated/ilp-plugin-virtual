@@ -10,10 +10,15 @@ const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
 
+const base64url = require('base64url')
+const token = base64url(JSON.stringify({
+  channel: require('crypto').randomBytes(8).toString('hex'),
+  host: 'mqtt://test.mosquitto.org'
+}))
+
 let nerd = null
 let noob = null
 let noob2 = null
-let token = require('crypto').randomBytes(8).toString('hex')
 let store1 = newObjStore()
 
 describe('The Noob and the Nerd', function () {
@@ -25,7 +30,6 @@ describe('The Noob and the Nerd', function () {
     assert.throws(() => {
       return new PluginVirtual({
         _store: store1,
-        host: 'mqtt://test.mosquitto.org',
         token: token,
         initialBalance: '0',
         maxBalance: '2000',
@@ -41,7 +45,6 @@ describe('The Noob and the Nerd', function () {
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
       _store: store1,
-      host: 'mqtt://test.mosquitto.org',
       prefix: 'test.nerd.',
       token: token,
       initialBalance: '0',
@@ -59,7 +62,6 @@ describe('The Noob and the Nerd', function () {
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
       _store: {},
-      host: 'mqtt://test.mosquitto.org',
       token: token,
       mockChannels: MockChannels,
       account: 'noob'
@@ -195,7 +197,6 @@ describe('The Noob and the Nerd', function () {
   it('should create a second noob', () => {
     noob2 = new PluginVirtual({
       _store: {},
-      host: 'mqtt://test.mosquitto.org',
       token: token,
       mockChannels: MockChannels,
       account: 'noob2'
@@ -329,7 +330,6 @@ describe('The Noob and the Nerd', function () {
   it('should hold same balance when nerd is made with old db', () => {
     let tmpNerd = new PluginVirtual({
       _store: store1,
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
       maxBalance: '2000',

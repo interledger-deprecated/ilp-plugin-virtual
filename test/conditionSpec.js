@@ -11,9 +11,14 @@ const assert = require('chai').assert
 const newSqliteStore = require('./helpers/sqliteStore')
 const cc = require('five-bells-condition')
 
+const base64url = require('base64url')
+const token = base64url(JSON.stringify({
+  channel: require('crypto').randomBytes(8).toString('hex'),
+  host: 'mqtt://test.mosquitto.org'
+}))
+
 let nerd = null
 let noob = null
-let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Conditional transfers with Nerd and Noob', function () {
   it('should create the nerd and the noob', () => {
@@ -21,7 +26,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
     let objStore = newSqliteStore()
     nerd = new PluginVirtual({
       _store: objStore,
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
       maxBalance: '2000',
@@ -36,7 +40,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
     })
     noob = new PluginVirtual({
       _store: {},
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       mockConnection: MockConnection,
       mockChannels: MockChannels,

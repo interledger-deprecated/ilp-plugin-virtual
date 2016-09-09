@@ -16,6 +16,7 @@ const JsonRpc1 = require('../model/rpc')
 const TransferLog = require('../model/transferlog').TransferLog
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
+const base64url = require('base64url')
 
 const cc = require('five-bells-condition')
 
@@ -70,9 +71,16 @@ class NerdPluginVirtual extends EventEmitter {
         typeof opts.prefix)
     }
 
+    let connectionOpts = opts
+    if (typeof opts.token === 'object') {
+      const tokenBlob = base64url(JSON.stringify(opts.token))
+      this._log('token object encoded as: ' + tokenBlob)
+      connectionOpts.token = tokenBlob
+    }
+
     this.connected = false
 
-    this.connection = new Connection(opts)
+    this.connection = new Connection(connectionOpts)
     this.rpc = new JsonRpc1(this.connection, this)
 
     this.settler = opts._optimisticPlugin

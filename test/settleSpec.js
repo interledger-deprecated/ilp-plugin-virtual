@@ -29,9 +29,14 @@ const plugin2 = new OptimisticPlugin({
   prefix: 'example.'
 })
 
+const base64url = require('base64url')
+const token = base64url(JSON.stringify({
+  channel: require('crypto').randomBytes(8).toString('hex'),
+  host: 'mqtt://test.mosquitto.org'
+}))
+
 let nerd = null
 let noob = null
-let token = require('crypto').randomBytes(8).toString('hex')
 
 describe('Automatic settlement', function () {
   it('should create the nerd and the noob', () => {
@@ -39,7 +44,6 @@ describe('Automatic settlement', function () {
     nerd = new PluginVirtual({
       _store: objStore,
       _optimisticPlugin: plugin1,
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
       minBalance: '-1',
@@ -56,7 +60,6 @@ describe('Automatic settlement', function () {
     noob = new PluginVirtual({
       _store: {},
       _optimisticPlugin: plugin2,
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       mockConnection: MockConnection,
       mockChannels: MockChannels,
@@ -74,7 +77,6 @@ describe('Automatic settlement', function () {
         address: 'example.plugin2',
         prefix: 'example.'
       },
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       mockConnection: MockConnection,
       mockChannels: MockChannels,
@@ -94,7 +96,6 @@ describe('Automatic settlement', function () {
         address: 'example.plugin2',
         prefix: 'example.'
       },
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
       minBalance: '-1',

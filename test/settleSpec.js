@@ -153,4 +153,30 @@ describe('Automatic settlement', function () {
 
     return p
   })
+
+  it('should give an error settling without a settler as noob', function () {
+    const id = uuid()
+
+    noob.settler = null
+    noob.send({
+      account: 'ilpdemo.red.alice',
+      amount: '10',
+      id: id
+    }).catch((e) => {
+      assert.equal(e.name, 'NotAcceptedError')
+    })
+  })
+
+  it('should give an error settling without a settler as nerd', function () {
+    const id = uuid()
+
+    nerd.settleAddress = null
+    nerd.send({
+      account: 'ilpdemo.red.alice',
+      amount: '10',
+      id: id
+    }).catch((e) => {
+      assert.equal(e.name, 'NotAcceptedError')
+    })
+  })
 })

@@ -120,7 +120,6 @@ describe('Conditional transfers with Nerd and Noob', function () {
         noob.once('incoming_fulfill', (transfer, fulfillment) => {
           assert(transfer.id === uid)
           assert(transfer.ledger === 'test.nerd.')
-          console.log('this bit')
           resolve()
         })
 

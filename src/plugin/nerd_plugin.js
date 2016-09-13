@@ -25,12 +25,9 @@ const transferEqual = (l, r) => {
     return (l.account === r.account &&
       l.amount - 0 === r.amount - 0 &&
       l.ledger === r.ledger &&
-      (l.executionCondition === r.executionCondition ||
-        l.executionCondition.toString() === r.executionCondition.toString()) &&
-      (l.noteToSelf === r.noteToSelf ||
-        l.noteToSelf.toString() === r.noteToSelf.toString()) &&
-      (l.data === r.data ||
-        l.data.toString() === r.data.toString()) &&
+      l.executionCondition === r.executionCondition &&
+      l.noteToSelf === r.noteToSelf &&
+      l.data === r.data &&
       l.expiresAt === r.expiresAt)
   } catch (e) {
     return false
@@ -73,12 +70,12 @@ class NerdPluginVirtual extends EventEmitter {
     this.store = opts._store
     this.timers = {}
 
-    this.info = opts.info || {
+    this.info = Object.assign({}, (opts.info || {
       precision: 15,
       scale: 15,
       currencyCode: '???',
       currencySymbol: '?'
-    }
+    }), {connectors: [{ connector: opts.connector}]})
 
     this.transferLog = new TransferLog(opts._store)
 

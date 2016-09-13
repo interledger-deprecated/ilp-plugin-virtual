@@ -76,7 +76,7 @@ class TransferLog {
     })
   }
 
-  fulfill (transferId, fulfillment) {
+  finalize (transferId, fulfillment) {
     // TODO: more efficient way of doing this
     return this._get('t' + transferId).then((json) => {
       const obj = Object.assign(JSON.parse(json), {fulfillment: fulfillment})
@@ -86,7 +86,7 @@ class TransferLog {
     })
   }
 
-  isFulfilled (transferId) {
+  isFinal (transferId) {
     return this._get('f' + transferId).then((data) => {
       return Promise.resolve(data !== undefined)
     })

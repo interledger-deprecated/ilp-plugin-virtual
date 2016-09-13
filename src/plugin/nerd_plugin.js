@@ -297,10 +297,10 @@ class NerdPluginVirtual extends EventEmitter {
       throw new TransferNotConditionalError(transferId + ' is not conditional')
     }
 
-    const fulfilled = yield this.transferLog.isFulfilled(transferId)
+    const isFinal = yield this.transferLog.isFinal(transferId)
     const fulfillment = yield this.transferLog.getFulfillment(transferId)
 
-    if (!fulfillment && fulfilled) {
+    if (!fulfillment && isFinal) {
       throw new AlreadyRolledBackError(transferId + ' has been cancelled')
     } else if (!fulfillment) {
       throw new MissingFulfillmentError(transferId + ' has not been fulfilled')
@@ -341,13 +341,13 @@ class NerdPluginVirtual extends EventEmitter {
     const timedOut = (time > expiresAt)
 
     if (this._validate(fulfillment, execute) && !timedOut) {
-      const fulfilled = yield this.transferLog.isFulfilled(transfer.id)
+      const isFinal = yield this.transferLog.isFinal(transfer.id)
       const existingFulfillment = yield this.transferLog.getFulfillment(transfer.id)
-      const rejected = fulfilled && !existingFulfillment
+      const rejected = isFinal && !existingFulfillment
 
       if (rejected) {
         throw new AlreadyRolledBackError('this transfer has already been rejected')
-      } else if (fulfilled) {
+      } else if (isFinal) {
         this._log(transferId + ' has already been fulfilled')
         return false
       }
@@ -380,17 +380,17 @@ class NerdPluginVirtual extends EventEmitter {
       throw new NotAcceptedError('transfer must be incoming')
     }
 
-    const fulfilled = yield this.transferLog.isFulfilled(transferId)
+    const isFinal = yield this.transferLog.isFinal(transferId)
     const fulfillment = yield this.transferLog.getFulfillment(transferId)
     if (fulfillment) {
       throw new AlreadyFulfilledError('transfer is already complete')
-    } else if (fulfilled) {
+    } else if (isFinal) {
       this._log(transferId + ' has already rolled back')
       return
     }
 
     yield this.balance.add(transfer.amount)
-    yield this.transferLog.fulfill(transfer.id, undefined)
+    yield this.transferLog.finalize(transfer.id, undefined)
 
     this.emit('incoming_reject', transfer, 'manually rejected')
     this.rpc.call('rejectIncomingTransfer', [transfer, message])
@@ -410,7 +410,7 @@ class NerdPluginVirtual extends EventEmitter {
     // in escrow (although it behaves as though it were). So there is nothing
     // to do for the execution condition.
 
-    yield this.transferLog.fulfill(transfer.id, fulfillment)
+    yield this.transferLog.finalize(transfer.id, fulfillment)
 
     const incoming = yield this.transferLog.isIncoming(transfer.id)
     if (!incoming) {
@@ -437,7 +437,7 @@ class NerdPluginVirtual extends EventEmitter {
       this.emit('outgoing_cancel', transfer, 'timed out')
     }
 
-    yield this.transferLog.fulfill(transfer.id, undefined)
+    yield this.transferLog.finalize(transfer.id, undefined)
     yield this.rpc.call('cancel', [
       transfer,
       'timed out',
@@ -476,16 +476,16 @@ class NerdPluginVirtual extends EventEmitter {
       throw new NotAcceptedError('you must be receiver to reject')
     }
 
-    const fulfilled = yield this.transferLog.isFulfilled(transferId)
+    const isFinal = yield this.transferLog.isFinal(transferId)
     const fulfillment = yield this.transferLog.getFulfillment(transferId)
     if (fulfillment) {
       throw new AlreadyFulfilledError('transfer is already complete')
-    } else if (fulfilled) {
+    } else if (isFinal) {
       this._log(transferId + ' has already rolled back')
       return null
     }
 
-    yield this.transferLog.fulfill(transfer.id, undefined)
+    yield this.transferLog.finalize(transfer.id, undefined)
     this.emit('outgoing_reject', transfer, message)
 
     return transfer
@@ -554,8 +554,8 @@ class NerdPluginVirtual extends EventEmitter {
       let now = new Date()
       let expiry = new Date(transfer.expiresAt)
       this.timers[transfer.id] = setTimeout(() => {
-        this.transferLog.isFulfilled(transfer.id).then((isFulfilled) => {
-          if (!isFulfilled) {
+        this.transferLog.isFinal(transfer.id).then((isFinal) => {
+          if (!isFinal) {
             this._log('automatic time out on tid: ' + transfer.id)
             co.wrap(this._timeOutTransfer).call(this, transfer)
           }
@@ -569,7 +569,7 @@ class NerdPluginVirtual extends EventEmitter {
   * _completeTransfer (transfer) {
     yield this.transferLog.complete(transfer.id)
     if (!transfer.executionCondition) {
-      yield this.transferLog.fulfill(transfer.id, undefined)
+      yield this.transferLog.finalize(transfer.id, undefined)
     }
   }
 

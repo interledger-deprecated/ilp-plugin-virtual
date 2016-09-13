@@ -10,10 +10,15 @@ const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
 
+const base64url = require('base64url')
+const token = base64url(JSON.stringify({
+  channel: require('crypto').randomBytes(8).toString('hex'),
+  host: 'mqtt://test.mosquitto.org'
+}))
+
 let nerd = null
 let noob = null
 let noob2 = null
-let token = require('crypto').randomBytes(8).toString('hex')
 let store1 = newObjStore()
 
 describe('The Noob and the Nerd', function () {
@@ -25,7 +30,6 @@ describe('The Noob and the Nerd', function () {
     assert.throws(() => {
       return new PluginVirtual({
         _store: store1,
-        host: 'mqtt://test.mosquitto.org',
         token: token,
         initialBalance: '0',
         maxBalance: '2000',
@@ -41,7 +45,6 @@ describe('The Noob and the Nerd', function () {
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
       _store: store1,
-      host: 'mqtt://test.mosquitto.org',
       prefix: 'test.nerd.',
       token: token,
       initialBalance: '0',
@@ -56,10 +59,29 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(nerd)
   })
 
+  it('should instantiate the nerd with token as object', () => {
+    const tmpNerd = new PluginVirtual({
+      _store: store1,
+      prefix: 'test.nerd.',
+      token: {
+        channel: require('crypto').randomBytes(8).toString('hex'),
+        host: 'mqtt://test.mosquitto.org'
+      },
+      initialBalance: '0',
+      maxBalance: '2000',
+      minBalance: '-1000',
+      settleIfUnder: '-1000',
+      settleIfOver: '2000',
+      account: 'nerd',
+      mockChannels: MockChannels,
+      secret: 'secret'
+    })
+    assert.isObject(tmpNerd)
+  })
+
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
       _store: {},
-      host: 'mqtt://test.mosquitto.org',
       token: token,
       mockChannels: MockChannels,
       account: 'noob'
@@ -146,6 +168,30 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
+  it('should reject a transfer with an invalid amount (noob)', () => {
+    return noob.send({
+      id: 'invalid_amount',
+      account: 'x',
+      amount: 'garbage'
+    }).then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'InvalidFieldsError')
+    })
+  })
+
+  it('should reject a transfer with an invalid amount (nerd)', () => {
+    return nerd.send({
+      id: 'invalid_amount_2',
+      account: 'x',
+      amount: 'garbage'
+    }).then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'InvalidFieldsError')
+    })
+  })
+
   it('should add balance when nerd sends money to noob', () => {
     const p = new Promise((resolve) => {
       nerd.once('outgoing_transfer', (transfer, message) => {
@@ -171,7 +217,6 @@ describe('The Noob and the Nerd', function () {
   it('should create a second noob', () => {
     noob2 = new PluginVirtual({
       _store: {},
-      host: 'mqtt://test.mosquitto.org',
       token: token,
       mockChannels: MockChannels,
       account: 'noob2'
@@ -256,43 +301,77 @@ describe('The Noob and the Nerd', function () {
     return p
   })
 
-  it('should reject a false acknowledge from the noob', () => {
-    return noob.connection.send({
-      type: 'acknowledge',
-      transfer: {id: 'fake'},
-      message: 'fake acknowledge'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('_falseAcknowledge', (transfer) => {
-          assert(transfer.id === 'fake')
-          resolve()
-        })
-      })
+  it('should error replying to nonexistant transfer (noob)', () => {
+    return noob.replyToTransfer('nonexistant', 'another message').then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'TransferNotFoundError')
     })
   })
 
-  it('should reject a repeat transfer from the noob', () => {
+  it('should error replying to nonexistant transfer (nerd)', () => {
+    return nerd.replyToTransfer('nonexistant', 'another message').then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'TransferNotFoundError')
+    })
+  })
+
+  it('should not reject a repeat transfer from the noob', () => {
+    return noob.send({
+      id: 'first',
+      amount: '10',
+      account: 'x'
+    })
+  })
+
+  it('should not reject a repeat transfer from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '10',
+      account: 'x'
+    })
+  })
+
+  it('should reject a non-matching repeat transfer from the noob', () => {
     return noob.send({
       id: 'first',
       amount: '100',
       account: 'x'
     }).catch((e) => {
-      assert(e)
+      assert.equal(e.name, 'DuplicateIdError')
     })
   })
 
-  it('should emit false reject if a fake transfer is rejected', () => {
-    return noob.connection.send({
-      type: 'reject',
-      transfer: {id: 'notreal'},
-      message: 'fake reject'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('_falseReject', (transfer) => {
-          assert(transfer.id === 'notreal')
-          resolve()
-        })
-      })
+  it('should reject a non-matching repeat transfer from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '100',
+      account: 'x'
+    }).catch((e) => {
+      assert.equal(e.name, 'DuplicateIdError')
+    })
+  })
+
+  it('should reject a non-matching repeat transfer with extra field from the noob', () => {
+    return noob.send({
+      id: 'first',
+      amount: '10',
+      account: 'x',
+      data: new Buffer('')
+    }).catch((e) => {
+      assert.equal(e.name, 'DuplicateIdError')
+    })
+  })
+
+  it('should reject a repeat transfer with extra field from the nerd', () => {
+    return nerd.send({
+      id: 'first',
+      amount: '10',
+      account: 'x',
+      data: new Buffer('')
+    }).catch((e) => {
+      assert.equal(e.name, 'DuplicateIdError')
     })
   })
 
@@ -306,36 +385,9 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should give error if the noob sends invalid message type', () => {
-    return noob.connection.send({
-      type: 'garbage'
-    }).then(() => {
-      return new Promise((resolve) => {
-        nerd.once('exception', (err) => {
-          assert(err.message === 'Invalid message received')
-          resolve()
-        })
-      })
-    })
-  })
-
-  it('should give error if the nerd sends invalid message type', () => {
-    return nerd.connection.send({
-      type: 'garbage'
-    }).then(() => {
-      return new Promise((resolve) => {
-        noob.once('exception', (err) => {
-          assert(err.message === 'Invalid message received')
-          resolve()
-        })
-      })
-    })
-  })
-
   it('should hold same balance when nerd is made with old db', () => {
     let tmpNerd = new PluginVirtual({
       _store: store1,
-      host: 'mqatt://test.mosquitto.org',
       token: token,
       initialBalance: '0',
       maxBalance: '2000',

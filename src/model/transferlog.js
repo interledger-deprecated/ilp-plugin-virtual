@@ -7,41 +7,52 @@ class TransferLog {
     this._get = store.get
     this._put = store.put
     this._del = store.del
-    this.incoming = 'i'
-    this.outgoing = 'o'
+    this.incoming = 'incoming'
+    this.outgoing = 'outgoing'
   }
 
   get (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).transfer)
+        const transfer = JSON.parse(json).transfer
+        return Promise.resolve({
+          id: transfer.id,
+          account: transfer.account,
+          ledger: transfer.ledger,
+          amount: transfer.amount,
+          data: transfer.data,
+          noteToSelf: transfer.noteToSelf,
+          executionCondition: transfer.executionCondition,
+          expiresAt: transfer.expiresAt,
+          custom: transfer.custom
+        })
       } else {
         return Promise.resolve(undefined)
       }
     })
   }
 
-  getDirection (transferId) {
+  isIncoming (transferId) {
     return this._get('t' + transferId).then((json) => {
       if (json) {
-        return Promise.resolve(JSON.parse(json).direction)
+        return Promise.resolve(JSON.parse(json).isIncoming)
       } else {
         return Promise.resolve(undefined)
       }
     })
   }
 
-  store (transfer, direction) {
+  store (transfer, incoming) {
     return (this._put('t' + transfer.id, JSON.stringify({
       transfer: transfer,
-      direction: direction
+      isIncoming: incoming
     })))
   }
   storeOutgoing (transfer) {
-    return this.store(transfer, this.outgoing)
+    return this.store(transfer, false)
   }
   storeIncoming (transfer) {
-    return this.store(transfer, this.incoming)
+    return this.store(transfer, true)
   }
 
   exists (transferId) {
@@ -65,7 +76,7 @@ class TransferLog {
     })
   }
 
-  fulfill (transferId, fulfillment) {
+  finalize (transferId, fulfillment) {
     // TODO: more efficient way of doing this
     return this._get('t' + transferId).then((json) => {
       const obj = Object.assign(JSON.parse(json), {fulfillment: fulfillment})
@@ -75,7 +86,7 @@ class TransferLog {
     })
   }
 
-  isFulfilled (transferId) {
+  isFinal (transferId) {
     return this._get('f' + transferId).then((data) => {
       return Promise.resolve(data !== undefined)
     })

@@ -9,7 +9,6 @@ class MockConnection extends EventEmitter {
 
     this.config = config
     this.name = config.account
-    this.host = config.host
     this.token = config.token
     this.channels = config.mockChannels
     this.connected = false

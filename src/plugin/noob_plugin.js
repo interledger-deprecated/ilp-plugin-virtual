@@ -3,6 +3,7 @@
 const EventEmitter = require('events')
 
 const Connection = require('../model/connection')
+const JsonRpc1 = require('../model/rpc')
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 
@@ -22,12 +23,6 @@ class NoobPluginVirtual extends EventEmitter {
   constructor (opts) {
     super()
 
-    let that = this
-    this._handle = (err) => {
-      that.emit('exception', err)
-      throw err
-    }
-
     this.id = opts.id // not used but required for compatability with five
                       // bells connector.
     this._account = opts.account
@@ -35,46 +30,89 @@ class NoobPluginVirtual extends EventEmitter {
 
     this.connected = false
 
+    // establish connections
     this.connection = new Connection(opts)
-    this.connection.on('receive', (obj) => {
-      this._receive(obj).catch(this._handle)
-    })
+    this.rpc = new JsonRpc1(this.connection, this)
 
+    // set up the settler
     this.settler = opts._optimisticPlugin
     if (typeof opts._optimisticPlugin === 'string') {
-      const plugin = require(opts._optimisticPlugin)
-      this.settler = new plugin(opts._optimisticPluginOpts)
+      const Plugin = require(opts._optimisticPlugin)
+      this.settler = new Plugin(opts._optimisticPluginOpts)
     }
     this.settleAddress = opts.settleAddress
     this.settlePercent = opts.settlePercent || '0.5'
+    this.settling = false
 
-    this._expects = {}
-    this._seen = {}
-    this._fulfilled = {}
-
+    // register callbacks for the settler
     if (this.settler) {
-      this.on('_settlement', (obj) => {
-        this.settleAddress = obj.settleAddress || this.settleAddress
-        if (!this.settleAddress) return
-
-        this.settler.send({
-          account: this.settleAddress,
-          amount: this._getSettleAmount(obj.balance, obj.max),
-          id: uuid()
-        })
-      })
-
       this.settler.on('incoming_transfer', (transfer) => {
         if (transfer.account !== this.settleAddress) return
-        this._confirmSettle(transfer)
+        this._log('got incoming transfer for ' + transfer.amount)
+        this.rpc.call('settled', [transfer])
       })
     }
-  }
 
-  _confirmSettle (transfer) {
-    this.connection.send({
-      type: 'settled',
-      transfer: transfer
+    // add handlers to rpc
+    this.rpc.addMethod('settle', (address, balance, max) => {
+      this.settleAddress = address || this.settleAddress
+      if (!this.settleAddress || this.settling) return
+
+      this.settling = true
+      this.settler.send({
+        account: this.settleAddress,
+        amount: this._getSettleAmount(balance, max),
+        id: uuid()
+      }).catch((e) => {
+        this.settling = false
+      })
+
+      return Promise.resolve(null)
+    })
+
+    this.rpc.addMethod('settled', () => {
+      this.settling = false
+    })
+
+    this.rpc.addMethod('send', (transfer, settleAddress) => {
+      if (settleAddress) {
+        this.settleAddress = settleAddress
+      }
+
+      if (transfer.executionCondition) {
+        this.emit('incoming_prepare', transfer)
+      } else {
+        this.emit('incoming_transfer', transfer)
+      }
+
+      return Promise.resolve(true)
+    })
+
+    this.rpc.addMethod('cancel', (transfer, message, direction) => {
+      this.emit(direction + '_cancel', transfer, message)
+      return Promise.resolve(true)
+    })
+
+    this.rpc.addMethod('fulfill', (transfer, direction) => {
+      this.emit(direction + '_fulfill', transfer)
+      return Promise.resolve(true)
+    })
+
+    this.rpc.addMethod('rejectIncomingTransfer', (transfer) => {
+      this.emit('outgoing_reject', transfer)
+      return Promise.resolve(true)
+    })
+
+    this.rpc.addMethod('replyToTransfer', (transfer, message) => {
+      this.emit('reply', transfer, message)
+      return Promise.resolve(true)
+    })
+
+    this.rpc.on('notification', (obj) => {
+      this._log('got notification of type ' + obj.type)
+      switch (obj.type) {
+        case 'balance': this.emit('balance', obj.balance)
+      }
     })
   }
 
@@ -93,169 +131,9 @@ class NoobPluginVirtual extends EventEmitter {
     log.log(this._account + ': ' + msg)
   }
 
-  // These functions prevent messages from being
-  // processed more than once
-  _expectResponse (tid) {
-    this._expects[tid] = true
-  }
-  _expectedResponse (tid) {
-    return !!(this._expects[tid])
-  }
-  _receiveResponse (tid) {
-    this._expects[tid] = false
-  }
-  _seeTransfer (tid) {
-    this._seen[tid] = true
-  }
-  _seenTransfer (tid) {
-    return !!(this._seen[tid])
-  }
-  _fulfilledTransfer (tid) {
-    return !!(this._fulfilled[tid])
-  }
-  _fulfillTransfer (tid) {
-    this._fulfilled[tid] = true
-  }
-
-  // callback for incoming messages
-  _receive (obj) {
-    if (obj.type === 'transfer' && !this._seenTransfer(obj.transfer.id)) {
-      this._seeTransfer(obj.transfer.id)
-      this._log('received a Transfer with tid: ' + obj.transfer.id)
-
-      if (obj.settleAddress) {
-        this.settleAddress = obj.settleAddress
-      }
-
-      if (obj.transfer.executionCondition) {
-        this.emit('incoming_prepare', obj.transfer)
-      } else {
-        this.emit('incoming_transfer', obj.transfer)
-      }
-
-      return this.connection.send({
-        type: 'acknowledge',
-        transfer: obj.transfer,
-        message: 'transfer accepted'
-      })
-    } else if (obj.type === 'acknowledge' &&
-    this._expectedResponse(obj.transfer.id)) {
-      this._receiveResponse(obj.transfer.id)
-      this._log('received an ACK on tid: ' + obj.transfer.id)
-
-      this.emit('_accepted', obj.transfer)
-      if (obj.transfer.executionCondition) {
-        this.emit('outgoing_prepare', obj.transfer)
-      } else {
-        this._log('GOT AN OUTGOING TRANSFER ACCEPTED')
-        this.emit('outgoing_transfer', obj.transfer)
-      }
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'fulfill_execution_condition' &&
-    !this._fulfilledTransfer(obj.transfer.id)) {
-      this._fulfillTransfer(obj.transfer.id)
-
-      this.emit(
-        obj.toNerd ? 'outgoing_fulfill' : 'incoming_fulfill',
-        obj.transfer,
-        new Buffer(obj.fulfillment)
-      )
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'reject' &&
-    !this._fulfilledTransfer(obj.transfer.id)) {
-      this._log('received a reject on tid: ' + obj.transfer.id)
-
-      this.emit('_rejected', obj.transfer)
-      this.emit(
-        obj.toNerd ? 'outgoing_cancel' : 'incoming_cancel',
-        obj.transfer,
-        new Buffer(obj.message)
-      )
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'reply') {
-      this._log('received a reply on tid: ' + obj.transfer.id)
-
-      this.emit('reply', obj.transfer, new Buffer(obj.message))
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'balance') {
-      this._log('received balance: ' + obj.balance)
-
-      this.emit('balance', obj.balance)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'info') {
-      this._log('received info.')
-
-      this.emit('_info', obj.info)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'settlement') {
-      this._log('received settlement notification.')
-
-      // internal settlement code requires more values
-      this.emit('_settlement', obj)
-      this.emit('settlement', obj.balance)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'prefix') {
-      this._log('received prefix.')
-
-      this.emit('_prefix', obj.prefix)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'manual_reject') {
-      this._log('received manual reject on: ' + obj.transfer.id)
-
-      this.emit('outgoing_reject', obj.transfer, obj.message)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'manual_reject_failure') {
-      this._log('manual rejection failed on: ' + obj.id)
-
-      this.emit('_manual_reject_failure', obj.id, obj.message)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'manual_reject_success') {
-      this._log('manual reject success on: ' + obj.transfer.id)
-
-      this.emit('incoming_reject', obj.transfer, obj.message)
-      this.emit('_manual_reject_success', obj.transfer.id)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'get_fulfillment') {
-      this._log('received fulfillment for tid: ' + obj.transferId)
-
-      this.emit('_get_fulfillment', obj)
-
-      return Promise.resolve(null)
-    } else if (obj.type === 'get_connectors') {
-      this._log('received connectors')
-
-      this.emit('_get_connectors', obj)
-
-      return Promise.resolve(null)
-    } else {
-      this._handle(new Error('Invalid message received'))
-      return Promise.resolve(null)
-    }
-  }
-
   getPrefix () {
-    if (this._prefix) return Promise.resolve(this._prefix)
-    this._log('sending prefix query...')
-    return new Promise((resolve) => {
-      this.on('_prefix', (prefix) => {
-        this._prefix = prefix
-        resolve(prefix)
-      })
-      this.connection.send({
-        type: 'prefix'
-      })
-    })
+    this._log('requesting prefix')
+    return this.rpc.call('getPrefix', [])
   }
 
   connect () {
@@ -286,138 +164,74 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   getConnectors () {
-    this.connection.send({
-      type: 'get_connectors'
-    })
-    return new Promise((resolve) => {
-      this.once('_get_connectors', (obj) => {
-        resolve(obj.connectors)
-      })
-    })
+    this._log('requesting connectors')
+    return this.rpc.call('getConnectors', [])
   }
 
   send (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
-    this._expectResponse(outgoingTransfer.id)
-    return new Promise((resolve, reject) => {
-      let resolved = false
+    return this.getPrefix().then((prefix) => {
+      outgoingTransfer.ledger = prefix
+      if (this.settler) {
+        return this.settler.getAccount()
+      }
+    }).then((account) => {
+      return this.rpc.call('send', [outgoingTransfer, account])
+    }).then((res) => {
+      if (!res) return Promise.resolve(null)
 
-      this.on('_accepted', (transfer) => {
-        if (!resolved && transfer.id === outgoingTransfer.id) {
-          resolved = true
-          resolve(null)
-        }
-      })
+      if (outgoingTransfer.executionCondition) {
+        this.emit('outgoing_prepare', outgoingTransfer)
+      } else {
+        this.emit('outgoing_transfer', outgoingTransfer)
+      }
 
-      this.on('_rejected', (transfer) => {
-        if (!resolved && transfer.id === outgoingTransfer.id) {
-          resolved = true
-          reject(new Error('transfer was invalid'))
-        }
-      })
-
-      this.getPrefix().then((prefix) => {
-        outgoingTransfer.ledger = prefix
-        if (this.settler) {
-          return this.settler.getAccount()
-        }
-      }).then((account) => {
-        this.connection.send({
-          type: 'transfer',
-          transfer: outgoingTransfer,
-          settleAddress: account
-        }).catch(this._handle)
-      }).catch(this._handle)
+      return Promise.resolve(null)
     })
   }
 
   getBalance () {
-    this._log('sending balance query...')
-    this.connection.send({
-      type: 'balance'
-    })
-    return new Promise((resolve) => {
-      this.once('balance', (balance) => {
-        resolve(balance)
+    this._log('requesting balance')
+    return this.rpc.call('getBalance', [])
+      .then((balance) => {
+        this.emit('balance', balance)
+        return Promise.resolve(balance)
       })
-    })
   }
 
   getInfo () {
-    this._log('sending getInfo query...')
-    this.connection.send({
-      type: 'info'
-    })
-    return new Promise((resolve) => {
-      this.once('_info', (info) => {
-        resolve(info)
-      })
-    })
+    this._log('requesting info')
+    return this.rpc.call('getInfo', [])
   }
 
   fulfillCondition (transferId, fulfillment) {
-    return this.connection.send({
-      type: 'fulfillment',
-      transferId: transferId,
-      fulfillment: fulfillment
-    })
+    this._log('fulfilling condition of ' + transferId)
+    return this.rpc.call('fulfillCondition', [transferId, fulfillment])
+      .then((res) => {
+        if (!res) return Promise.resolve(null)
+
+        this.emit(res.direction + '_fulfill', res.transfer, fulfillment)
+      })
   }
 
   replyToTransfer (transferId, replyMessage) {
-    return this.connection.send({
-      type: 'reply',
-      transferId: transferId,
-      message: replyMessage
-    })
+    this._log('replying to transfer: ' + transferId)
+    return this.rpc.call('replyToTransfer', [transferId, replyMessage])
   }
 
   getFulfillment (transferId) {
-    this.connection.send({
-      type: 'get_fulfillment',
-      transferId: transferId
-    })
-    return new Promise((resolve, reject) => {
-      let received = false
-      this.on('_get_fulfillment', (obj) => {
-        if (received || obj.transferId !== transferId) {
-          return
-        }
-        received = true
-
-        if (!obj.fulfillment) {
-          reject(null)
-        } else {
-          resolve(obj.fulfillment)
-        }
-      })
-    })
+    this._log('requesting fulfillment for ' + transferId)
+    return this.rpc.call('getFulfillment', [transferId])
   }
 
   rejectIncomingTransfer (transferId) {
     this._log('sending out a manual reject on tid: ' + transferId)
-    return new Promise((resolve, reject) => {
-      let resolved = false
-
-      this.on('_manual_reject_success', (transfer) => {
-        if (!resolved && transfer.id === transferId) {
-          resolved = true
-          resolve(null)
+    return this.rpc.call('rejectIncomingTransfer', [transferId])
+      .then((transfer) => {
+        if (transfer) {
+          this.emit('incoming_reject', transfer)
         }
       })
-
-      this.on('_manual_reject_failure', (id, message) => {
-        if (!resolved && transferId === id) {
-          resolved = true
-          reject(new Error(message))
-        }
-      })
-
-      this.connection.send({
-        type: 'manual_reject',
-        transferId: transferId,
-        message: 'manually rejected'
-      }).catch(this._handle)
-    })
   }
 
   getAccount () {

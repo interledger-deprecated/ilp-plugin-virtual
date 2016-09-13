@@ -72,6 +72,13 @@ describe('TransferLog', function () {
     }).catch(done)
   })
 
+  it('should test if something is complete', (done) => {
+    next = tlog.isComplete('transfer').then((res) => {
+      assert.isFalse(res)
+      done()
+    }).catch(done)
+  })
+
   it('should delete something', (done) => {
     next = next.then(() => {
       return tlog.del('transfer')
@@ -85,7 +92,7 @@ describe('TransferLog', function () {
 
   it('should not contain something nonexistant', (done) => {
     next = next.then(() => {
-      return tlog.getDirection('transfer')
+      return tlog.isIncoming('transfer')
     }).then((type) => {
       assert(type === undefined)
       done()
@@ -149,7 +156,7 @@ describe('Balance', function () {
       initialBalance: 0,
       min: 0,
       max: 1,
-      settleIfOver: {'a':[]},
+      settleIfOver: { 'a': [] },
       settleIfUnder: 0
     })), 'settleIfOver must exist and be a valid number')
   })

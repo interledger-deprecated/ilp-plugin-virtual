@@ -81,7 +81,7 @@ class Balance extends EventEmitter {
       let inMax = balance.add(amount).lte(this._max)
       let inWarn = balance.add(amount).lte(this._settleIfOver)
       let positive = amount.gte(this._convert('0'))
-      if (!inWarn) {
+      if (!inWarn && positive) {
         this.emit('over', balance)
       }
       return Promise.resolve(inMax && positive)
@@ -94,7 +94,7 @@ class Balance extends EventEmitter {
       let inMin = balance.sub(amount).gte(this._min)
       let inWarn = balance.sub(amount).gte(this._settleIfUnder)
       let positive = amount.gte(this._convert('0'))
-      if (!inWarn) {
+      if (!inWarn && positive) {
         this.emit('under', balance)
       }
       return Promise.resolve(inMin && positive)

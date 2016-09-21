@@ -71,7 +71,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'first',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     })
@@ -111,7 +111,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
       nerd.send({
         id: uid,
-        account: 'x',
+        account: 'noob',
         amount: '100',
         executionCondition: condition
       })
@@ -146,7 +146,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
       noob.send({
         id: uid,
-        account: 'x',
+        account: 'nerd',
         amount: '100',
         executionCondition: condition
       })
@@ -208,7 +208,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       noob.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'nerd'
       })
     }).then(() => {
       return nerd.getFulfillment(uid).then(() => {
@@ -230,7 +230,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       nerd.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'noob'
       })
     }).then(() => {
       return noob.getFulfillment(uid).then(() => {
@@ -267,7 +267,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'prepared',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     })
@@ -292,7 +292,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     noob.send({
       id: 'time_out',
-      account: 'x',
+      account: 'noob',
       amount: '200',
       executionCondition: condition,
       expiresAt: (new Date()).toString()
@@ -312,7 +312,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'time_out_3',
-      account: 'x',
+      account: 'noob',
       amount: '200',
       executionCondition: condition,
       expiresAt: (new Date()).toString()
@@ -331,7 +331,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     return noob.send({
       id: 'time_out_2',
-      account: 'x',
+      account: 'nerd',
       amount: '200',
       executionCondition: condition,
       expiresAt: time.toString()
@@ -371,7 +371,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     noob.send({
       id: 'time_complete',
-      account: 'x',
+      account: 'nerd',
       amount: '200',
       executionCondition: condition,
       expiresAt: time.toString()
@@ -383,7 +383,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
   it('should submit a UTP transaction as the nerd', () => {
     return nerd.send({
       id: 'third',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     }).then(() => {
@@ -415,7 +415,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       noob.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'nerd'
       })
     }).then(() => {
       return nerd.fulfillCondition(uid, 'cf:0:abc').then(() => {
@@ -437,7 +437,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       nerd.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'noob'
       })
     }).then(() => {
       return noob.fulfillCondition(uid, 'cf:0:abc').then(() => {
@@ -485,7 +485,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     noob.send({
       id: 'fourth',
-      account: 'x',
+      account: 'nerd',
       amount: '100',
       executionCondition: condition
     })
@@ -518,7 +518,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'sixth',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     })
@@ -553,7 +553,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     noob.send({
       id: 'seventh',
-      account: 'x',
+      account: 'nerd',
       amount: '100',
       executionCondition: condition
     })
@@ -588,7 +588,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'eighth',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     })
@@ -654,7 +654,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     noob.send({
       id: 'ninth',
-      account: 'x',
+      account: 'nerd',
       amount: '100',
       executionCondition: condition
     })
@@ -681,7 +681,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
 
     nerd.send({
       id: 'tenth',
-      account: 'x',
+      account: 'noob',
       amount: '100',
       executionCondition: condition
     })
@@ -718,7 +718,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       noob.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'nerd'
       })
     }).then(() => {
       return nerd.rejectIncomingTransfer(uid, 'cf:0:abc').then(() => {
@@ -740,7 +740,7 @@ describe('Conditional transfers with Nerd and Noob', function () {
       nerd.send({
         id: uid,
         amount: '1',
-        account: 'x'
+        account: 'noob'
       })
     }).then(() => {
       return noob.rejectIncomingTransfer(uid, 'cf:0:abc').then(() => {

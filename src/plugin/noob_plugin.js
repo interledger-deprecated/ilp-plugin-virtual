@@ -176,7 +176,10 @@ class NoobPluginVirtual extends EventEmitter {
         return this.settler.getAccount()
       }
     }).then((account) => {
-      return this.rpc.call('send', [outgoingTransfer, account])
+      return this.rpc.call('send', [
+        Object.assign({}, outgoingTransfer, {account: this._account}),
+        account
+      ])
     }).then((res) => {
       if (!res) return Promise.resolve(null)
 

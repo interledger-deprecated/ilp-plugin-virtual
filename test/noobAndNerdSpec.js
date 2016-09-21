@@ -145,7 +145,7 @@ describe('The Noob and the Nerd', function () {
 
     noob.send({
       id: 'first',
-      account: 'x',
+      account: 'nerd',
       amount: '10'
     })
 
@@ -161,7 +161,7 @@ describe('The Noob and the Nerd', function () {
   it('should reject a transfer that puts the balance under limit', () => {
     return noob.send({
       id: 'second',
-      account: 'x',
+      account: 'nerd',
       amount: '1000'
     }).catch((e) => {
       assert(e)
@@ -171,7 +171,7 @@ describe('The Noob and the Nerd', function () {
   it('should reject a transfer with an invalid amount (noob)', () => {
     return noob.send({
       id: 'invalid_amount',
-      account: 'x',
+      account: 'nerd',
       amount: 'garbage'
     }).then(() => {
       assert(false)
@@ -183,7 +183,7 @@ describe('The Noob and the Nerd', function () {
   it('should reject a transfer with an invalid amount (nerd)', () => {
     return nerd.send({
       id: 'invalid_amount_2',
-      account: 'x',
+      account: 'noob',
       amount: 'garbage'
     }).then(() => {
       assert(false)
@@ -207,7 +207,7 @@ describe('The Noob and the Nerd', function () {
 
     nerd.send({
       id: 'third',
-      account: 'x',
+      account: 'noob',
       amount: '100'
     })
 
@@ -264,7 +264,7 @@ describe('The Noob and the Nerd', function () {
 
     nerd.send({
       id: 'fourth',
-      account: 'x',
+      account: 'noob',
       amount: '100'
     })
 
@@ -321,7 +321,7 @@ describe('The Noob and the Nerd', function () {
     return noob.send({
       id: 'first',
       amount: '10',
-      account: 'x'
+      account: 'nerd'
     })
   })
 
@@ -329,7 +329,7 @@ describe('The Noob and the Nerd', function () {
     return nerd.send({
       id: 'first',
       amount: '10',
-      account: 'x'
+      account: 'noob'
     })
   })
 
@@ -337,7 +337,7 @@ describe('The Noob and the Nerd', function () {
     return noob.send({
       id: 'first',
       amount: '100',
-      account: 'x'
+      account: 'nerd'
     }).catch((e) => {
       assert.equal(e.name, 'DuplicateIdError')
     })
@@ -347,7 +347,7 @@ describe('The Noob and the Nerd', function () {
     return nerd.send({
       id: 'first',
       amount: '100',
-      account: 'x'
+      account: 'noob'
     }).catch((e) => {
       assert.equal(e.name, 'DuplicateIdError')
     })
@@ -357,7 +357,7 @@ describe('The Noob and the Nerd', function () {
     return noob.send({
       id: 'first',
       amount: '10',
-      account: 'x',
+      account: 'nerd',
       data: new Buffer('')
     }).catch((e) => {
       assert.equal(e.name, 'DuplicateIdError')
@@ -368,7 +368,7 @@ describe('The Noob and the Nerd', function () {
     return nerd.send({
       id: 'first',
       amount: '10',
-      account: 'x',
+      account: 'noob',
       data: new Buffer('')
     }).catch((e) => {
       assert.equal(e.name, 'DuplicateIdError')

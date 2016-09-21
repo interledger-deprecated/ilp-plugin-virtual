@@ -75,7 +75,7 @@ class NerdPluginVirtual extends EventEmitter {
       scale: 15,
       currencyCode: '???',
       currencySymbol: '?'
-    }), {connectors: [{ connector: opts.connector}]})
+    }), {connectors: [{id: uuid(), name: 'connector', connector: opts.connector}]})
 
     this.transferLog = new TransferLog(opts._store)
 
@@ -254,7 +254,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const valid = yield this.balance.checkAndSettleOutgoing(transfer.amount)
     const validAmount = (typeof transfer.amount === 'string' &&
-      !isNaN(transfer.amount - 0) && (transfer.amount - 0 >= 0))
+      !isNaN(transfer.amount - 0) && (transfer.amount - 0 > 0))
     const validAccount = (typeof transfer.account === 'string')
 
     if (!validAmount || !validAccount) {
@@ -266,7 +266,10 @@ class NerdPluginVirtual extends EventEmitter {
     }
 
     const settleAddress = this.settler && (yield this.settler.getAccount())
-    yield this.rpc.call('send', [transfer, settleAddress])
+    yield this.rpc.call('send', [
+      Object.assign({}, transfer, {account: this._account}),
+      settleAddress
+    ])
 
     if (!transfer.executionCondition) {
       yield this.balance.add(transfer.amount)
@@ -517,7 +520,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const valid = yield this.balance.checkAndSettleIncoming(transfer.amount)
     const validAmount = (typeof transfer.amount === 'string' &&
-      !isNaN(transfer.amount - 0))
+      !isNaN(transfer.amount - 0) && ((transfer.amount - 0) > 0))
     const validAccount = (typeof transfer.account === 'string')
 
     if (!validAmount || !validAccount) {

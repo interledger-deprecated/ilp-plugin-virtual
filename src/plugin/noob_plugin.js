@@ -227,12 +227,12 @@ class NoobPluginVirtual extends EventEmitter {
     return this.rpc.call('getFulfillment', [transferId])
   }
 
-  rejectIncomingTransfer (transferId) {
+  rejectIncomingTransfer (transferId, message) {
     this._log('sending out a manual reject on tid: ' + transferId)
-    return this.rpc.call('rejectIncomingTransfer', [transferId])
+    return this.rpc.call('rejectIncomingTransfer', [transferId, message])
       .then((transfer) => {
         if (transfer) {
-          this.emit('incoming_reject', transfer)
+          this.emit('incoming_reject', transfer, message)
         }
       })
   }

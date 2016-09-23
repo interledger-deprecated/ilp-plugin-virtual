@@ -395,7 +395,7 @@ class NerdPluginVirtual extends EventEmitter {
     yield this.balance.add(transfer.amount)
     yield this.transferLog.finalize(transfer.id, undefined)
 
-    this.emit('incoming_reject', transfer, 'manually rejected')
+    this.emit('incoming_reject', transfer, message)
     this.rpc.call('rejectIncomingTransfer', [transfer, message])
   }
 

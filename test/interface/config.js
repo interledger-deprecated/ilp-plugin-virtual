@@ -1,16 +1,16 @@
 // mock require the network connection
 const mockRequire = require('mock-require')
 const mock =
-  require('../test/mocks/mockConnection')
+  require('../mocks/mockConnection')
 const MockConnection = mock.MockConnection
 const MockChannels = mock.MockChannels
 mockRequire(
-  '../src/model/connection',
+  '../../src/model/connection',
   MockConnection
 )
 
 // This field contains the constructor for a plugin
-exports.plugin = require('..')
+exports.plugin = require('../..')
 
 // This specifies the number of time in seconds that the plugin needs in order
 // to fulfill a transfer (from send until fulfillment goes through).

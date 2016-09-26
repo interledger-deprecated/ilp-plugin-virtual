@@ -23,7 +23,7 @@ const base64url = require('base64url')
 const transferEqual = (l, r) => {
   try {
     return (l.account === r.account &&
-      l.amount - 0 === r.amount - 0 &&
+      num(l.amount) === num(r.amount) &&
       l.ledger === r.ledger &&
       l.executionCondition === r.executionCondition &&
       l.noteToSelf === r.noteToSelf &&
@@ -33,6 +33,9 @@ const transferEqual = (l, r) => {
     return false
   }
 }
+
+// stricter string -> number parsing
+const num = require('../util/num')
 
 const cc = require('five-bells-condition')
 
@@ -254,7 +257,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const valid = yield this.balance.checkAndSettleOutgoing(transfer.amount)
     const validAmount = (typeof transfer.amount === 'string' &&
-      !isNaN(transfer.amount - 0) && (transfer.amount - 0 > 0))
+      !isNaN(num(transfer.amount)) && (num(transfer.amount) > 0))
     const validAccount = (typeof transfer.account === 'string')
 
     if (!validAmount || !validAccount) {
@@ -520,7 +523,7 @@ class NerdPluginVirtual extends EventEmitter {
 
     const valid = yield this.balance.checkAndSettleIncoming(transfer.amount)
     const validAmount = (typeof transfer.amount === 'string' &&
-      !isNaN(transfer.amount - 0) && ((transfer.amount - 0) > 0))
+      !isNaN(num(transfer.amount)) && (num(transfer.amount) > 0))
     const validAccount = (typeof transfer.account === 'string')
 
     if (!validAmount || !validAccount) {
@@ -577,9 +580,9 @@ class NerdPluginVirtual extends EventEmitter {
   }
 
   _getSettleAmount (balance) {
-    const balanceNumber = balance - 0
-    const minNumber = this.minBalance - 0
-    const settlePercentNumber = this.settlePercent - 0
+    const balanceNumber = num(balance)
+    const minNumber = num(this.minBalance)
+    const settlePercentNumber = num(this.settlePercent)
 
     // amount that balance must decrease by
     return ((balanceNumber - minNumber) * settlePercentNumber) + ''

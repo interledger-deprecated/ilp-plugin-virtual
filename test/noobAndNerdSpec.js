@@ -180,6 +180,18 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
+  it('should reject a transfer where the amount is non-number JSON', () => {
+    return noob.send({
+      id: 'another_invalid_amount',
+      account: 'nerd',
+      amount: '{}'
+    }).then(() => {
+      assert(false)
+    }).catch((e) => {
+      assert.equal(e.name, 'InvalidFieldsError')
+    })
+  })
+
   it('should reject a transfer with an invalid amount (nerd)', () => {
     return nerd.send({
       id: 'invalid_amount_2',

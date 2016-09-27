@@ -7,6 +7,9 @@ const JsonRpc1 = require('../model/rpc')
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 
+// stricter string -> number parsing
+const num = require('../util/num')
+
 class NoobPluginVirtual extends EventEmitter {
 
   /**
@@ -117,9 +120,9 @@ class NoobPluginVirtual extends EventEmitter {
   }
 
   _getSettleAmount (balance, max) {
-    const balanceNumber = balance - 0
-    const maxNumber = max - 0
-    const settlePercentNumber = this.settlePercent - 0
+    const balanceNumber = num(balance)
+    const maxNumber = num(max)
+    const settlePercentNumber = num(this.settlePercent)
 
     // amount that balance must increase by
     const amount = ((maxNumber - balanceNumber) * settlePercentNumber) + ''
@@ -176,7 +179,10 @@ class NoobPluginVirtual extends EventEmitter {
         return this.settler.getAccount()
       }
     }).then((account) => {
-      return this.rpc.call('send', [outgoingTransfer, account])
+      return this.rpc.call('send', [
+        Object.assign({}, outgoingTransfer, {account: this._account}),
+        account
+      ])
     }).then((res) => {
       if (!res) return Promise.resolve(null)
 
@@ -224,12 +230,12 @@ class NoobPluginVirtual extends EventEmitter {
     return this.rpc.call('getFulfillment', [transferId])
   }
 
-  rejectIncomingTransfer (transferId) {
+  rejectIncomingTransfer (transferId, message) {
     this._log('sending out a manual reject on tid: ' + transferId)
-    return this.rpc.call('rejectIncomingTransfer', [transferId])
+    return this.rpc.call('rejectIncomingTransfer', [transferId, message])
       .then((transfer) => {
         if (transfer) {
-          this.emit('incoming_reject', transfer)
+          this.emit('incoming_reject', transfer, message)
         }
       })
   }

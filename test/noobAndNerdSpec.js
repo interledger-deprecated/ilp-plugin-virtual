@@ -6,6 +6,7 @@ const MockConnection = mock.MockConnection
 const MockChannels = mock.MockChannels
 mockRequire('../src/model/connection', MockConnection)
 
+const sinon = require('sinon')
 const PluginVirtual = require('..')
 const assert = require('chai').assert
 const newObjStore = require('./helpers/objStore')
@@ -329,7 +330,7 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should not reject a repeat transfer from the noob', () => {
+  it('should not complain on a repeat transfer from the noob', () => {
     return noob.send({
       id: 'first',
       amount: '10',
@@ -337,7 +338,7 @@ describe('The Noob and the Nerd', function () {
     })
   })
 
-  it('should not reject a repeat transfer from the nerd', () => {
+  it('should not complain on a repeat transfer from the nerd', () => {
     return nerd.send({
       id: 'first',
       amount: '10',
@@ -395,6 +396,14 @@ describe('The Noob and the Nerd', function () {
       transfer: {id: 'first'},
       message: 'late reject'
     })
+  })
+
+  it('should not acknowledge an invalid rpc call', () => {
+    const stub = sinon.stub()
+    nerd.rpc.addMethod('trash', stub)
+    noob.rpc.call('trash', 20)
+    
+    sinon.assert.notCalled(stub)
   })
 
   it('should hold same balance when nerd is made with old db', () => {

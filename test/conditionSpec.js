@@ -561,6 +561,17 @@ describe('Conditional transfers with Nerd and Noob', function () {
     return p
   })
 
+  it('should be unable to fulfill a rejected transfer', () => {
+    return nerd.fulfillCondition('seventh', fulfillment)
+      .then(() => {
+        assert(false)
+      })
+      .catch((e) => {
+        assert.equal(e.name, 'AlreadyRolledBackError')
+      })
+  })
+
+
   it('should be able to prematurely reject transfer as noob', () => {
     const p = new Promise((resolve) => {
       noob.once('incoming_prepare', (transfer, message) => {

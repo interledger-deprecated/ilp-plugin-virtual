@@ -167,6 +167,21 @@ describe('Automatic settlement', function () {
     })
   })
 
+  it('should not settle as nerd if settlement doesn\'t come from noob', function () {
+    const plugin = new OptimisticPlugin({
+      channels: channels,
+      index: 1,
+      address: 'example.plugin3',
+      prefix: 'example.'
+    })
+
+    plugin.send({
+      account: 'example.plugin1',
+      amount: '10',
+      id: uuid()
+    })
+  })
+
   it('should give an error settling without a settler as nerd', function () {
     const id = uuid()
 
@@ -177,6 +192,12 @@ describe('Automatic settlement', function () {
       id: id
     }).catch((e) => {
       assert.equal(e.name, 'NotAcceptedError')
+    })
+  })
+
+  it('should get the settle address from the nerd', function () {
+    return noob.getSettleAddress().then((address) => {
+      assert.equal(address, 'example.plugin1')
     })
   })
 })

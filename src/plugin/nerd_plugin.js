@@ -21,17 +21,13 @@ const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
 const base64url = require('base64url')
 const transferEqual = (l, r) => {
-  try {
-    return (l.account === r.account &&
-      num(l.amount) === num(r.amount) &&
-      l.ledger === r.ledger &&
-      l.executionCondition === r.executionCondition &&
-      l.noteToSelf === r.noteToSelf &&
-      l.data === r.data &&
-      l.expiresAt === r.expiresAt)
-  } catch (e) {
-    return false
-  }
+  return (l.account === r.account &&
+    num(l.amount) === num(r.amount) &&
+    l.ledger === r.ledger &&
+    l.executionCondition === r.executionCondition &&
+    l.noteToSelf === r.noteToSelf &&
+    l.data === r.data &&
+    l.expiresAt === r.expiresAt)
 }
 
 // stricter string -> number parsing

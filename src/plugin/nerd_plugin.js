@@ -201,6 +201,10 @@ class NerdPluginVirtual extends EventEmitter {
         return Promise.resolve(true)
       })
     })
+
+    this.rpc.addMethod('getSettleAddress', () => {
+      return this.settler.getAccount()
+    })
   }
 
   getAccount () {

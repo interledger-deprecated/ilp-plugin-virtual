@@ -245,5 +245,13 @@ class NoobPluginVirtual extends EventEmitter {
       return Promise.resolve(prefix + this._account)
     })
   }
+
+  getSettleAddress () {
+    return this.rpc.call('getSettleAddress', [])
+      .then((address) => {
+        this.settleAddress = address
+        return Promise.resolve(address)
+      })
+  }
 }
 module.exports = NoobPluginVirtual

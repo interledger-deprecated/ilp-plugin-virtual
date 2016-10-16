@@ -2,10 +2,10 @@
 
 [npm-image]: https://img.shields.io/npm/v/ilp-plugin-virtual.svg?style=flat
 [npm-url]: https://npmjs.org/package/ilp-plugin-virtual
-[circle-image]: https://circleci.com/gh/interledger/js-ilp-plugin-virtual.svg?style=shield
-[circle-url]: https://circleci.com/gh/interledger/js-ilp-plugin-virtual
-[codecov-image]: https://codecov.io/gh/interledger/js-ilp-plugin-virtual/branch/master/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/interledger/js-ilp-plugin-virtual
+[circle-image]: https://circleci.com/gh/interledgerjs/ilp-plugin-virtual.svg?style=shield
+[circle-url]: https://circleci.com/gh/interledgerjs/ilp-plugin-virtual
+[codecov-image]: https://codecov.io/gh/interledgerjs/ilp-plugin-virtual/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/interledgerjs/ilp-plugin-virtual
 
 > ILP virtual ledger plugin for directly transacting connectors
 

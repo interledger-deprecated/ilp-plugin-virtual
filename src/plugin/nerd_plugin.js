@@ -138,7 +138,7 @@ class NerdPluginVirtual extends EventEmitter {
         return
       }
 
-      this.settler.send({
+      this.settler.sendTransfer({
         account: this.settleAddress,
         amount: this._getSettleAmount(balance),
         id: uuid()
@@ -165,6 +165,15 @@ class NerdPluginVirtual extends EventEmitter {
 
     this.rpc.addMethod('send', (transfer, settleAddress) => {
       return co.wrap(this._handleSend).call(this, transfer, settleAddress)
+    })
+
+    this.rpc.addMethod('message', (message, destination) => {
+      this.validateMessage(message)
+      if (destination !== this._account) {
+        return Promise.reject(new InvalidFieldsError('invalid account'))
+      }
+      this.emit('incoming_message', message)
+      return Promise.resolve(true)
     })
 
     this.rpc.addMethod('getBalance', () => {
@@ -239,7 +248,7 @@ class NerdPluginVirtual extends EventEmitter {
     return Promise.resolve([this.connector])
   }
 
-  send (transfer) {
+  sendTransfer (transfer) {
     return co.wrap(this._send).call(this, transfer)
   }
 
@@ -284,6 +293,34 @@ class NerdPluginVirtual extends EventEmitter {
     yield this._completeTransfer(transfer)
     this._handleTimer(transfer)
 
+    return Promise.resolve(null)
+  }
+
+  sendMessage (message) {
+    return co.wrap(this._sendMessage).call(this, message)
+  }
+
+  validateMessage (message) {
+    if (!message.account) {
+      throw new InvalidFieldsError('message account is invalid')
+    } else if (!message.data) {
+      throw new InvalidFieldsError('message contains no data')
+    } else if (message.ledger !== this.prefix) {
+      throw new InvalidFieldsError('incorrect ledger: ' + message.ledger)
+    }
+  }
+
+  * _sendMessage (message) {
+    this.validateMessage(message)
+
+    this._log('sending out a message to account: ' + message.account)
+
+    yield this.rpc.call('message', [
+      Object.assign({}, message, {account: this._account}),
+      message.account
+    ])
+    this.emit('outgoing_message', message)
+    
     return Promise.resolve(null)
   }
 

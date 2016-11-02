@@ -6,6 +6,7 @@ const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
 const log = require('../util/log')('ilp-plugin-virtual')
 const uuid = require('uuid4')
+const InvalidFieldsError = require('../util/errors').InvalidFieldsError
 
 // stricter string -> number parsing
 const num = require('../util/num')
@@ -62,7 +63,7 @@ class NoobPluginVirtual extends EventEmitter {
       if (!this.settleAddress || this.settling) return
 
       this.settling = true
-      this.settler.send({
+      this.settler.sendTransfer({
         account: this.settleAddress,
         amount: this._getSettleAmount(balance, max),
         id: uuid()
@@ -88,6 +89,14 @@ class NoobPluginVirtual extends EventEmitter {
         this.emit('incoming_transfer', transfer)
       }
 
+      return Promise.resolve(true)
+    })
+
+    this.rpc.addMethod('message', (message, destination) => {
+      if (destination !== this._account) {
+        return Promise.reject(new InvalidFieldsError('invalid account'))
+      }
+      this.emit('incoming_message', message)
       return Promise.resolve(true)
     })
 
@@ -171,7 +180,7 @@ class NoobPluginVirtual extends EventEmitter {
     return this.rpc.call('getConnectors', [])
   }
 
-  send (outgoingTransfer) {
+  sendTransfer (outgoingTransfer) {
     this._log('sending out a Transfer with tid: ' + outgoingTransfer.id)
     return this.getPrefix().then((prefix) => {
       outgoingTransfer.ledger = prefix
@@ -193,6 +202,17 @@ class NoobPluginVirtual extends EventEmitter {
       }
 
       return Promise.resolve(null)
+    })
+  }
+
+  sendMessage (message) {
+    this._log('sending out a message to account ' + message.account)
+    return this.rpc.call('message', [
+      Object.assign({}, outgoingTransfer, {account: this._account}),
+      message.account
+    ]).then((res) => {
+      if (!res) return Promise.resolve(null)
+      this.emit('outgoing_message', message)
     })
   }
 

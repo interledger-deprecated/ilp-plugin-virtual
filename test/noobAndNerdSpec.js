@@ -144,7 +144,7 @@ describe('The Noob and the Nerd', function () {
       })
     })
 
-    noob.send({
+    noob.sendTransfer({
       id: 'first',
       account: 'nerd',
       amount: '10'
@@ -160,7 +160,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a transfer that puts the balance under limit', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'second',
       account: 'nerd',
       amount: '1000'
@@ -170,7 +170,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a transfer with an invalid amount (noob)', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'invalid_amount',
       account: 'nerd',
       amount: 'garbage'
@@ -182,7 +182,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a transfer where the amount is non-number JSON', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'another_invalid_amount',
       account: 'nerd',
       amount: '{}'
@@ -194,7 +194,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a transfer with an invalid amount (nerd)', () => {
-    return nerd.send({
+    return nerd.sendTransfer({
       id: 'invalid_amount_2',
       account: 'noob',
       amount: 'garbage'
@@ -218,7 +218,7 @@ describe('The Noob and the Nerd', function () {
       assert(balance === '90')
     })
 
-    nerd.send({
+    nerd.sendTransfer({
       id: 'third',
       account: 'noob',
       amount: '100'
@@ -275,7 +275,7 @@ describe('The Noob and the Nerd', function () {
       })
     ])
 
-    nerd.send({
+    nerd.sendTransfer({
       id: 'fourth',
       account: 'noob',
       amount: '100'
@@ -331,7 +331,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should not complain on a repeat transfer from the noob', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'first',
       amount: '10',
       account: 'nerd'
@@ -339,7 +339,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should not complain on a repeat transfer from the nerd', () => {
-    return nerd.send({
+    return nerd.sendTransfer({
       id: 'first',
       amount: '10',
       account: 'noob'
@@ -347,7 +347,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a non-matching repeat transfer from the noob', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'first',
       amount: '100',
       account: 'nerd'
@@ -357,7 +357,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a non-matching repeat transfer from the nerd', () => {
-    return nerd.send({
+    return nerd.sendTransfer({
       id: 'first',
       amount: '100',
       account: 'noob'
@@ -367,7 +367,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a non-matching repeat transfer with extra field from the noob', () => {
-    return noob.send({
+    return noob.sendTransfer({
       id: 'first',
       amount: '10',
       account: 'nerd',
@@ -378,7 +378,7 @@ describe('The Noob and the Nerd', function () {
   })
 
   it('should reject a repeat transfer with extra field from the nerd', () => {
-    return nerd.send({
+    return nerd.sendTransfer({
       id: 'first',
       amount: '10',
       account: 'noob',

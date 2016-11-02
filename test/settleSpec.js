@@ -127,7 +127,7 @@ describe('Automatic settlement', function () {
       })
     })
 
-    noob.send({
+    noob.sendTransfer({
       account: 'ilpdemo.red.alice',
       amount: '10',
       id: id
@@ -145,7 +145,7 @@ describe('Automatic settlement', function () {
       })
     })
 
-    nerd.send({
+    nerd.sendTransfer({
       account: 'ilpdemo.red.alice',
       amount: '10',
       id: id
@@ -158,7 +158,7 @@ describe('Automatic settlement', function () {
     const id = uuid()
 
     noob.settler = null
-    noob.send({
+    noob.sendTransfer({
       account: 'ilpdemo.red.alice',
       amount: '10',
       id: id
@@ -175,7 +175,7 @@ describe('Automatic settlement', function () {
       prefix: 'example.'
     })
 
-    plugin.send({
+    plugin.sendTransfer({
       account: 'example.plugin1',
       amount: '10',
       id: uuid()
@@ -186,7 +186,7 @@ describe('Automatic settlement', function () {
     const id = uuid()
 
     nerd.settleAddress = null
-    nerd.send({
+    nerd.sendTransfer({
       account: 'ilpdemo.red.alice',
       amount: '10',
       id: id

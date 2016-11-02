@@ -19,7 +19,7 @@ class MockOptimisticPlugin extends EventEmitter {
 
   disconnect () { return Promise.resolve(null) }
 
-  send (transfer) {
+  sendTransfer (transfer) {
     this.channels[(this.index + 1) % 2].emit(
       'incoming_transfer',
       Object.assign({},

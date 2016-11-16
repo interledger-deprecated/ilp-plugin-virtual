@@ -116,7 +116,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validate(fulfillment, 'fulfillment')
 
     yield this._transferLog.assertIncoming(transferId)
-    yield this._transferLog.fulfillable(transferId) // must be conditional, unfulfilled, and incoming
+    yield this._transferLog.assertFulfillable(transferId)
     const transfer = yield this._transferLog.get(transferId)
 
     cc.validateFulfillment(fulfillment, transfer.executionCondition)
@@ -135,11 +135,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validate(fulfillment, 'fulfillment')
 
     yield this._transferLog.assertOutgoing(transferId)
-    yield this._transferLog.fulfillable(transferId)
+    yield this._transferLog.assertFulfillable(transferId)
     const transfer = yield this._transferLog.get(transferId)
 
     cc.validateFulfillment(fulfillment, transfer.executionCondition)
-    yield this._transferLog.fulfillOutgoing(transferId)
+    yield this._transferLog.fulfill(transferId)
 
     this.emitAsync('outgoing_fulfill', transfer, fulfillment)
     return true
@@ -154,7 +154,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _handleRejectIncomingTransfer (transferId, reason) {
-    yield this._transferLog.cancelOutgoing(transferId)
+    yield this._transferLog.cancel(transferId)
     const transfer = yield this._transferLog.get(transferId)
 
     this.emitAsync('outgoing_reject', transfer, reason)
@@ -162,7 +162,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _handleCancelTransfer (transferId) {
-    yield this._transferLog.cancelOutgoing(transferId)
+    yield this._transferLog.cancel(transferId)
     const transfer = yield this._transferLog.get(transferId)
 
     this.emitAsync('outgoing_cancel', transfer)

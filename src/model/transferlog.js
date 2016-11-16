@@ -1,9 +1,8 @@
 'use strict'
-// const log = require('../util/log')
 
-class TransferLog {
+module.exports = class TransferLog {
 
-  constructor (store) {
+  constructor (store, plugin) {
     this._get = store.get
     this._put = store.put
     this._del = store.del
@@ -11,94 +10,91 @@ class TransferLog {
     this.outgoing = 'outgoing'
   }
 
-  get (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      if (json) {
-        const transfer = JSON.parse(json).transfer
-        return Promise.resolve({
-          id: transfer.id,
-          account: transfer.account,
-          ledger: transfer.ledger,
-          amount: transfer.amount,
-          data: transfer.data,
-          noteToSelf: transfer.noteToSelf,
-          executionCondition: transfer.executionCondition,
-          expiresAt: transfer.expiresAt,
-          custom: transfer.custom
-        })
-      } else {
-        return Promise.resolve(undefined)
-      }
-    })
+  * get (transferId) {
+    return (yield this._getPackaged(transferId)).transfer
   }
 
-  isIncoming (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      if (json) {
-        return Promise.resolve(JSON.parse(json).isIncoming)
-      } else {
-        return Promise.resolve(undefined)
-      }
-    })
+  * fulfill (transferId) {
+    yield this._setState(transferId, 'fulfilled')
   }
 
-  store (transfer, incoming) {
-    return (this._put('t' + transfer.id, JSON.stringify({
+  * cancel (transferId) {
+    yield this._setState(transferId, 'cancelled')
+  }
+
+  * _setState(transferId, state) {
+    const existingTransfer = yield this._getPackaged(transferId)
+    yield this.assertFulfillable(transferId)
+
+    existingTransfer.state = state
+    yield this._storePackaged(existingTransfer)
+  }
+
+  * storeIncoming (transfer) {
+    yield this.store(transfer, true) 
+  }
+
+  * storeOutgoing (transfer) {
+    yield this.store(transfer, false)
+  }
+
+  * _store (transfer, isIncoming) {
+    const existingTransfer = yield this.get(transfer.id)
+    if (existingTransfer && !_.deepEquals(transfer, existingTransfer)) {
+      throw new DuplicateIdError('transfer ' +
+        JSON.stringify(transfer) +
+        ' matches the id of ' +
+        JSON.stringify(existingTransfer) +
+        ' but not the contents.')
+    } else if (existingTransfer) {
+      return
+    }
+
+    yield this._storePackaged({
       transfer: transfer,
-      isIncoming: incoming
-    })))
-  }
-  storeOutgoing (transfer) {
-    return this.store(transfer, false)
-  }
-  storeIncoming (transfer) {
-    return this.store(transfer, true)
-  }
-
-  exists (transferId) {
-    return this.get(transferId).then((storedTransfer) => {
-      return Promise.resolve(storedTransfer !== undefined)
+      state: transfer.executionCondition? 'prepared':'executed',
+      isIncoming: isIncoming
     })
   }
 
-  del (transferId) {
-    return this._del('t' + transferId)
+  * _storePackaged (packaged) {
+    yield this._put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
   }
 
-  complete (transferId) {
-    // TODO: more efficient way of doing this
-    return this._put('c' + transferId, 'complete')
+  * assertIncoming (transferId) {
+    yield this._assertDirection(transferId, true)
   }
 
-  isComplete (transferId) {
-    return this._get('c' + transferId).then((data) => {
-      return Promise.resolve(data !== undefined)
-    })
+  * assertOutgoing (transferId) {
+    yield this._assertDirection(transferId, false)
   }
 
-  finalize (transferId, fulfillment) {
-    // TODO: more efficient way of doing this
-    return this._get('t' + transferId).then((json) => {
-      const obj = Object.assign(JSON.parse(json), {fulfillment: fulfillment})
-      return this._put('t' + transferId, JSON.stringify(obj))
-    }).then(() => {
-      return this._put('f' + transferId, 'complete')
-    })
+  * _assertDirection (transferId, isIncoming) {
+    const packaged = yield this._getPackaged(transferId)
+
+    if (packaged.isIncoming !== isIncoming) {
+      throw new NotAcceptedError('transfer with id ' + transferId + ' is not ' +
+        isIncoming? 'incoming':'outgoing')
+    }
   }
 
-  isFinal (transferId) {
-    return this._get('f' + transferId).then((data) => {
-      return Promise.resolve(data !== undefined)
-    })
+  * assertFulfillable (transferId) {
+    const packaged = yield this._getPackaged(transferId)
+
+    if (!packaged.transfer.executionCondition) {
+      throw new TransferNotConditionalError('transfer with id ' + transferId + ' is not conditional')
+    } else if (packaged.state === 'executed') {
+      throw new AlreadyFulfilledError('transfer with id ' + transferId + ' has already executed')
+    } else if (packaged.state === 'cancelled') {
+      throw new AlreadyRolledBackError('transfer with id ' + transferId + ' has already rolled back')
+    }
   }
 
-  getFulfillment (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      const obj = json && JSON.parse(json)
-      const result = obj && obj.fulfillment
-      return Promise.resolve(result || null)
-    })
+  * _getPackaged (transferId) {
+    const packaged = JSON.parse(yield this._get('transfer_' + transferId))    
+    if (!packaged) {
+      throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
+    }
+    return packaged
   }
 }
-
-exports.TransferLog = TransferLog

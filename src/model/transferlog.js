@@ -2,10 +2,10 @@
 
 module.exports = class TransferLog {
 
-  constructor (store, plugin) {
-    this._get = store.get
-    this._put = store.put
-    this._del = store.del
+  constructor (opts) {
+    this._get = opts.store.get
+    this._put = opts.store.put
+    this._del = opts.store.del
     this.incoming = 'incoming'
     this.outgoing = 'outgoing'
   }

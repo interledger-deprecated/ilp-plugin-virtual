@@ -8,10 +8,8 @@ const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
 const Validator = require('../util/validator')
 const TransferLog = require('../model/transferlog')
-const log = require('debug')('ilp-plugin-virtual')
-
-// for logging purposes
-let n = 1
+const Balance = require('../model/balance')
+const debug = require('debug')('ilp-plugin-virtual')
 
 module.exports = class PluginVirtual extends EventEmitter2 {
 
@@ -23,14 +21,18 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._publicKey = opts.publicKey
     this._token = opts.token
     this._store = opts.store
-    this._id = n++
-    this._balance = new Balance({ maximum: opts.maximum })
+    this._balance = new Balance({ 
+      store: this._store,
+      maximum: opts.maxBalance
+    })
 
     this._prefix = 'peer.' + this._token.substring(0, 5) + '.'
     this._account = this._prefix + this._publicKey
 
     this._validate = new Validator()
-    this._transfers = new TransferLog()
+    this._transfers = new TransferLog({
+      store: this._store
+    })
     this._connected = false
     this._connection = new Connection({
       name: this._id,
@@ -71,24 +73,31 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _sendMessage (message) {
-    this._validator.validate(message, 'message')
+    this._validator.validateTransfer(message)
     yield this._rpc.call('sendMessage', message)
     this.emitAsync('outgoing_message', message)
   }
 
   * _handleMessage (message) {
-    this._validator.validate(message, 'message')
+    this._validator.validateMessage(message)
     this.emitAsync('incoming_message') 
     return true
   }
 
   * _sendTransfer (transfer) {
-    this._validator.validate(transfer, 'transfer')
+    const transfer = Object.assign({},
+      transfer,
+      { ledger: this._prefix })
+
+    this._validator.validateTransfer(transfer)
     yield this._rpc.call('sendTransfer', Object.assign({},
       transfer,
       { account: this._account })
 
-    yield this._balance.subtract(transfer.amount) 
+    if (!transfer.executionCondition) {
+      yield this._balance.sub(transfer.amount) 
+    }
+
     this._transferLog.store(transfer)
 
     this.emitAsync('outgoing_' +
@@ -96,14 +105,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _handleTransfer (transfer) {
-    this._validator.validate(transfer, 'transfer')
-    yield this._balance.validate(transfer.amount)    
-    
-    if (transfer.executionCondition) {
-      yield this._balance.addEscrow(transfer.amount)
-    } else {
-      yield this._balance.add(transfer.amount)
-    }
+    this._validator.validateTransfer(transfer)
+
+    // balance is added on incoming transfers, regardless of condition
+    yield this._balance.add(transfer.amount)
 
     yield this._transferLog.store(transfer)
     this.emitAsync('incoming_' +
@@ -121,8 +126,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     cc.validateFulfillment(fulfillment, transfer.executionCondition)
     yield this._transferLog.fulfill(transferId)
-    yield this._balance.subEscrow(transfer.amount)
-    yield this._balance.add(transfer.amount)
 
     this.emitAsync('incoming_fulfill', transfer, fulfillment)
 
@@ -139,6 +142,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const transfer = yield this._transferLog.get(transferId)
 
     cc.validateFulfillment(fulfillment, transfer.executionCondition)
+    yield this._balance.sub(transfer.amount)
     yield this._transferLog.fulfill(transferId)
 
     this.emitAsync('outgoing_fulfill', transfer, fulfillment)
@@ -146,10 +150,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _rejectIncomingTransfer (transferId) {
-    yield this._transferLog.cancel(transferId) // must be conditional, unfulfilled, and incoming
+    yield this._transferLog.cancel(transferId)
     const transfer = yield this._transferLog.get(transferId)
 
-    this._balance.subEscrow(transfer.amount)
+    this._balance.sub(transfer.amount)
     yield this._rpc.call('rejectIncomingTransfer', transferId)
   }
 

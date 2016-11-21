@@ -33,18 +33,15 @@ exports.options = [
     // constructor.
     'pluginOptions': {
       'publicKey': 'aimoAndvkweuyldjnvAfubKS2352nSG9KDNSgajk',
-      'connector': 'http://localhost:4000',
       'prefix': 'test.nerd.',
       'account': 'nerd',
-      'host': 'ws://broker.hivemq.com:8000',
-      'minBalance': '0',
+      'broker': 'ws://broker.hivemq.com:8000',
       'maxBalance': '1000',
-      'initialBalance': '100',
-      'settleIfUnder': '0',
-      'settleIfOver': '1000',
       'token': token,
-      'mockChannels': MockChannels,
-      'secret': 'not used yet',
+      'other': {
+        'channels': MockChannels,
+        'name': 'nerd'
+      },
       'info': {
         'currencyCode': 'USD',
         'currencySymbol': '$',
@@ -65,18 +62,15 @@ exports.options = [
   {
     'pluginOptions': {
       'publicKey': 'biap24ts09xAFSFVWHGvuoVVr7mUVPTrVKUROWT',
-      'connector': 'http://localhost:4000',
       'prefix': 'test.nerd.',
       'account': 'noob',
-      'host': 'ws://broker.hivemq.com:8000',
-      'minBalance': '0',
+      'broker': 'ws://broker.hivemq.com:8000',
       'maxBalance': '1000',
-      'initialBalance': '100',
-      'settleIfUnder': '0',
-      'settleIfOver': '1000',
       'token': token,
-      'mockChannels': MockChannels,
-      'secret': 'not used yet',
+      'other': {
+        'channels': MockChannels,
+        'name': 'noob'
+      },
       'info': {
         'currencyCode': 'USD',
         'currencySymbol': '$',

@@ -8,6 +8,7 @@ const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
 const Validator = require('../util/validator')
 const TransferLog = require('../model/transferlog')
+const NotAcceptedError = require('../util/errors').NotAcceptedError
 const Balance = require('../model/balance')
 const debug = require('debug')('ilp-plugin-virtual')
 
@@ -35,12 +36,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       store: this._store
     })
     this._connected = false
-  /*  this._connection = new Connection({
-      name: '',
+    this._connection = new Connection({
+      name: opts.publicKey,
       token: opts.token,
-      host: opts.broker 
-    }) */
-    this._connection = new Connection(opts)
+      host: opts.broker,
+      other: opts.other
+    })
 
     // register RPC methods
     this._rpc = new JsonRpc1(this._connection, this)
@@ -150,7 +151,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     yield this._transfers.assertAllowedChange(transferId, 'executed')
     const transfer = yield this._transfers.get(transferId)
 
-    cc.validateFulfillment(fulfillment, transfer.executionCondition)
+    yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
       this.emitAsync('incoming_fulfill', transfer, fulfillment)
     }
@@ -167,7 +168,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     yield this._transfers.assertAllowedChange(transferId, 'executed')
     const transfer = yield this._transfers.get(transferId)
 
-    cc.validateFulfillment(fulfillment, transfer.executionCondition)
+    yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     yield this._balance.sub(transfer.amount)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
       this.emitAsync('outgoing_fulfill', transfer, fulfillment)
@@ -275,5 +276,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _getInfo () {
     return this._info
+  }
+
+  * _validateFulfillment (fulfillment, condition) {
+    try {
+      cc.validateFulfillment(fulfillment, condition)
+    } catch (e) {
+      throw new NotAcceptedError(e.message)
+    }
   }
 }

@@ -8,9 +8,9 @@ class MockConnection extends EventEmitter {
     super()
 
     this.config = config
-    this.name = config.account
+    this.name = config.other.name
     this.token = config.token
-    this.channels = config.mockChannels
+    this.channels = config.other.channels
     this.connected = false
 
     this.client = null
@@ -26,7 +26,7 @@ class MockConnection extends EventEmitter {
     }
 
     this.isNoob = true
-    if (this.config.account === 'nerd') {
+    if (this.name === 'nerd') {
       this.isNoob = false
     }
 

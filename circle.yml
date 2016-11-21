@@ -3,9 +3,8 @@ machine:
     version: 6.2.0
 test:
   override:
-    - npm test --coverage
     # Run plugin tests
-    - npm run plugin-tests
+    - npm test
   post:
     - bash <(curl -s https://codecov.io/bash)
 deployment:

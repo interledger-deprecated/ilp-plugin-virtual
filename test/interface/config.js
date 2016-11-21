@@ -9,18 +9,16 @@ mockRequire(
   MockConnection
 )
 
+const newObjStore = require('../helpers/objStore')
+const store1 = newObjStore()
+const store2 = newObjStore()
+
 // This field contains the constructor for a plugin
 exports.plugin = require('../..')
 
 // This specifies the number of time in seconds that the plugin needs in order
 // to fulfill a transfer (from send until fulfillment goes through).
-exports.timeout = 1
-
-let store = {}
-let s = store.s = {}
-store.get = (k) => { return Promise.resolve(s[k]) }
-store.put = (k, v) => { s[k] = v; return Promise.resolve(null) }
-store.del = (k) => { s[k] = undefined; return Promise.resolve(null) }
+exports.timeout = 0.2
 
 const crypto = require('crypto')
 const token = crypto.randomBytes(32).toString('hex')
@@ -34,6 +32,7 @@ exports.options = [
     // These are the PluginOptions passed into the plugin's
     // constructor.
     'pluginOptions': {
+      'publicKey': 'aimoAndvkweuyldjnvAfubKS2352nSG9KDNSgajk',
       'connector': 'http://localhost:4000',
       'prefix': 'test.nerd.',
       'account': 'nerd',
@@ -46,27 +45,49 @@ exports.options = [
       'token': token,
       'mockChannels': MockChannels,
       'secret': 'not used yet',
-      '_store': store
+      'info': {
+        'currencyCode': 'USD',
+        'currencySymbol': '$',
+        'precision': 15,
+        'scale': 15,
+        'connectors': [ { id: 'other', name: 'other', connector: 'peer.other' } ]
+      },
+      '_store': store1
     },
     // These objects are merged with transfers originating from
     // their respective plugins. Should specify the other plugin's
     // account, so that the two plugins can send to one another
     'transfer': {
-      'account': 'noob'
+      'account': 'peer.' + token.substring(0, 5) + '.biap24ts09xAFSFVWHGvuoVVr7mUVPTrVKUROWT'
     }
   },
   // options for the second plugin
   {
     'pluginOptions': {
-      'prefix': 'test.noob.',
+      'publicKey': 'biap24ts09xAFSFVWHGvuoVVr7mUVPTrVKUROWT',
+      'connector': 'http://localhost:4000',
+      'prefix': 'test.nerd.',
       'account': 'noob',
       'host': 'ws://broker.hivemq.com:8000',
-      'mockConnection': MockConnection,
+      'minBalance': '0',
+      'maxBalance': '1000',
+      'initialBalance': '100',
+      'settleIfUnder': '0',
+      'settleIfOver': '1000',
+      'token': token,
       'mockChannels': MockChannels,
-      'token': token
+      'secret': 'not used yet',
+      'info': {
+        'currencyCode': 'USD',
+        'currencySymbol': '$',
+        'precision': 15,
+        'scale': 15,
+        'connectors': [ { id: 'other', name: 'other', connector: 'peer.other' } ]
+      },
+      '_store': store2
     },
     'transfer': {
-      'account': 'nerd'
+      'account': 'peer.' + token.substring(0, 5) + '.aimoAndvkweuyldjnvAfubKS2352nSG9KDNSgajk'
     }
   }
 ]

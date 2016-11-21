@@ -14,6 +14,10 @@ module.exports = class Balance {
   }
 
   * get () {
+    return (yield this._getNumber()).toString()
+  }
+
+  * _getNumber () {
     const stored = yield this._get(this._key)
 
     if (!this._isNumber(stored)) {
@@ -28,7 +32,7 @@ module.exports = class Balance {
   * add (number) {
     this._assertNumber(number)
 
-    const balance = this.get()
+    const balance = yield this._getNumber()
     if (balance.add(new BigNumber(number)).gt(this._maximum)) {
       throw new NotAcceptedError('adding amount (' + number +
         ') to balance (' + balance +
@@ -42,7 +46,7 @@ module.exports = class Balance {
   * sub (number) {
     this._assertNumber(number)
     this._put(this._key,
-      (yield this.get()).sub(new BigNumber(number)).toString())
+      (yield this._getNumber()).sub(new BigNumber(number)).toString())
   }
 
   * _assertNumber (number) {
@@ -51,7 +55,7 @@ module.exports = class Balance {
     }
   }
 
-  * _isNumber (string) {
+  _isNumber (string) {
     try {
       return !!(new BigNumber(string))
     } catch (e) {

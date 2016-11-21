@@ -1,6 +1,6 @@
 'use strict'
 const EventEmitter = require('events')
-const log = require('../../src/util/log')('connection')
+const log = require('debug')('connection')
 
 class MockConnection extends EventEmitter {
 
@@ -26,7 +26,7 @@ class MockConnection extends EventEmitter {
     }
 
     this.isNoob = true
-    if (this.config.secret) {
+    if (this.config.account === 'nerd') {
       this.isNoob = false
     }
 
@@ -35,11 +35,11 @@ class MockConnection extends EventEmitter {
   }
 
   _log (msg) {
-    log.log(this.name + ': ' + msg)
+    log(this.name + ': ' + msg)
   }
 
   _handle (err) {
-    log.error(this.name + ': ' + err)
+    log(this.name + ': ' + err)
   }
 
   connect () {
@@ -69,7 +69,7 @@ class MockConnection extends EventEmitter {
           'message',
           this.sendChannel,
           JSON.stringify(msg))
-      }, 0)
+      }, 10)
       resolve()
     })
   }

@@ -1,7 +1,7 @@
 'use strict'
 const BigNumber = require('bignumber.js')
 const cc = require('five-bells-condition')
-const InvalidFieldsError = require('errors').InvalidFieldsError
+const InvalidFieldsError = require('./errors').InvalidFieldsError
 
 module.exports = class Validator {
   validateTransfer (t) {
@@ -22,55 +22,79 @@ module.exports = class Validator {
   }
 
   validateMessage (m) {
-    assert(m.to, 'must have a destination account')
-    assert(m.from, 'must have a source account')
+    if (!m.account) {
+      assert(m.to, 'must have a destination account')
+      assert(m.from, 'must have a source account')
+      assertAccount(m.to, 'to')
+      assertAccount(m.from, 'from')
+    } else {
+      assert(m.account, 'must have an account')
+      assertAccount(m.account, 'account')
+    }
+
+    assert(m.ledger, 'must have a ledger')
     assert(m.data, 'must have data')
 
-    assertAccount(m.to, 'to')
-    assertAccount(m.from, 'from')
+    assertPrefix(m.ledger, 'ledger')
     assertObject(m.data, 'data')
+  }
+
+  validateFulfillment (f) {
+    assert(f, 'fulfillment must not be "' + f + '"')
+    assertFulfillment(f, 'fulfillment')
   }
 }
 
-assert(cond, msg) {
+function assert(cond, msg) {
   if (!cond) throw new InvalidFieldsError(msg)
 }
 
-assertType (value, type, name) {
-  assert(value || typeof(value) === type,
+function assertType (value, name, type) {
+  assert(!value || typeof(value) === type,
     name + ' (' + value + ') must be a non-empty ' + type)
 }
 
-assertString (value, name) {
+function assertString (value, name) {
   assertType(value, name, 'string')
 }
 
-assertObject (value, name) {
+function assertObject (value, name) {
   assertType(value, name, 'object')
 }
 
-assertPrefix (value, name) {
+function assertPrefix (value, name) {
   assertString(value, name)
   assert(value.match(/^[a-zA-Z0-9._~-]+\.$/),
     name + ' (' + value + ') must be a valid ILP prefix')
 }
 
-assertAccount (value, name) {
+function assertAccount (value, name) {
   assertString(value, name)
   assert(value.match(/^[a-zA-Z0-9._~-]+$/),
     name + ' (' + value + ') must be a valid ILP account')
 }
 
-assertCondition (value, name) {
+function assertCondition (value, name) {
+  if (!value) return
   assertString(value, name)
   try {
     cc.validateCondition(value)
   } catch (e) {
-    throw new InvalidFieldsError(e.message)
+    throw new InvalidFieldsError(name + ' (' + value + '): ' + e.message)
   }
 }
 
-isNumber (number) {
+function assertFulfillment (value, name) {
+  if (!value) return
+  assertString(value, name)
+  try {
+    cc.fromFulfillmentUri(value)
+  } catch (e) {
+    throw new InvalidFieldsError(name + ' (' + value + '): ' + e.message)
+  }
+}
+
+function isNumber (number) {
   try {
     return !!(new BigNumber(number))
   } catch (e) {
@@ -78,9 +102,9 @@ isNumber (number) {
   }
 }
 
-assertNumber (value, name) {
+function assertNumber (value, name) {
   assert(isNumber(value),
     name + ' (' + value + ') must be a number')
-  assert(num.gt(new BigNumber('0')),
+  assert((new BigNumber(value)).gt(new BigNumber('0')),
     name + ' (' + value + ') must be positive')
 }

@@ -21,12 +21,14 @@ let nerd = null
 let noob = null
 let noob2 = null
 let store1 = newObjStore()
+let store2 = newObjStore()
 
-describe('The Noob and the Nerd', function () {
+describe.only('The Noob and the Nerd', function () {
   it('should be a function', () => {
     assert.isFunction(PluginVirtual)
   })
 
+  /*
   it('should throw if the nerd doesn\'t get a prefix', function () {
     assert.throws(() => {
       return new PluginVirtual({
@@ -42,6 +44,7 @@ describe('The Noob and the Nerd', function () {
       })
     }, 'Expected opts.prefix to be a string, received: undefined')
   })
+  */
 
   it('should instantiate the nerd', () => {
     nerd = new PluginVirtual({
@@ -60,6 +63,7 @@ describe('The Noob and the Nerd', function () {
     assert.isObject(nerd)
   })
 
+  /*
   it('should instantiate the nerd with token as object', () => {
     const tmpNerd = new PluginVirtual({
       _store: store1,
@@ -79,12 +83,14 @@ describe('The Noob and the Nerd', function () {
     })
     assert.isObject(tmpNerd)
   })
+  */
 
   it('should instantiate the noob', () => {
     noob = new PluginVirtual({
-      _store: {},
+      _store: store2,
       token: token,
       mockChannels: MockChannels,
+      maxBalance: '100',
       account: 'noob'
     })
     assert.isObject(noob)

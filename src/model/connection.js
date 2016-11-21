@@ -1,6 +1,6 @@
 'use strict'
 const EventEmitter = require('events')
-const log = require('../util/log')('connection')
+const log = require('debug')('connection')
 const mqtt = require('mqtt')
 const base64url = require('base64url')
 
@@ -29,11 +29,11 @@ class Connection extends EventEmitter {
   }
 
   _log (msg) {
-    log.log(this.name + ': ' + msg)
+    log(this.name + ': ' + msg)
   }
 
   _handle (err) {
-    log.error(this.name + ': ' + err)
+    log(this.name + ': ' + err)
   }
 
   connect () {

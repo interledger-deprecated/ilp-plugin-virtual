@@ -16,6 +16,11 @@ module.exports = class TransferLog {
     this._get = opts.store.get
     this._put = opts.store.put
     this._del = opts.store.del
+
+    this._cacheItems = {}
+    this._cacheStack = []
+    this._cacheSize  = 500
+
     this.incoming = 'incoming'
     this.outgoing = 'outgoing'
   }
@@ -53,7 +58,8 @@ module.exports = class TransferLog {
   }
   
   * drop (transferId) {
-    yield this._del('transfer_' + transferId)
+    this._removeFromCache(transferId)
+    this._del('transfer_' + transferId)
   }
 
   // returns whether or not the state changed
@@ -100,7 +106,8 @@ module.exports = class TransferLog {
   }
 
   * _storePackaged (packaged) {
-    yield this._put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
+    this._storeInCache(packaged)
+    this._put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
   }
 
   * assertIncoming (transferId) {
@@ -148,10 +155,28 @@ module.exports = class TransferLog {
   }
 
   * _getPackaged (transferId) {
+    // try to retreive from cache
+    if (this._cacheItems[transferId]) {
+      return this._cacheItems[transferId]
+    }
+
     const packaged = yield this._get('transfer_' + transferId)
     if (!packaged) {
       throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
     }
     return JSON.parse(packaged)
+  }
+
+  _removeFromCache (transferId) {
+    delete this._cacheItems[transferId]
+    this._cacheStack.splice(this._cacheStack.indexOf(transferId), 1)
+  }
+
+  _storeInCache (packaged) {
+    this._cacheStack.push(packaged.transfer.id)
+    this._cacheItems[packaged.transfer.id] = packaged
+    if (this._cacheItems.length > this._cacheSize) {
+      this._cacheItems.shift()
+    }
   }
 }

@@ -7,6 +7,7 @@ module.exports = class Balance {
     this._maximum = new BigNumber(opts.maximum)
     this._get = opts.store.get
     this._put = opts.store.put
+    this._cached = null
 
     // all reserved DB key prefixes are 9 characters
     // so it lines up with 'transfer_'
@@ -18,6 +19,10 @@ module.exports = class Balance {
   }
 
   * _getNumber () {
+    if (this._cached) {
+      return this._cached
+    }
+
     const stored = yield this._get(this._key)
 
     if (!this._isNumber(stored)) {
@@ -26,6 +31,7 @@ module.exports = class Balance {
       return new BigNumber('0')
     }
 
+    this._cached = new BigNumber(stored)
     return new BigNumber(stored)
   }
 
@@ -40,13 +46,14 @@ module.exports = class Balance {
         ')')
     }
 
-    this._put(this._key, balance.add(new BigNumber(number)).toString())
+    this._cached = balance.add(new BigNumber(number))
+    this._put(this._key, this._cached.toString())
   }
 
   * sub (number) {
     this._assertNumber(number)
-    this._put(this._key,
-      (yield this._getNumber()).sub(new BigNumber(number)).toString())
+    this._cached = (yield this._getNumber()).sub(new BigNumber(number))
+    this._put(this._key, this._cached.toString())
   }
 
   * _assertNumber (number) {

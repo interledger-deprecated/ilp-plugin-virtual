@@ -45,12 +45,12 @@ module.exports = class Validator {
   }
 }
 
-function assert(cond, msg) {
+function assert (cond, msg) {
   if (!cond) throw new InvalidFieldsError(msg)
 }
 
 function assertType (value, name, type) {
-  assert(!value || typeof(value) === type,
+  assert(!value || typeof (value) === type,
     name + ' (' + value + ') must be a non-empty ' + type)
 }
 

@@ -19,7 +19,7 @@ module.exports = class TransferLog {
 
     this._cacheItems = {}
     this._cacheStack = []
-    this._cacheSize  = 500
+    this._cacheSize = 500
 
     this.incoming = 'incoming'
     this.outgoing = 'outgoing'
@@ -35,11 +35,9 @@ module.exports = class TransferLog {
     if (!packaged.transfer.executionCondition) {
       throw new TransferNotConditionalError('transfer with id ' + transferId +
         ' is not conditional')
-
     } else if (packaged.state === 'cancelled') {
       throw new AlreadyRolledBackError('transfer with id ' + transferId +
         ' has already been rolled back')
-
     } else if (packaged.state === 'prepared') {
       throw new MissingFulfillmentError('transfer with id ' + transferId +
         ' has not been fulfilled')
@@ -56,14 +54,14 @@ module.exports = class TransferLog {
   * cancel (transferId) {
     return yield this._setState(transferId, 'cancelled', null)
   }
-  
+
   * drop (transferId) {
     this._removeFromCache(transferId)
     this._del('transfer_' + transferId)
   }
 
   // returns whether or not the state changed
-  * _setState(transferId, state, fulfillment) {
+  * _setState (transferId, state, fulfillment) {
     const existingTransfer = yield this._getPackaged(transferId)
     if (!(yield this.assertAllowedChange(transferId, state))) {
       return false
@@ -77,7 +75,7 @@ module.exports = class TransferLog {
   }
 
   * storeIncoming (transfer) {
-    yield this._store(transfer, true) 
+    yield this._store(transfer, true)
   }
 
   * storeOutgoing (transfer) {
@@ -100,7 +98,7 @@ module.exports = class TransferLog {
     debug('stored ' + transfer.id, 'isIncoming', isIncoming)
     yield this._storePackaged({
       transfer: transfer,
-      state: (transfer.executionCondition? 'prepared':'executed'),
+      state: (transfer.executionCondition ? 'prepared' : 'executed'),
       isIncoming: isIncoming
     })
   }
@@ -124,7 +122,7 @@ module.exports = class TransferLog {
     if (packaged.isIncoming !== isIncoming) {
       debug('is incoming?', packaged.isIncoming, 'looking for', isIncoming)
       throw new NotAcceptedError('transfer with id ' + transferId + ' is not ' +
-        (isIncoming? 'incoming':'outgoing'))
+        (isIncoming ? 'incoming' : 'outgoing'))
     }
   }
 

@@ -23,7 +23,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._token = opts.token
     this._store = opts._store
     this._info = opts.info
-    this._balance = new Balance({ 
+    this._balance = new Balance({
       store: this._store,
       maximum: opts.maxBalance
     })
@@ -67,7 +67,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.getPrefix = () => Promise.resolve(this._prefix)
     this.getAccount = () => Promise.resolve(this._account)
   }
-  
+
   * _connect () {
     yield this._connection.connect()
     this._connected = true
@@ -82,16 +82,16 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _sendMessage (message) {
     this._validator.validateMessage(message)
-    yield this._rpc.call('sendMessage', [message.account ?
-      Object.assign({}, message, { account: this._account }) :
-      message])
+    yield this._rpc.call('sendMessage', [message.account
+      ? Object.assign({}, message, { account: this._account })
+      : message])
 
     this.emitAsync('outgoing_message', message)
   }
 
   * _handleMessage (message) {
     this._validator.validateMessage(message)
-    this.emitAsync('incoming_message', message) 
+    this.emitAsync('incoming_message', message)
     return true
   }
 
@@ -108,7 +108,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
         transfer,
         { account: this._account })])
     } catch (e) {
-
       // roll this back, because the other plugin didn't acknowledge
       // the transfer.
       debug(e.name + ' during transfer ' + transfer.id)
@@ -122,7 +121,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     this.emitAsync('outgoing_' +
-      (transfer.executionCondition? 'prepare':'transfer'), transfer)
+      (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
   }
 
   * _handleTransfer (transfer) {
@@ -133,7 +132,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.storeIncoming(transfer)
     this.emitAsync('incoming_' +
-      (transfer.executionCondition? 'prepare':'transfer'), transfer)
+      (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
     // set up expiry here too, so both sides can send the expiration message
     if (transfer.executionCondition) {
@@ -221,14 +220,14 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _applyOutgoingTransfer (transfer) {
     if (!transfer.executionCondition) {
-      yield this._balance.sub(transfer.amount) 
+      yield this._balance.sub(transfer.amount)
     }
     yield this._transfers.storeOutgoing(transfer)
   }
 
   * _cancelOutgoingTransfer (transfer) {
     if (!transfer.executionCondition) {
-      yield this._balance.add(transfer.amount) 
+      yield this._balance.add(transfer.amount)
     }
     yield this._transfers.drop(transfer.id)
   }
@@ -251,9 +250,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
       yield that._balance.sub(packaged.transfer.amount)
       yield that._rpc.call('expireTransfer', [transferId]).catch(() => {})
-      that.emitAsync((packaged.isIncoming? 'incoming':'outgoing') + '_cancel',
+      that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
         packaged.transfer)
-
     }), (expiry - now))
   }
 

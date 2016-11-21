@@ -2,6 +2,10 @@
 const BigNumber = require('bignumber.js')
 const debug = require('debug')('ilp-plugin-virtual:balance')
 
+const errors = require('../util/errors')
+const NotAcceptedError = errors.NotAcceptedError
+const InvalidFieldsError = errors.InvalidFieldsError
+
 module.exports = class Balance {
   constructor (opts) {
     this._maximum = new BigNumber(opts.maximum)

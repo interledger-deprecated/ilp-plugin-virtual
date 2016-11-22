@@ -43,10 +43,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     })
     this._connected = false
     this._connection = new Connection({
-      name: opts.publicKey,
       token: opts.token,
       host: opts.broker,
-      other: opts.other
+      other: opts.other,
+      publicKey: this._publicKey,
+      peerPublicKey: this._peerPublicKey
     })
 
     // register RPC methods

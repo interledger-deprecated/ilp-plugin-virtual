@@ -78,13 +78,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   * _connect () {
     yield this._connection.connect()
     this._connected = true
-    this.emitAsync('connect')
+    yield this.emitAsync('connect')
   }
 
   * _disconnect () {
     yield this._connection.disconnect()
     this._connected = false
-    this.emitAsync('disconnect')
+    yield this.emitAsync('disconnect')
   }
 
   * _sendMessage (message) {
@@ -93,12 +93,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       ? Object.assign({}, message, { account: this._account })
       : message])
 
-    this.emitAsync('outgoing_message', message)
+    yield this.emitAsync('outgoing_message', message)
   }
 
   * _handleMessage (message) {
     this._validator.validateMessage(message)
-    this.emitAsync('incoming_message', message)
+    yield this.emitAsync('incoming_message', message)
     return true
   }
 
@@ -107,18 +107,31 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateTransfer(transfer)
 
     // apply the transfer before the other plugin can
-    // emit any events about it
-    yield this._applyOutgoingTransfer(transfer)
+    // emit any events about it.
+
+    const repeat = !(yield this._transfers.storeOutgoing(transfer))
+    if (!transfer.executionCondition && !repeat) {
+      yield this._balance.sub(transfer.amount)
+    }
 
     try {
       yield this._rpc.call('sendTransfer', [Object.assign({},
         transfer,
         { account: this._account })])
+
+      // end now, so as not to duplicate any effects
+      if (repeat) return
     } catch (e) {
+      // don't roll back, because nothing happened
+      if (repeat) return
+
       // roll this back, because the other plugin didn't acknowledge
       // the transfer.
       debug(e.name + ' during transfer ' + transfer.id)
-      yield this._cancelOutgoingTransfer(transfer)
+      if (!transfer.executionCondition) {
+        yield this._balance.add(transfer.amount)
+      }
+      yield this._transfers.drop(transfer.id)
       throw e
     }
 
@@ -127,18 +140,21 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       yield this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     }
 
-    this.emitAsync('outgoing_' +
+    yield this.emitAsync('outgoing_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
   }
 
   * _handleTransfer (transfer) {
     this._validator.validateTransfer(transfer)
+    if (!(yield this._transfers.storeIncoming(transfer))) {
+      // return if this transfer has already been stored
+      return true
+    }
 
     // balance is added on incoming transfers, regardless of condition
     yield this._balance.add(transfer.amount)
 
-    yield this._transfers.storeIncoming(transfer)
-    this.emitAsync('incoming_' +
+    yield this.emitAsync('incoming_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
     // set up expiry here too, so both sides can send the expiration message
@@ -159,7 +175,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
-      this.emitAsync('incoming_fulfill', transfer, fulfillment)
+      yield this.emitAsync('incoming_fulfill', transfer, fulfillment)
     }
 
     // let the other person know after we've already fulfilled, because they
@@ -175,9 +191,9 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const transfer = yield this._transfers.get(transferId)
 
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
-    yield this._balance.sub(transfer.amount)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
-      this.emitAsync('outgoing_fulfill', transfer, fulfillment)
+      yield this._balance.sub(transfer.amount)
+      yield this.emitAsync('outgoing_fulfill', transfer, fulfillment)
     }
 
     return true
@@ -189,7 +205,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertIncoming(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      this.emitAsync('incoming_reject', transfer, reason)
+      yield this.emitAsync('incoming_reject', transfer, reason)
     }
     debug('rejected ' + transferId)
 
@@ -202,7 +218,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertOutgoing(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      this.emitAsync('outgoing_reject', transfer, reason)
+      yield this.emitAsync('outgoing_reject', transfer, reason)
     }
 
     return true
@@ -211,7 +227,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   * _handleCancelTransfer (transferId) {
     const transfer = yield this._transfers.get(transferId)
     if (yield this._transfer.cancel(transferId)) {
-      this.emitAsync('outgoing_cancel', transfer)
+      yield this.emitAsync('outgoing_cancel', transfer)
     }
 
     return true
@@ -223,20 +239,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _getFulfillment (transferId) {
     return yield this._transfers.getFulfillment(transferId)
-  }
-
-  * _applyOutgoingTransfer (transfer) {
-    if (!transfer.executionCondition) {
-      yield this._balance.sub(transfer.amount)
-    }
-    yield this._transfers.storeOutgoing(transfer)
-  }
-
-  * _cancelOutgoingTransfer (transfer) {
-    if (!transfer.executionCondition) {
-      yield this._balance.add(transfer.amount)
-    }
-    yield this._transfers.drop(transfer.id)
   }
 
   * _setupTransferExpiry (transferId, expiresAt) {
@@ -257,7 +259,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
       yield that._balance.sub(packaged.transfer.amount)
       yield that._rpc.call('expireTransfer', [transferId]).catch(() => {})
-      that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+      yield that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
         packaged.transfer)
     }), (expiry - now))
   }
@@ -273,7 +275,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     if (yield this._transfers.cancel(transferId)) {
-      this.emitAsync('outgoing_cancel', transfer)
+      yield this.emitAsync('outgoing_cancel', transfer)
     }
 
     return true

@@ -75,11 +75,11 @@ module.exports = class TransferLog {
   }
 
   * storeIncoming (transfer) {
-    yield this._store(transfer, true)
+    return yield this._store(transfer, true)
   }
 
   * storeOutgoing (transfer) {
-    yield this._store(transfer, false)
+    return yield this._store(transfer, false)
   }
 
   * _store (transfer, isIncoming) {
@@ -92,7 +92,7 @@ module.exports = class TransferLog {
         JSON.stringify(stored) +
         ' but not the contents.')
     } else if (stored) {
-      return
+      return false
     }
 
     debug('stored ' + transfer.id, 'isIncoming', isIncoming)
@@ -101,6 +101,8 @@ module.exports = class TransferLog {
       state: (transfer.executionCondition ? 'prepared' : 'executed'),
       isIncoming: isIncoming
     })
+
+    return true
   }
 
   * _storePackaged (packaged) {

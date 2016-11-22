@@ -11,6 +11,7 @@ const TransferLog = require('../model/transferlog')
 const NotAcceptedError = require('../util/errors').NotAcceptedError
 const Balance = require('../model/balance')
 const debug = require('debug')('ilp-plugin-virtual')
+const Token = require('../util/token')
 
 module.exports = class PluginVirtual extends EventEmitter2 {
 
@@ -19,8 +20,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // TODO: verify options
 
-    this._publicKey = opts.publicKey
-    this._token = opts.token
+    this._secret = opts.secret
+    this._peerPublicKey = opts.peerPublicKey
+    this._publicKey = Token.publicKey(this._secret)
+
+    // Token uses ECDH to get a secret channel name
+    this._token = Token.token(this._secret, this._peerPublicKey)
+
     this._store = opts._store
     this._info = opts.info
     this._balance = new Balance({

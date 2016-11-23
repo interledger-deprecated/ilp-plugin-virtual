@@ -1,6 +1,6 @@
 'use strict'
 const sqlite3 = require('sqlite3').verbose()
-const log = require('../../src/util/log')('sqlite_store')
+const log = require('debug')('sqlite_store')
 
 function newSqliteStore (address) {
   address = address || ':memory:'

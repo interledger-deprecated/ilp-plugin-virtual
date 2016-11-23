@@ -1,6 +1,6 @@
 'use strict'
 const EventEmitter = require('events')
-const log = require('../util/log')('connection')
+const log = require('debug')('connection')
 const mqtt = require('mqtt')
 const base64url = require('base64url')
 
@@ -10,30 +10,24 @@ class Connection extends EventEmitter {
     super()
 
     this.config = config
-    this.name = config.account
     this.token = config.token
+    this.host = config.host
 
-    const tokenObj = JSON.parse(base64url.decode(this.token))
-    this.channel = tokenObj.channel
-    this.host = tokenObj.host
+    this.publicKey = config.publicKey
+    this.peerPublicKey = config.peerPublicKey
 
     this.client = null
 
-    this.isNoob = true
-    if (this.config.secret) {
-      this.isNoob = false
-    }
-
-    this.recvChannel = (this.isNoob ? 'noob_' : 'nerd_') + this.channel
-    this.sendChannel = (this.isNoob ? 'nerd_' : 'noob_') + this.channel
+    this.recvChannel = this.publicKey + this.channel
+    this.sendChannel = this.peerPublicKey + this.channel
   }
 
   _log (msg) {
-    log.log(this.name + ': ' + msg)
+    log(this.name + ': ' + msg)
   }
 
   _handle (err) {
-    log.error(this.name + ': ' + err)
+    log(this.name + ': ' + err)
   }
 
   connect () {

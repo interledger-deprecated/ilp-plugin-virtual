@@ -1,104 +1,182 @@
 'use strict'
-// const log = require('../util/log')
+const errors = require('../util/errors')
+const TransferNotFoundError = errors.TransferNotFoundError
+const TransferNotConditionalError = errors.TransferNotConditionalError
+const DuplicateIdError = errors.DuplicateIdError
+const NotAcceptedError = errors.NotAcceptedError
+const AlreadyRolledBackError = errors.AlreadyRolledBackError
+const AlreadyFulfilledError = errors.AlreadyFulfilledError
+const MissingFulfillmentError = errors.MissingFulfillmentError
+const _ = require('lodash')
+const debug = require('debug')('ilp-plugin-virtual:store')
 
-class TransferLog {
+module.exports = class TransferLog {
 
-  constructor (store) {
-    this._get = store.get
-    this._put = store.put
-    this._del = store.del
+  constructor (opts) {
+    this._get = opts.store.get
+    this._put = opts.store.put
+    this._del = opts.store.del
+
+    this._cacheItems = {}
+    this._cacheStack = []
+    this._cacheSize = 500
+
     this.incoming = 'incoming'
     this.outgoing = 'outgoing'
   }
 
-  get (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      if (json) {
-        const transfer = JSON.parse(json).transfer
-        return Promise.resolve({
-          id: transfer.id,
-          account: transfer.account,
-          ledger: transfer.ledger,
-          amount: transfer.amount,
-          data: transfer.data,
-          noteToSelf: transfer.noteToSelf,
-          executionCondition: transfer.executionCondition,
-          expiresAt: transfer.expiresAt,
-          custom: transfer.custom
-        })
-      } else {
-        return Promise.resolve(undefined)
-      }
-    })
+  * get (transferId) {
+    return (yield this._getPackaged(transferId)).transfer
   }
 
-  isIncoming (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      if (json) {
-        return Promise.resolve(JSON.parse(json).isIncoming)
-      } else {
-        return Promise.resolve(undefined)
-      }
-    })
+  * getFulfillment (transferId) {
+    const packaged = yield this._getPackaged(transferId)
+
+    if (!packaged.transfer.executionCondition) {
+      throw new TransferNotConditionalError('transfer with id ' + transferId +
+        ' is not conditional')
+    } else if (packaged.state === 'cancelled') {
+      throw new AlreadyRolledBackError('transfer with id ' + transferId +
+        ' has already been rolled back')
+    } else if (packaged.state === 'prepared') {
+      throw new MissingFulfillmentError('transfer with id ' + transferId +
+        ' has not been fulfilled')
+    }
+
+    return packaged.fulfillment
   }
 
-  store (transfer, incoming) {
-    return (this._put('t' + transfer.id, JSON.stringify({
+  * fulfill (transferId, fulfillment) {
+    debug('fulfilling with ' + fulfillment)
+    return yield this._setState(transferId, 'executed', fulfillment)
+  }
+
+  * cancel (transferId) {
+    return yield this._setState(transferId, 'cancelled', null)
+  }
+
+  * drop (transferId) {
+    this._removeFromCache(transferId)
+    this._del('transfer_' + transferId)
+  }
+
+  // returns whether or not the state changed
+  * _setState (transferId, state, fulfillment) {
+    const existingTransfer = yield this._getPackaged(transferId)
+    if (!(yield this.assertAllowedChange(transferId, state))) {
+      return false
+    }
+
+    existingTransfer.state = state
+    existingTransfer.fulfillment = fulfillment
+
+    yield this._storePackaged(existingTransfer)
+    return true
+  }
+
+  * storeIncoming (transfer) {
+    return yield this._store(transfer, true)
+  }
+
+  * storeOutgoing (transfer) {
+    return yield this._store(transfer, false)
+  }
+
+  * _store (transfer, isIncoming) {
+    const stored = yield this._safeGet(transfer.id)
+
+    if (stored && !_.isEqual(transfer, stored)) {
+      throw new DuplicateIdError('transfer ' +
+        JSON.stringify(transfer) +
+        ' matches the id of ' +
+        JSON.stringify(stored) +
+        ' but not the contents.')
+    } else if (stored) {
+      return false
+    }
+
+    debug('stored ' + transfer.id, 'isIncoming', isIncoming)
+    yield this._storePackaged({
       transfer: transfer,
-      isIncoming: incoming
-    })))
-  }
-  storeOutgoing (transfer) {
-    return this.store(transfer, false)
-  }
-  storeIncoming (transfer) {
-    return this.store(transfer, true)
-  }
-
-  exists (transferId) {
-    return this.get(transferId).then((storedTransfer) => {
-      return Promise.resolve(storedTransfer !== undefined)
+      state: (transfer.executionCondition ? 'prepared' : 'executed'),
+      isIncoming: isIncoming
     })
+
+    return true
   }
 
-  del (transferId) {
-    return this._del('t' + transferId)
+  * _storePackaged (packaged) {
+    this._storeInCache(packaged)
+    this._put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
   }
 
-  complete (transferId) {
-    // TODO: more efficient way of doing this
-    return this._put('c' + transferId, 'complete')
+  * assertIncoming (transferId) {
+    yield this._assertDirection(transferId, true)
   }
 
-  isComplete (transferId) {
-    return this._get('c' + transferId).then((data) => {
-      return Promise.resolve(data !== undefined)
-    })
+  * assertOutgoing (transferId) {
+    yield this._assertDirection(transferId, false)
   }
 
-  finalize (transferId, fulfillment) {
-    // TODO: more efficient way of doing this
-    return this._get('t' + transferId).then((json) => {
-      const obj = Object.assign(JSON.parse(json), {fulfillment: fulfillment})
-      return this._put('t' + transferId, JSON.stringify(obj))
-    }).then(() => {
-      return this._put('f' + transferId, 'complete')
-    })
+  * _assertDirection (transferId, isIncoming) {
+    const packaged = yield this._getPackaged(transferId)
+
+    if (packaged.isIncoming !== isIncoming) {
+      debug('is incoming?', packaged.isIncoming, 'looking for', isIncoming)
+      throw new NotAcceptedError('transfer with id ' + transferId + ' is not ' +
+        (isIncoming ? 'incoming' : 'outgoing'))
+    }
   }
 
-  isFinal (transferId) {
-    return this._get('f' + transferId).then((data) => {
-      return Promise.resolve(data !== undefined)
-    })
+  * assertAllowedChange (transferId, targetState) {
+    const packaged = yield this._getPackaged(transferId)
+
+    // top priority is making sure not to change an optimistic
+    if (!packaged.transfer.executionCondition) {
+      throw new TransferNotConditionalError('transfer with id ' + transferId + ' is not conditional')
+    // next priority is to silently return if the change has already occurred
+    } else if (packaged.state === targetState) {
+      return false
+    } else if (packaged.state === 'executed') {
+      throw new AlreadyFulfilledError('transfer with id ' + transferId + ' has already executed')
+    } else if (packaged.state === 'cancelled') {
+      throw new AlreadyRolledBackError('transfer with id ' + transferId + ' has already rolled back')
+    }
+
+    return true
   }
 
-  getFulfillment (transferId) {
-    return this._get('t' + transferId).then((json) => {
-      const obj = json && JSON.parse(json)
-      const result = obj && obj.fulfillment
-      return Promise.resolve(result || null)
-    })
+  * _safeGet (transferId) {
+    try {
+      return yield this.get(transferId)
+    } catch (e) {
+      return null
+    }
+  }
+
+  * _getPackaged (transferId) {
+    // try to retreive from cache
+    if (this._cacheItems[transferId]) {
+      return this._cacheItems[transferId]
+    }
+
+    const packaged = yield this._get('transfer_' + transferId)
+    if (!packaged) {
+      throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
+    }
+    return JSON.parse(packaged)
+  }
+
+  _removeFromCache (transferId) {
+    delete this._cacheItems[transferId]
+    this._cacheStack.splice(this._cacheStack.indexOf(transferId), 1)
+  }
+
+  _storeInCache (packaged) {
+    this._cacheStack.push(packaged.transfer.id)
+    this._cacheItems[packaged.transfer.id] = packaged
+    if (this._cacheItems.length > this._cacheSize) {
+      this._cacheItems.shift()
+    }
   }
 }
-
-exports.TransferLog = TransferLog

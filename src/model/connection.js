@@ -18,8 +18,8 @@ class Connection extends EventEmitter {
 
     this.client = null
 
-    this.recvChannel = this.publicKey + this.channel
-    this.sendChannel = this.peerPublicKey + this.channel
+    this.recvChannel = this.token + '/' + this.publicKey
+    this.sendChannel = this.token + '/' + this.peerPublicKey
   }
 
   _log (msg) {

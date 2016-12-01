@@ -20,12 +20,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // TODO: verify options
 
+    this._currency = opts.currency.toLowerCase()
     this._secret = opts.secret
     this._peerPublicKey = opts.peerPublicKey
     this._publicKey = Token.publicKey(this._secret)
 
     // Token uses ECDH to get a secret channel name
-    this._token = Token.token(this._secret, this._peerPublicKey)
+    this._token = Token.token(this._secret, this._peerPublicKey) + '/' + this._currency
 
     this._store = opts._store
     this._info = opts.info
@@ -34,7 +35,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       maximum: opts.maxBalance
     })
 
-    this._prefix = 'peer.' + this._token.substring(0, 5) + '.'
+    this._prefix = 'peer.' + this._token.substring(0, 5) + '.' + this._currency + '.'
     this._account = this._prefix + this._publicKey
 
     this._validator = new Validator()

@@ -35,6 +35,7 @@ exports.options = [
     'pluginOptions': {
       'secret': 'noob_secret',
       'peerPublicKey': 'fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc',
+      'currency': 'USD',
       'prefix': 'test.nerd.',
       'account': 'nerd',
       'broker': 'ws://broker.hivemq.com:8000',
@@ -56,7 +57,7 @@ exports.options = [
     // their respective plugins. Should specify the other plugin's
     // account, so that the two plugins can send to one another
     'transfer': {
-      'account': 'peer.' + token.substring(0, 5) + '.fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc'
+      'account': 'peer.' + token.substring(0, 5) + '.usd.fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc'
     }
   },
   // options for the second plugin
@@ -64,6 +65,7 @@ exports.options = [
     'pluginOptions': {
       'secret': 'nerd_secret',
       'peerPublicKey': 'mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw',
+      'currency': 'USD',
       'prefix': 'test.nerd.',
       'broker': 'ws://broker.hivemq.com:8000',
       'maxBalance': '1000',
@@ -81,7 +83,7 @@ exports.options = [
       '_store': store2
     },
     'transfer': {
-      'account': 'peer.' + token.substring(0, 5) + '.mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw'
+      'account': 'peer.' + token.substring(0, 5) + '.usd.mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw'
     }
   }
 ]

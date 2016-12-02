@@ -1,7 +1,0 @@
-{
-  "host": "mqtt://test.mosquitto.org",
-  "limit": "0",
-  "balance": "50",
-  "account": "nerd",
-  "secret": "not used yet"
-}

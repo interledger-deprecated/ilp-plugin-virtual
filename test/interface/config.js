@@ -20,9 +20,8 @@ exports.plugin = require('../..')
 // to fulfill a transfer (from send until fulfillment goes through).
 exports.timeout = 0.2
 
-// the shared secret that will be generated, needed in order to make ILP addresses
-// to send to.
-const token = 'FJC2v38LZNMU8IxwJftvzU3yHwT/W3YmAsodzxNk0AA'
+// first five characters of the hmac of the shared secret with 'token'
+const token = 'JJkx-'
 
 // These objects specify the configs of different
 // plugins. There must be 2, so that they can send
@@ -57,7 +56,7 @@ exports.options = [
     // their respective plugins. Should specify the other plugin's
     // account, so that the two plugins can send to one another
     'transfer': {
-      'account': 'peer.' + token.substring(0, 5) + '.usd.fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc'
+      'account': 'peer.' + token + '.usd.fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc'
     }
   },
   // options for the second plugin
@@ -83,7 +82,7 @@ exports.options = [
       '_store': store2
     },
     'transfer': {
-      'account': 'peer.' + token.substring(0, 5) + '.usd.mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw'
+      'account': 'peer.' + token + '.usd.mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw'
     }
   }
 ]

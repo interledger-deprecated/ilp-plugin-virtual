@@ -25,11 +25,9 @@ class MockConnection extends EventEmitter {
       }
     }
 
-    this.isNoob = true
-    if (this.name === 'nerd') {
-      this.isNoob = false
-    }
+    this.isNoob = (this.name !== 'nerd')
 
+    this._log('listening on channel ' + (this.isNoob ? 'noob': 'nerd'))
     this.recvChannel = this.channels[(this.isNoob ? 'noob' : 'nerd')]
     this.sendChannel = this.channels[(this.isNoob ? 'nerd' : 'noob')]
   }

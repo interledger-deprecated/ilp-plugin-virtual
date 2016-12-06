@@ -8,17 +8,32 @@ const Connection = require('../model/connection')
 const JsonRpc1 = require('../model/rpc')
 const Validator = require('../util/validator')
 const TransferLog = require('../model/transferlog')
-const NotAcceptedError = require('../util/errors').NotAcceptedError
 const Balance = require('../model/balance')
 const debug = require('debug')('ilp-plugin-virtual')
 const Token = require('../util/token')
+
+const errors = require('../util/errors')
+const NotAcceptedError = errors.NotAcceptedError
+const InvalidFieldsError = errors.InvalidFieldsError
+
+const assertOptionType = (opts, field, type) => {
+  const val = opts[field]
+  if (!val || typeof val !== type) {
+    throw new InvalidFieldsError('invalid "' + field + '"; got ' + val)
+  }
+}
 
 module.exports = class PluginVirtual extends EventEmitter2 {
 
   constructor (opts) {
     super()
 
-    // TODO: verify options
+    assertOptionType(opts, 'currency', 'string')
+    assertOptionType(opts, 'maxBalance', 'string')
+    assertOptionType(opts, 'secret', 'string')
+    assertOptionType(opts, 'peerPublicKey', 'string')
+    assertOptionType(opts, '_store', 'object')
+    assertOptionType(opts, 'broker', 'string')
 
     this._currency = opts.currency.toLowerCase()
     this._secret = opts.secret
@@ -44,7 +59,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     })
     this._connected = false
     this._connection = new Connection({
-      token: opts.token,
       host: opts.broker,
       other: opts.other,
       publicKey: this._publicKey,

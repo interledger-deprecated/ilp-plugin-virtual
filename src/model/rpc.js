@@ -1,7 +1,7 @@
 const co = require('co')
 const EventEmitter = require('events')
 const uuid = require('uuid4')
-const debug = require('debug')('rpc')
+const debug = require('debug')('ilp-plugin-virtual:rpc')
 
 let n = 1
 

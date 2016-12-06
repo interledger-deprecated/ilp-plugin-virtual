@@ -1,6 +1,6 @@
 'use strict'
 const EventEmitter = require('events')
-const log = require('debug')('connection')
+const log = require('debug')('ilp-plugin-virtual:connection')
 const mqtt = require('mqtt')
 
 class Connection extends EventEmitter {

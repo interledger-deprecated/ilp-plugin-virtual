@@ -15,6 +15,7 @@ class Connection extends EventEmitter {
 
     this.publicKey = config.publicKey
     this.peerPublicKey = config.peerPublicKey
+    console.log('real connection, for some reason')
 
     this.client = null
 

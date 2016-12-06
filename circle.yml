@@ -5,6 +5,7 @@ test:
   override:
     # Run plugin tests
     - npm test
+    - npm run plugin-tests
   post:
     - bash <(curl -s https://codecov.io/bash)
 deployment:

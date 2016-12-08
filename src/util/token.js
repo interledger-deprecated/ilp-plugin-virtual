@@ -15,7 +15,7 @@ module.exports = {
       sodium.crypto_hash_sha256(seedBuffer)
     ))
   },
-  
+
   token: (seed, publicKey) => {
     // seed and public key should be stored as base64url strings
     const seedBuffer = base64url.toBuffer(seed)

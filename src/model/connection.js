@@ -2,7 +2,6 @@
 const EventEmitter = require('events')
 const log = require('debug')('connection')
 const mqtt = require('mqtt')
-const base64url = require('base64url')
 
 class Connection extends EventEmitter {
 

@@ -92,7 +92,12 @@ class JsonRpc1 extends EventEmitter {
       id: id
     })
 
-    return p
+    return Promise.race([
+      p,
+      new Promise((resolve, reject) => {
+        setTimeout(reject, 5000, new Error(id + ' has not come back yet'))
+      })
+    ])
   }
 
   notify (result, error) {

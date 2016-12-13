@@ -132,7 +132,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     try {
       yield this._rpc.call('sendTransfer', [Object.assign({},
         transfer,
-        { account: this._account })])
+        // set the account to our own, and erase our note to self
+        { noteToSelf: undefined, account: this._account })])
 
       // end now, so as not to duplicate any effects
       if (repeat) return

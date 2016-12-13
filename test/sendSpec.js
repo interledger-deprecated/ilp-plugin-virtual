@@ -119,17 +119,19 @@ describe('Send', () => {
         amount: '5.0',
         data: {
           field: 'some stuff'
-        }
+        },
+        noteToSelf: {}
       }
     })
 
     it('should send a transfer from A to B', function * () {
       const received = new Promise((resolve, reject) => {
-        this.pluginA.on('incoming_transfer', (transfer) => {
+        this.pluginB.on('incoming_transfer', (transfer) => {
           try {
             assert.equal(transfer.amount, this.transfer.amount, 'amounts should match')
             assert.equal(transfer.id, this.transfer.id, 'ids should match')
             assert.equal(transfer.data.field, this.transfer.data.field, 'data should be kept intact')
+            assert.isNotOk(transfer.noteToSelf, 'note to self shouldn\'t be sent')
             resolve()
           } catch (e) {
             reject(e) 
@@ -138,7 +140,7 @@ describe('Send', () => {
       })
 
       yield this.pluginA.sendTransfer(this.transfer)
-      // yield received
+      yield received
 
       assert.equal((yield this.pluginA.getBalance()), '-5', 'balance should decrease by amount')
       assert.equal((yield this.pluginB.getBalance()), '5', 'balance should increase by amount')

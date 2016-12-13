@@ -1,4 +1,4 @@
-const sodium = require('chloride')
+const sodium = require('sodium-prebuilt').api
 const crypto = require('crypto') // sodium doesn't have HMAC
 const base64url = require('base64url')
 

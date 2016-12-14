@@ -18,7 +18,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 const expect = chai.expect
 
-const newObjStore = require('./helpers/objStore')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
@@ -44,8 +44,8 @@ const options = {
 
 describe('Send', () => {
   beforeEach(function * () {
-    this.pluginA = new PluginVirtual(Object.assign({}, options, {_store: newObjStore()}))
-    this.pluginB = new PluginVirtual(Object.assign({}, options, {_store: newObjStore(),
+    this.pluginA = new PluginVirtual(Object.assign({}, options, {_store: new ObjStore()}))
+    this.pluginB = new PluginVirtual(Object.assign({}, options, {_store: new ObjStore(),
       other: {channels: MockChannels, name: 'nerd'}}))
 
     yield this.pluginA.connect()

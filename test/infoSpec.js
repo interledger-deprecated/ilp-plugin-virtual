@@ -14,7 +14,7 @@ const _ = require('lodash')
 const assert = require('chai').assert
 const expect = require('chai').expect
 
-const newObjStore = require('./helpers/objStore')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
@@ -30,7 +30,7 @@ const options = {
   secret: 'seeecret',
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
-  _store: newObjStore(),
+  _store: new ObjStore(),
   broker: 'mqtt://example.com',
   other: {
     'channels': MockChannels,

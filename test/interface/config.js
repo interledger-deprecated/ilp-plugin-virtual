@@ -9,9 +9,9 @@ mockRequire(
   MockConnection
 )
 
-const newObjStore = require('../helpers/objStore')
-const store1 = newObjStore()
-const store2 = newObjStore()
+const ObjStore = require('../helpers/objStore')
+const store1 = new ObjStore()
+const store2 = new ObjStore()
 
 // This field contains the constructor for a plugin
 exports.plugin = require('../..')

@@ -9,8 +9,7 @@ const InvalidFieldsError = errors.InvalidFieldsError
 module.exports = class Balance {
   constructor (opts) {
     this._maximum = new BigNumber(opts.maximum)
-    this._get = opts.store.get
-    this._put = opts.store.put
+    this._store = opts.store
     this._cached = null
 
     // all reserved DB key prefixes are 9 characters
@@ -27,11 +26,11 @@ module.exports = class Balance {
       return this._cached
     }
 
-    const stored = yield this._get(this._key)
+    const stored = yield this._store.get(this._key)
 
     if (!this._isNumber(stored)) {
       debug('stored balance (' + stored + ') is invalid. rewriting as 0.')
-      yield this._put(this._key, '0')
+      yield this._store.put(this._key, '0')
       return new BigNumber('0')
     }
 
@@ -51,13 +50,13 @@ module.exports = class Balance {
     }
 
     this._cached = balance.add(new BigNumber(number))
-    this._put(this._key, this._cached.toString())
+    this._store.put(this._key, this._cached.toString())
   }
 
   * sub (number) {
     this._assertNumber(number)
     this._cached = (yield this._getNumber()).sub(new BigNumber(number))
-    this._put(this._key, this._cached.toString())
+    this._store.put(this._key, this._cached.toString())
   }
 
   * _assertNumber (number) {

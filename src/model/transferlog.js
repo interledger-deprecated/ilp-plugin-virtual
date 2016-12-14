@@ -13,9 +13,7 @@ const debug = require('debug')('ilp-plugin-virtual:store')
 module.exports = class TransferLog {
 
   constructor (opts) {
-    this._get = opts.store.get
-    this._put = opts.store.put
-    this._del = opts.store.del
+    this._store = opts.store
 
     this._cacheItems = {}
     this._cacheStack = []
@@ -57,7 +55,7 @@ module.exports = class TransferLog {
 
   * drop (transferId) {
     this._removeFromCache(transferId)
-    this._del('transfer_' + transferId)
+    this._store.del('transfer_' + transferId)
   }
 
   // returns whether or not the state changed
@@ -75,14 +73,14 @@ module.exports = class TransferLog {
   }
 
   * storeIncoming (transfer) {
-    return yield this._store(transfer, true)
+    return yield this._storeTransfer(transfer, true)
   }
 
   * storeOutgoing (transfer) {
-    return yield this._store(transfer, false)
+    return yield this._storeTransfer(transfer, false)
   }
 
-  * _store (transfer, isIncoming) {
+  * _storeTransfer (transfer, isIncoming) {
     const stored = yield this._safeGet(transfer.id)
 
     if (stored && !_.isEqual(transfer, stored)) {
@@ -107,7 +105,7 @@ module.exports = class TransferLog {
 
   * _storePackaged (packaged) {
     this._storeInCache(packaged)
-    this._put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
+    this._store.put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
   }
 
   * assertIncoming (transferId) {
@@ -160,7 +158,7 @@ module.exports = class TransferLog {
       return this._cacheItems[transferId]
     }
 
-    const packaged = yield this._get('transfer_' + transferId)
+    const packaged = yield this._store.get('transfer_' + transferId)
     if (!packaged) {
       throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
     }

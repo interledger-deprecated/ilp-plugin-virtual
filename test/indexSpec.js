@@ -14,14 +14,14 @@ const _ = require('lodash')
 const assert = require('chai').assert
 const expect = require('chai').expect
 
-const newObjStore = require('./helpers/objStore')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 const options = {
   currency: 'USD',
   secret: 'seeecret',
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
-  _store: newObjStore(),
+  _store: new ObjStore(),
   broker: 'mqtt://example.com',
   // if every test doesn't mock the connection, then the real connection will
   // be cached and the tests will not be able to mock require later

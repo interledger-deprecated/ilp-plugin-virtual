@@ -61,6 +61,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._connection = new Connection({
       host: opts.broker,
       other: opts.other,
+      token: this._token,
       publicKey: this._publicKey,
       peerPublicKey: this._peerPublicKey
     })

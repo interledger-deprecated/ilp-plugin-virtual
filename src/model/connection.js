@@ -14,7 +14,6 @@ class Connection extends EventEmitter {
 
     this.publicKey = config.publicKey
     this.peerPublicKey = config.peerPublicKey
-    console.log('real connection, for some reason')
 
     this.client = null
 
@@ -22,20 +21,12 @@ class Connection extends EventEmitter {
     this.sendChannel = this.token + '/' + this.peerPublicKey
   }
 
-  _log (msg) {
-    log(this.name + ': ' + msg)
-  }
-
-  _handle (err) {
-    log(this.name + ': ' + err)
-  }
-
   connect () {
     this.client = mqtt.connect(this.host)
-    this._log('connecting to host `' + this.host + '`...')
+    log('connecting to host `' + this.host + '`...')
     this.client.on('connect', () => {
       this.client.subscribe(this.recvChannel)
-      this._log('connected! subscribing to channel `' + this.recvChannel + '`')
+      log('connected! subscribing to channel `' + this.recvChannel + '`')
       this.emit('connect')
     })
     this.client.on('message', (channel, data) => {

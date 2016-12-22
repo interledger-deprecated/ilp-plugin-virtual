@@ -53,6 +53,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._prefix = 'peer.' + this._token.substring(0, 5) + '.' + this._currency + '.'
     this._account = this._prefix + this._publicKey
 
+    if (opts.prefix && opts.prefix !== this._prefix) {
+      throw new InvalidFieldsError('invalid prefix. got "' + opts.prefix + '", expected "' + this._prefix + '"')
+    }
+
     this._validator = new Validator()
     this._transfers = new TransferLog({
       store: this._store

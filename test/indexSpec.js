@@ -53,4 +53,9 @@ describe('constructor', () => {
   omitField('peerPublicKey')
   omitField('_store')
   omitField('broker')
+
+  it('should give an error with incorrect prefix passed in', () => {
+    expect(() => new PluginVirtual(Object.assign({}, options, {prefix: 'trash.'})))
+      .to.throw(Error)
+  })
 })

@@ -35,7 +35,7 @@ exports.options = [
       'secret': 'noob_secret',
       'peerPublicKey': 'fkqDV7mm5H29Cd8Q51itbSS6JR3ApdOlS14Po5I1CAc',
       'currency': 'USD',
-      'prefix': 'test.nerd.',
+      'prefix': 'peer.JJkx-.usd.',
       'account': 'nerd',
       'broker': 'ws://broker.hivemq.com:8000',
       'maxBalance': '1000',
@@ -65,7 +65,7 @@ exports.options = [
       'secret': 'nerd_secret',
       'peerPublicKey': 'mOFhdaec9GU5GleNZm3eihSizQd4MxScB8lp8yqEbTw',
       'currency': 'USD',
-      'prefix': 'test.nerd.',
+      'prefix': 'peer.JJkx-.usd.',
       'broker': 'ws://broker.hivemq.com:8000',
       'maxBalance': '1000',
       'other': {

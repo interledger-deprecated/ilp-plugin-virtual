@@ -10,7 +10,6 @@ mockRequire(
   MockConnection
 )
 
-const _ = require('lodash')
 const assert = require('chai').assert
 const expect = require('chai').expect
 
@@ -42,7 +41,7 @@ describe('constructor', () => {
 
   const omitField = (field) => {
     it('should give an error without ' + field, () => {
-      expect(() => new PluginVirtual(_.omit(options, field)))
+      expect(() => new PluginVirtual(Object.assign(options, { [field]: undefined })))
         .to.throw(Error)
     })
   }

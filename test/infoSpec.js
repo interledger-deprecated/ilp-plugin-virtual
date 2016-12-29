@@ -10,7 +10,6 @@ mockRequire(
   MockConnection
 )
 
-const _ = require('lodash')
 const assert = require('chai').assert
 const expect = require('chai').expect
 

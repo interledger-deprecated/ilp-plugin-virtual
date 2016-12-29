@@ -10,7 +10,6 @@ mockRequire(
   MockConnection
 )
 
-const _ = require('lodash')
 const uuid = require('uuid4')
 
 const chai = require('chai')

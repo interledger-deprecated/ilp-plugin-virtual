@@ -7,7 +7,6 @@ const NotAcceptedError = errors.NotAcceptedError
 const AlreadyRolledBackError = errors.AlreadyRolledBackError
 const AlreadyFulfilledError = errors.AlreadyFulfilledError
 const MissingFulfillmentError = errors.MissingFulfillmentError
-const _ = require('lodash')
 const debug = require('debug')('ilp-plugin-virtual:store')
 
 module.exports = class TransferLog {
@@ -83,7 +82,7 @@ module.exports = class TransferLog {
   * _storeTransfer (transfer, isIncoming) {
     const stored = yield this._safeGet(transfer.id)
 
-    if (stored && !_.isEqual(transfer, stored)) {
+    if (stored && !deepEqual(transfer, stored)) {
       throw new DuplicateIdError('transfer ' +
         JSON.stringify(transfer) +
         ' matches the id of ' +
@@ -177,4 +176,22 @@ module.exports = class TransferLog {
       this._cacheItems.shift()
     }
   }
+}
+
+const deepEqual = (a, b) => {
+  return deepContains(a, b) && deepContains(b, a)
+}
+
+const deepContains = (a, b) => {
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+  for (let k of Object.keys(a)) {
+    if (a[k] && typeof a[k] === 'object') {
+      if (!deepContains(a[k], b[k])) {
+        return false
+      }
+    } else if (a[k] !== b[k]) {
+      return false
+    }
+  }
+  return true
 }

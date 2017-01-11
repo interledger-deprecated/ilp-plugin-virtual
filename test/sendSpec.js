@@ -1,15 +1,6 @@
 'use strict'
 
-const mockRequire = require('mock-require')
-const mock =
-  require('./mocks/mockConnection')
-const MockConnection = mock.MockConnection
-const MockChannels = mock.MockChannels
-mockRequire(
-  '../src/model/connection',
-  MockConnection
-)
-
+const nock = require('nock')
 const uuid = require('uuid4')
 
 const chai = require('chai')
@@ -33,79 +24,94 @@ const options = {
   secret: 'seeecret',
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
-  broker: 'mqtt://example.com',
-  other: {
-    'channels': MockChannels,
-    'name': 'noob'
-  },
+  rpcUri: 'https://example.com/rpc',
   info: info
 }
 
 describe('Send', () => {
   beforeEach(function * () {
-    this.pluginA = new PluginVirtual(Object.assign({}, options, {_store: new ObjStore()}))
-    this.pluginB = new PluginVirtual(Object.assign({}, options, {_store: new ObjStore(),
-      other: {channels: MockChannels, name: 'nerd'}}))
+    this.plugin = new PluginVirtual(Object.assign({},
+      options, { _store: new ObjStore() }))
 
-    yield this.pluginA.connect()
-    yield this.pluginB.connect()
+    yield this.plugin.connect()
   })
 
   afterEach(function * () {
-    yield this.pluginA.disconnect()
-    yield this.pluginB.disconnect()
+    assert(nock.isDone(), 'nocks should all have been called')
   })
 
   describe('sendMessage', () => {
     beforeEach(function * () {
       this.message = {
-        account: 'peer.usd.other',
-        ledger: (yield this.pluginA.getPrefix()),
+        account: (yield this.plugin.getAccount()),
+        ledger: (yield this.plugin.getPrefix()),
         data: {
           field: 'some stuff'
         }
       }
     })
 
-    it('should send a message from A to B', function * () {
-      this.pluginB.on('incoming_message', (msg) => {
-        assert.equal(msg.data.field, 'some stuff', 'message data should remain unchanged') 
-      })
+    it('should send a message', function * () {
+      nock('https://example.com')
+        .put('/rpc?method=send_message', [this.message])
+        .reply(200, true)
 
-      yield this.pluginA.sendMessage(this.message)
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
+      yield this.plugin.sendMessage(this.message)
+      yield outgoing
+    })
+
+    it('should receive a message', function * () {
+      const incoming = new Promise((resolve) => this.plugin.on('incoming_message', resolve))
+      assert.isTrue(yield this.plugin.receive('send_message', [this.message]))
+      yield incoming
     })
 
     it('should send a message in the to-from form', function * () {
-      this.pluginB.on('incoming_message', (msg) => {
-        assert.equal(msg.data.field, 'some stuff', 'message data should remain unchanged') 
-      })
-
-      yield this.pluginA.sendMessage(Object.assign({},
+      const toFromMessage = Object.assign({},
         this.message,
-        { to: 'peer.usd.other', // account names don't matter on trustlines
-          from: 'peer.usd.me', // there's only one possible src/dest
-          account: undefined
-        }))
+        { to: 'peer.usd.other',
+          from: 'peer.usd.me' })
+      delete toFromMessage.account
+
+      nock('https://example.com')
+        .put('/rpc?method=send_message', [toFromMessage])
+        .reply(200, true)
+
+      yield this.plugin.sendMessage(toFromMessage)
+    })
+
+    it('should throw an error on no response', function () {
+      this.timeout(3000)
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+    })
+
+    it('should throw an error on an error code', function () {
+      nock('https://example.com')
+        .put('/rpc?method=send_message', [this.message])
+        .reply(500)
+
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
 
     it('should not send without an account or to-from', function () {
       this.message.account = undefined
-      return expect(this.pluginA.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
 
     it('should not send with incorrect ledger', function () {
       this.message.ledger = 'bogus'
-      return expect(this.pluginA.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
 
     it('should not send with missing ledger', function () {
       this.message.ledger = undefined
-      return expect(this.pluginA.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
 
     it('should not send without any data', function () {
       this.message.data = undefined
-      return expect(this.pluginA.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
   })
 
@@ -113,86 +119,114 @@ describe('Send', () => {
     beforeEach(function * () {
       this.transfer = {
         id: uuid(),
-        ledger: (yield this.pluginA.getPrefix()),
-        account: 'other',
+        ledger: (yield this.plugin.getPrefix()),
+        account: (yield this.plugin.getAccount()),
         amount: '5.0',
         data: {
           field: 'some stuff'
-        },
-        noteToSelf: {}
+        }
       }
     })
 
-    it('should send a transfer from A to B', function * () {
-      const received = new Promise((resolve, reject) => {
-        this.pluginB.on('incoming_transfer', (transfer) => {
+    it('should send a transfer', function * () {
+      nock('https://example.com')
+        .put('/rpc?method=send_transfer', [this.transfer])
+        .reply(200, true)
+
+      const balanced = new Promise((resolve, reject) => {
+        this.plugin.on('balance', (balance) => {
           try {
-            assert.equal(transfer.amount, this.transfer.amount, 'amounts should match')
-            assert.equal(transfer.id, this.transfer.id, 'ids should match')
-            assert.equal(transfer.data.field, this.transfer.data.field, 'data should be kept intact')
-            assert.isNotOk(transfer.noteToSelf, 'note to self shouldn\'t be sent')
+            assert.equal(balance, '-5')
             resolve()
           } catch (e) {
-            reject(e) 
+            reject(e)
           }
         })
       })
 
-      yield this.pluginA.sendTransfer(this.transfer)
-      yield received
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
+      yield this.plugin.sendTransfer(this.transfer)
+      yield sent
+      yield balanced
 
-      assert.equal((yield this.pluginA.getBalance()), '-5', 'balance should decrease by amount')
-      assert.equal((yield this.pluginB.getBalance()), '5', 'balance should increase by amount')
+      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+    })
+
+    it('should receive a transfer', function * () {
+      const balanced = new Promise((resolve, reject) => {
+        this.plugin.on('balance', (balance) => {
+          try {
+            assert.equal(balance, '5')
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
+      const received = new Promise((resolve, reject) => {
+        this.plugin.on('incoming_transfer', (transfer) => {
+          try {
+            assert.deepEqual(transfer, this.transfer)
+          } catch (e) {
+            reject(e)
+          }
+          resolve()
+        })
+      })
+      yield this.plugin.receive('send_transfer', [this.transfer])
+      yield received
+      yield balanced
     })
 
     it('should not send a transfer without id', function () {
       this.transfer.id = undefined
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer without account', function () {
       this.transfer.account = undefined
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with an invalid id', function () {
       this.transfer.id = 666
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with an invalid account', function () {
       this.transfer.account = '$$$ cawiomdaAW ($Q@@)$@$'
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with a non-string account', function () {
       this.transfer.account = 42
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with non-object data', function () {
       this.transfer.data = 9000
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with no amount', function () {
       this.transfer.amount = undefined
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with non-number amount', function () {
       this.transfer.amount = 'bogus'
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with amount over maximum', function () {
       this.transfer.amount = '50.0'
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
     it('should not send a transfer with negative amount', function () {
       this.transfer.amount = '-5.0'
-      return expect(this.pluginA.sendTransfer(this.transfer)).to.eventually.be.rejected
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
   })
 })

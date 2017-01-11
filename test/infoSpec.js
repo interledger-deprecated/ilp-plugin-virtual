@@ -1,17 +1,6 @@
 'use strict'
 
-const mockRequire = require('mock-require')
-const mock =
-  require('./mocks/mockConnection')
-const MockConnection = mock.MockConnection
-const MockChannels = mock.MockChannels
-mockRequire(
-  '../src/model/connection',
-  MockConnection
-)
-
 const assert = require('chai').assert
-const expect = require('chai').expect
 
 const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
@@ -29,12 +18,8 @@ const options = {
   secret: 'seeecret',
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
+  rpcUri: 'https://example.com/rpc',
   _store: new ObjStore(),
-  broker: 'mqtt://example.com',
-  other: {
-    'channels': MockChannels,
-    'name': 'noob'
-  },
   info: info
 }
 

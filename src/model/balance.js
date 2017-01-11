@@ -1,13 +1,16 @@
 'use strict'
 const BigNumber = require('bignumber.js')
 const debug = require('debug')('ilp-plugin-virtual:balance')
+const EventEmitter = require('eventemitter2')
 
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
 const InvalidFieldsError = errors.InvalidFieldsError
 
-module.exports = class Balance {
+module.exports = class Balance extends EventEmitter {
   constructor (opts) {
+    super()
+
     this._maximum = new BigNumber(opts.maximum)
     this._store = opts.store
     this._cached = null
@@ -51,12 +54,14 @@ module.exports = class Balance {
 
     this._cached = balance.add(new BigNumber(number))
     this._store.put(this._key, this._cached.toString())
+    this.emitAsync('balance', this._cached.toString())
   }
 
   * sub (number) {
     this._assertNumber(number)
     this._cached = (yield this._getNumber()).sub(new BigNumber(number))
     this._store.put(this._key, this._cached.toString())
+    this.emitAsync('balance', this._cached.toString())
   }
 
   * _assertNumber (number) {

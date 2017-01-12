@@ -32,8 +32,8 @@ module.exports = class HttpRpc extends EventEmitter {
       request({
         method: 'POST',
         uri: uri,
-        'content-type': 'application/json',
-        body: JSON.stringify(params)
+        body: params,
+        json: true
       }),
       new Promise((resolve, reject) => {
         setTimeout(() => {

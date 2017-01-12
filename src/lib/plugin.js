@@ -3,9 +3,8 @@
 const EventEmitter2 = require('eventemitter2')
 const co = require('co')
 const cc = require('five-bells-condition')
-const Connection = require('../model/connection')
 
-const JsonRpc1 = require('../model/rpc')
+const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
 const TransferLog = require('../model/transferlog')
 const Balance = require('../model/balance')
@@ -33,7 +32,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     assertOptionType(opts, 'secret', 'string')
     assertOptionType(opts, 'peerPublicKey', 'string')
     assertOptionType(opts, '_store', 'object')
-    assertOptionType(opts, 'broker', 'string')
+    assertOptionType(opts, 'rpcUri', 'string')
 
     this._currency = opts.currency.toLowerCase()
     this._secret = opts.secret
@@ -45,9 +44,15 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     this._store = opts._store
     this._info = opts.info
+    this._maxBalance = opts.maxBalance
     this._balance = new Balance({
       store: this._store,
-      maximum: opts.maxBalance
+      maximum: this._maxBalance
+    })
+
+    // give a 'balance' event on balance change
+    this._balance.on('balance', (balance) => {
+      this.emit('balance', balance)
     })
 
     this._prefix = 'peer.' + this._token.substring(0, 5) + '.' + this._currency + '.'
@@ -62,23 +67,18 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       store: this._store
     })
     this._connected = false
-    this._connection = new Connection({
-      host: opts.broker,
-      other: opts.other,
-      token: this._token,
-      publicKey: this._publicKey,
-      peerPublicKey: this._peerPublicKey
-    })
 
     // register RPC methods
-    this._rpc = new JsonRpc1(this._connection, this)
-    this._rpc.addMethod('sendMessage', this._handleMessage)
-    this._rpc.addMethod('sendTransfer', this._handleTransfer)
-    this._rpc.addMethod('fulfillCondition', this._handleFulfillCondition)
-    this._rpc.addMethod('rejectIncomingTransfer', this._handleRejectIncomingTransfer)
-    this._rpc.addMethod('expireTransfer', this._handleExpireTransfer)
+    this._rpc = new HttpRpc(opts.rpcUri, this)
+    this._rpc.addMethod('send_message', this._handleMessage)
+    this._rpc.addMethod('send_transfer', this._handleTransfer)
+    this._rpc.addMethod('fulfill_condition', this._handleFulfillCondition)
+    this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
+    this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
+    this._rpc.addMethod('get_limit', this._handleGetLimit)
 
     // wrap around generator methods
+    this.receive = co.wrap(this._rpc.receive).bind(this._rpc)
     this.connect = co.wrap(this._connect).bind(this)
     this.disconnect = co.wrap(this._disconnect).bind(this)
     this.sendMessage = co.wrap(this._sendMessage).bind(this)
@@ -88,6 +88,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.rejectIncomingTransfer = co.wrap(this._rejectIncomingTransfer).bind(this)
     this.getFulfillment = co.wrap(this._getFulfillment).bind(this)
     this.getInfo = co.wrap(this._getInfo).bind(this)
+    this.getLimit = co.wrap(this._getLimit).bind(this)
 
     // simple getters
     this.isConnected = () => (this._connected)
@@ -96,20 +97,18 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _connect () {
-    yield this._connection.connect()
     this._connected = true
     yield this.emitAsync('connect')
   }
 
   * _disconnect () {
-    yield this._connection.disconnect()
     this._connected = false
     yield this.emitAsync('disconnect')
   }
 
   * _sendMessage (message) {
     this._validator.validateMessage(message)
-    yield this._rpc.call('sendMessage', [message.account
+    yield this._rpc.call('send_message', this._prefix, [message.account
       ? Object.assign({}, message, { account: this._account })
       : message])
 
@@ -135,7 +134,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     try {
-      yield this._rpc.call('sendTransfer', [Object.assign({},
+      yield this._rpc.call('send_transfer', this._prefix, [Object.assign({},
         transfer,
         // set the account to our own, and erase our note to self
         { noteToSelf: undefined, account: this._account })])
@@ -201,7 +200,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // let the other person know after we've already fulfilled, because they
     // don't have to edit their database.
-    yield this._rpc.call('fulfillCondition', [transferId, fulfillment])
+    yield this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
   }
 
   * _handleFulfillCondition (transferId, fulfillment) {
@@ -231,7 +230,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     debug('rejected ' + transferId)
 
     yield this._balance.sub(transfer.amount)
-    yield this._rpc.call('rejectIncomingTransfer', [transferId, reason])
+    yield this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
   }
 
   * _handleRejectIncomingTransfer (transferId, reason) {
@@ -279,7 +278,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       }
 
       yield that._balance.sub(packaged.transfer.amount)
-      yield that._rpc.call('expireTransfer', [transferId]).catch(() => {})
+      yield that._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
       yield that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
         packaged.transfer)
     }), (expiry - now))
@@ -290,7 +289,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const now = new Date()
 
     // only expire the transfer if you agree that it's supposed to be expired
-    if (now.getTime() < Date.parse(transfer.expiresAt).getTime()) {
+    if (now.getTime() < Date.parse(transfer.expiresAt)) {
       throw new Error(transferId + ' doesn\'t expire until ' + transfer.expiresAt +
         ' (current time is ' + now.toISOString() + ')')
     }
@@ -300,6 +299,21 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     return true
+  }
+
+  * _handleGetLimit () {
+    return this._maxBalance
+  }
+
+  * _getLimit () {
+    const peerMaxBalance = yield this._rpc.call('get_limit', this._prefix, [])
+    if (isNaN(+peerMaxBalance)) {
+      throw new Error('peer returned invalid limt: ' + peerMaxBalance)
+    } else if (peerMaxBalance.charAt(0) === '-') {
+      return peerMaxBalance.substring(1)
+    } else {
+      return '-' + peerMaxBalance
+    }
   }
 
   * _getInfo () {

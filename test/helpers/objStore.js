@@ -21,7 +21,7 @@ class ObjStore {
   }
 
   clone () {
-    let newS = JSON.parse(JSON.stringify(s))
+    let newS = JSON.parse(JSON.stringify(this.s))
     return new ObjStore(newS)
   }
 }

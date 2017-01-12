@@ -24,13 +24,13 @@ module.exports = class HttpRpc extends EventEmitter {
     return yield this._methods[method].apply(this._that, params)
   }
 
-  * _call (method, params) {
+  * _call (method, prefix, params) {
     debug('calling', method, 'with', params)
 
-    const uri = this.rpcUri + '?method=' + method
+    const uri = this.rpcUri + '?method=' + method + '&prefix=' + prefix
     const result = yield Promise.race([
       request({
-        method: 'PUT',
+        method: 'POST',
         uri: uri,
         'content-type': 'application/json',
         body: JSON.stringify(params)

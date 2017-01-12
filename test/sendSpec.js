@@ -53,7 +53,7 @@ describe('Send', () => {
 
     it('should send a message', function * () {
       nock('https://example.com')
-        .put('/rpc?method=send_message', [this.message])
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
         .reply(200, true)
 
       const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
@@ -75,7 +75,7 @@ describe('Send', () => {
       delete toFromMessage.account
 
       nock('https://example.com')
-        .put('/rpc?method=send_message', [toFromMessage])
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [toFromMessage])
         .reply(200, true)
 
       yield this.plugin.sendMessage(toFromMessage)
@@ -88,7 +88,7 @@ describe('Send', () => {
 
     it('should throw an error on an error code', function () {
       nock('https://example.com')
-        .put('/rpc?method=send_message', [this.message])
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
         .reply(500)
 
       return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
@@ -130,7 +130,7 @@ describe('Send', () => {
 
     it('should send a transfer', function * () {
       nock('https://example.com')
-        .put('/rpc?method=send_transfer', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
         .reply(200, true)
 
       const balanced = new Promise((resolve, reject) => {

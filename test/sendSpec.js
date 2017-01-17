@@ -43,8 +43,8 @@ describe('Send', () => {
   describe('sendMessage', () => {
     beforeEach(function * () {
       this.message = {
-        account: (yield this.plugin.getAccount()),
-        ledger: (yield this.plugin.getPrefix()),
+        account: this.plugin.getAccount(),
+        ledger: this.plugin.getInfo().prefix,
         data: {
           field: 'some stuff'
         }
@@ -119,8 +119,8 @@ describe('Send', () => {
     beforeEach(function * () {
       this.transfer = {
         id: uuid(),
-        ledger: (yield this.plugin.getPrefix()),
-        account: (yield this.plugin.getAccount()),
+        ledger: this.plugin.getInfo().prefix,
+        account: this.plugin.getAccount(),
         amount: '5.0',
         data: {
           field: 'some stuff'

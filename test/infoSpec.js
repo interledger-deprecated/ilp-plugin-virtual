@@ -36,8 +36,10 @@ describe('Info', () => {
   })
 
   describe('getInfo', () => {
-    it('should use the supplied info', function * () {
-      assert.deepEqual((yield this.plugin.getInfo()), info)
+    it('should use the supplied info', function () {
+      assert.deepEqual(
+        this.plugin.getInfo(),
+        Object.assign({}, info, {prefix: this.plugin.getInfo().prefix}))
     })
   })
 

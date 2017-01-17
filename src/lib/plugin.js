@@ -43,7 +43,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._token = Token.token(this._secret, this._peerPublicKey) + '/' + this._currency
 
     this._store = opts._store
-    this._info = opts.info
     this._maxBalance = opts.maxBalance
     this._balance = new Balance({
       store: this._store,
@@ -56,6 +55,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     })
 
     this._prefix = 'peer.' + this._token.substring(0, 5) + '.' + this._currency + '.'
+    this._info = Object.assign({}, (opts.info || {}), { prefix: this._prefix })
     this._account = this._prefix + this._publicKey
 
     if (opts.prefix && opts.prefix !== this._prefix) {
@@ -87,13 +87,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.fulfillCondition = co.wrap(this._fulfillCondition).bind(this)
     this.rejectIncomingTransfer = co.wrap(this._rejectIncomingTransfer).bind(this)
     this.getFulfillment = co.wrap(this._getFulfillment).bind(this)
-    this.getInfo = co.wrap(this._getInfo).bind(this)
     this.getLimit = co.wrap(this._getLimit).bind(this)
 
     // simple getters
-    this.isConnected = () => (this._connected)
-    this.getPrefix = () => Promise.resolve(this._prefix)
-    this.getAccount = () => Promise.resolve(this._account)
+    this.getInfo = () => JSON.parse(JSON.stringify(this._info))
+    this.isConnected = () => this._connected
+    this.getAccount = () => this._account
   }
 
   * _connect () {
@@ -314,10 +313,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     } else {
       return '-' + peerMaxBalance
     }
-  }
-
-  * _getInfo () {
-    return this._info
   }
 
   * _validateFulfillment (fulfillment, condition) {

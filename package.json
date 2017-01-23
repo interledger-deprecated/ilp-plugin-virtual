@@ -41,6 +41,7 @@
     "ilp-plugin-tests": "^1.5.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.1.0",
+    "nock": "^9.0.2",
     "uuid": "^2.0.2",
     "validate-commit-msg": "^2.6.1"
   },
@@ -53,7 +54,6 @@
     "debug": "^2.2.0",
     "eventemitter2": "^2.2.0",
     "five-bells-condition": "^3.2.0",
-    "nock": "^9.0.2",
     "tweetnacl": "^0.14.5",
     "uuid4": "^1.0.0"
   },

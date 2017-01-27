@@ -1,4 +1,4 @@
-const sodium = require('sodium-prebuilt').api
+const tweetnacl = require('tweetnacl')
 const crypto = require('crypto') // sodium doesn't have HMAC
 const base64url = require('base64url')
 
@@ -11,8 +11,8 @@ module.exports = {
     // seed should be a base64url string
     const seedBuffer = base64url.toBuffer(seed)
 
-    return base64url(sodium.crypto_scalarmult_base(
-      sodium.crypto_hash_sha256(seedBuffer)
+    return base64url(tweetnacl.scalarMult.base(
+      crypto.createHash('sha256').update(seedBuffer).digest()
     ))
   },
 
@@ -21,8 +21,8 @@ module.exports = {
     const seedBuffer = base64url.toBuffer(seed)
     const publicKeyBuffer = base64url.toBuffer(publicKey)
 
-    const sharedSecretBuffer = sodium.crypto_scalarmult(
-      sodium.crypto_hash_sha256(seedBuffer),
+    const sharedSecretBuffer = tweetnacl.scalarMult(
+      crypto.createHash('sha256').update(seedBuffer).digest(),
       publicKeyBuffer
     )
 

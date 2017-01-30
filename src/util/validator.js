@@ -2,6 +2,8 @@
 const BigNumber = require('bignumber.js')
 const cc = require('five-bells-condition')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
+const debug = require('debug')('ilp-plugin-virtual')
+const util = require('util')
 
 module.exports = class Validator {
   constructor (opts) {
@@ -12,18 +14,18 @@ module.exports = class Validator {
 
   validateIncomingTransfer (t) {
     this.validateTransfer(t)
+    if (t.account) return
     this.assertIncoming(t) 
   }
 
   validateOutgoingTransfer (t) {
     this.validateTransfer(t)
+    if (t.account) return
     this.assertOutgoing(t) 
   }
 
   validateTransfer (t) {
     assert(t.id, 'must have an id')
-    assert(t.to, 'must have a destination (.to)')
-    assert(t.from, 'must have a source (.from)')
     assert(t.ledger, 'must have a ledger')
     assert(t.amount, 'must have an amount')
 
@@ -35,27 +37,42 @@ module.exports = class Validator {
     assertCondition(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
 
+    if (t.account) {
+      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
+      assertString(t.account, 'account')
+      return
+    }
+
+    assert(t.to, 'must have a destination (.to)')
+    assert(t.from, 'must have a source (.from)')
     assertPrefix(t.ledger, this._prefix, 'ledger')
   }
 
   validateIncomingMessage (m) {
     this.validateMessage(m)
+    if (m.account) return
     this.assertIncoming(m) 
   }
 
   validateOutgoingMessage (m) {
     this.validateMessage(m)
+    if (m.account) return
     this.assertOutgoing(m)
   }
 
   validateMessage (m) {
-    assert(m.to, 'must have a destination (.to)')
-    assert(m.from, 'must have a source (.from)')
-
     assert(m.ledger, 'must have a ledger')
     assert(m.data, 'must have data')
     assertObject(m.data, 'data')
 
+    if (m.account) {
+      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
+      assertString(m.account, 'account')
+      return
+    }
+
+    assert(m.to, 'must have a destination (.to)')
+    assert(m.from, 'must have a source (.from)')
     assertPrefix(m.ledger, this._prefix, 'ledger')
   }
 

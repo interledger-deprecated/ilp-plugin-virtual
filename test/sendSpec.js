@@ -63,6 +63,20 @@ describe('Send', () => {
       yield outgoing
     })
 
+    it('should send a message with deprecated fields', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
+        .reply(200, true)
+
+      delete this.message.to
+      delete this.message.from
+      this.message.account = 'other'
+
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
+      yield this.plugin.sendMessage(this.message)
+      yield outgoing
+    })
+
     it('should receive a message', function * () {
       this.message.from = peerAddress
       this.message.to = this.plugin.getAccount()
@@ -135,6 +149,34 @@ describe('Send', () => {
           }
         })
       })
+
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
+      yield this.plugin.sendTransfer(this.transfer)
+      yield sent
+      yield balanced
+
+      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+    })
+
+    it('should send a transfer with deprecated fields', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      const balanced = new Promise((resolve, reject) => {
+        this.plugin.on('balance', (balance) => {
+          try {
+            assert.equal(balance, '-5')
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
+      delete this.transfer.to
+      delete this.transfer.from
+      this.transfer.account = 'other'
 
       const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
       yield this.plugin.sendTransfer(this.transfer)

@@ -62,7 +62,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       throw new InvalidFieldsError('invalid prefix. got "' + opts.prefix + '", expected "' + this._prefix + '"')
     }
 
-    this._validator = new Validator()
+    this._validator = new Validator({
+      account: this._account,
+      peer: this._prefix + this._peerPublicKey,
+      prefix: this._prefix
+    })
     this._transfers = new TransferLog({
       store: this._store
     })
@@ -106,23 +110,21 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _sendMessage (message) {
-    this._validator.validateMessage(message)
-    yield this._rpc.call('send_message', this._prefix, [message.account
-      ? Object.assign({}, message, { account: this._account })
-      : message])
+    this._validator.validateOutgoingMessage(message)
+    yield this._rpc.call('send_message', this._prefix, [message])
 
     yield this.emitAsync('outgoing_message', message)
   }
 
   * _handleMessage (message) {
-    this._validator.validateMessage(message)
+    this._validator.validateIncomingMessage(message)
     yield this.emitAsync('incoming_message', message)
     return true
   }
 
   * _sendTransfer (preTransfer) {
     const transfer = Object.assign({}, preTransfer, { ledger: this._prefix })
-    this._validator.validateTransfer(transfer)
+    this._validator.validateOutgoingTransfer(transfer)
 
     // apply the transfer before the other plugin can
     // emit any events about it.
@@ -135,8 +137,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     try {
       yield this._rpc.call('send_transfer', this._prefix, [Object.assign({},
         transfer,
-        // set the account to our own, and erase our note to self
-        { noteToSelf: undefined, account: this._account })])
+        // erase our note to self
+        { noteToSelf: undefined })])
 
       // end now, so as not to duplicate any effects
       if (repeat) return
@@ -164,7 +166,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _handleTransfer (transfer) {
-    this._validator.validateTransfer(transfer)
+    this._validator.validateIncomingTransfer(transfer)
     if (!(yield this._transfers.storeIncoming(transfer))) {
       // return if this transfer has already been stored
       return true

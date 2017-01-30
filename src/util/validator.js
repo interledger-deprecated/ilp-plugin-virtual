@@ -4,45 +4,76 @@ const cc = require('five-bells-condition')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
 
 module.exports = class Validator {
+  constructor (opts) {
+    this._account = opts.account
+    this._peer = opts.peer
+    this._prefix = opts.prefix
+  }
+
+  validateIncomingTransfer (t) {
+    this.validateTransfer(t)
+    this.assertIncoming(t) 
+  }
+
+  validateOutgoingTransfer (t) {
+    this.validateTransfer(t)
+    this.assertOutgoing(t) 
+  }
+
   validateTransfer (t) {
     assert(t.id, 'must have an id')
-    assert(t.account, 'must have an account')
+    assert(t.to, 'must have a destination (.to)')
+    assert(t.from, 'must have a source (.from)')
     assert(t.ledger, 'must have a ledger')
     assert(t.amount, 'must have an amount')
 
     assertString(t.id, 'id')
-    assertAccount(t.account, 'account')
-    assertPrefix(t.ledger, 'ledger')
     assertNumber(t.amount, 'amount')
     assertObject(t.data, 'data')
     assertObject(t.noteToSelf, 'noteToSelf')
     assertObject(t.custom, 'custom')
     assertCondition(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
+
+    assertPrefix(t.ledger, this._prefix, 'ledger')
+  }
+
+  validateIncomingMessage (m) {
+    this.validateMessage(m)
+    this.assertIncoming(m) 
+  }
+
+  validateOutgoingMessage (m) {
+    this.validateMessage(m)
+    this.assertOutgoing(m)
   }
 
   validateMessage (m) {
-    if (!m.account) {
-      assert(m.to, 'must have a destination account')
-      assert(m.from, 'must have a source account')
-      assertAccount(m.to, 'to')
-      assertAccount(m.from, 'from')
-    } else {
-      assert(m.account, 'must have an account')
-      assertAccount(m.account, 'account')
-    }
+    assert(m.to, 'must have a destination (.to)')
+    assert(m.from, 'must have a source (.from)')
 
     assert(m.ledger, 'must have a ledger')
     assert(m.data, 'must have data')
-
-    assertPrefix(m.ledger, 'ledger')
     assertObject(m.data, 'data')
+
+    assertPrefix(m.ledger, this._prefix, 'ledger')
   }
 
   validateFulfillment (f) {
     assert(f, 'fulfillment must not be "' + f + '"')
     assertFulfillment(f, 'fulfillment')
   }
+
+  assertIncoming (o) {
+    assertAccount(o.to, this._account, 'to')
+    assertAccount(o.from, this._peer, 'from')
+  }
+
+  assertOutgoing (o) {
+    assertAccount(o.to, this._peer, 'to')
+    assertAccount(o.from, this._account, 'from')
+  }
+
 }
 
 function assert (cond, msg) {
@@ -62,16 +93,16 @@ function assertObject (value, name) {
   assertType(value, name, 'object')
 }
 
-function assertPrefix (value, name) {
+function assertPrefix (value, prefix, name) {
   assertString(value, name)
-  assert(value.match(/^[a-zA-Z0-9._~-]+\.$/),
-    name + ' (' + value + ') must be a valid ILP prefix')
+  assert(value === prefix,
+    name + ' (' + value + ') must match ILP prefix: ' + prefix)
 }
 
-function assertAccount (value, name) {
+function assertAccount (value, account, name) {
   assertString(value, name)
-  assert(value.match(/^[a-zA-Z0-9._~-]+$/),
-    name + ' (' + value + ') must be a valid ILP account')
+  assert(value === account,
+    name + ' (' + value + ') must match account: ' + account)
 }
 
 function assertCondition (value, name) {

@@ -19,6 +19,7 @@ const info = {
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
+const peerAddress = 'peer.NavKx.usd.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
   currency: 'USD',
   secret: 'seeecret',
@@ -43,7 +44,8 @@ describe('Send', () => {
   describe('sendMessage', () => {
     beforeEach(function * () {
       this.message = {
-        account: this.plugin.getAccount(),
+        from: this.plugin.getAccount(),
+        to: peerAddress,
         ledger: this.plugin.getInfo().prefix,
         data: {
           field: 'some stuff'
@@ -62,23 +64,12 @@ describe('Send', () => {
     })
 
     it('should receive a message', function * () {
+      this.message.from = peerAddress
+      this.message.to = this.plugin.getAccount()
+
       const incoming = new Promise((resolve) => this.plugin.on('incoming_message', resolve))
       assert.isTrue(yield this.plugin.receive('send_message', [this.message]))
       yield incoming
-    })
-
-    it('should send a message in the to-from form', function * () {
-      const toFromMessage = Object.assign({},
-        this.message,
-        { to: 'peer.usd.other',
-          from: 'peer.usd.me' })
-      delete toFromMessage.account
-
-      nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [toFromMessage])
-        .reply(200, true)
-
-      yield this.plugin.sendMessage(toFromMessage)
     })
 
     it('should throw an error on no response', function () {
@@ -120,7 +111,8 @@ describe('Send', () => {
       this.transfer = {
         id: uuid(),
         ledger: this.plugin.getInfo().prefix,
-        account: this.plugin.getAccount(),
+        from: this.plugin.getAccount(),
+        to: peerAddress,
         amount: '5.0',
         data: {
           field: 'some stuff'
@@ -174,6 +166,10 @@ describe('Send', () => {
           resolve()
         })
       })
+
+      this.transfer.from = peerAddress
+      this.transfer.to = this.plugin.getAccount()
+
       yield this.plugin.receive('send_transfer', [this.transfer])
       yield received
       yield balanced

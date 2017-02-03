@@ -19,6 +19,7 @@ const info = {
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
+const peerAddress = 'peer.NavKx.usd.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
   currency: 'USD',
   secret: 'seeecret',
@@ -43,7 +44,8 @@ describe('Send', () => {
   describe('sendMessage', () => {
     beforeEach(function * () {
       this.message = {
-        account: this.plugin.getAccount(),
+        from: this.plugin.getAccount(),
+        to: peerAddress,
         ledger: this.plugin.getInfo().prefix,
         data: {
           field: 'some stuff'
@@ -61,24 +63,27 @@ describe('Send', () => {
       yield outgoing
     })
 
+    it('should send a message with deprecated fields', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
+        .reply(200, true)
+
+      delete this.message.to
+      delete this.message.from
+      this.message.account = 'other'
+
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
+      yield this.plugin.sendMessage(this.message)
+      yield outgoing
+    })
+
     it('should receive a message', function * () {
+      this.message.from = peerAddress
+      this.message.to = this.plugin.getAccount()
+
       const incoming = new Promise((resolve) => this.plugin.on('incoming_message', resolve))
       assert.isTrue(yield this.plugin.receive('send_message', [this.message]))
       yield incoming
-    })
-
-    it('should send a message in the to-from form', function * () {
-      const toFromMessage = Object.assign({},
-        this.message,
-        { to: 'peer.usd.other',
-          from: 'peer.usd.me' })
-      delete toFromMessage.account
-
-      nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [toFromMessage])
-        .reply(200, true)
-
-      yield this.plugin.sendMessage(toFromMessage)
     })
 
     it('should throw an error on no response', function () {
@@ -120,7 +125,8 @@ describe('Send', () => {
       this.transfer = {
         id: uuid(),
         ledger: this.plugin.getInfo().prefix,
-        account: this.plugin.getAccount(),
+        from: this.plugin.getAccount(),
+        to: peerAddress,
         amount: '5.0',
         data: {
           field: 'some stuff'
@@ -152,6 +158,34 @@ describe('Send', () => {
       assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
     })
 
+    it('should send a transfer with deprecated fields', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      const balanced = new Promise((resolve, reject) => {
+        this.plugin.on('balance', (balance) => {
+          try {
+            assert.equal(balance, '-5')
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
+      delete this.transfer.to
+      delete this.transfer.from
+      this.transfer.account = 'other'
+
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
+      yield this.plugin.sendTransfer(this.transfer)
+      yield sent
+      yield balanced
+
+      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+    })
+
     it('should receive a transfer', function * () {
       const balanced = new Promise((resolve, reject) => {
         this.plugin.on('balance', (balance) => {
@@ -174,6 +208,10 @@ describe('Send', () => {
           resolve()
         })
       })
+
+      this.transfer.from = peerAddress
+      this.transfer.to = this.plugin.getAccount()
+
       yield this.plugin.receive('send_transfer', [this.transfer])
       yield received
       yield balanced

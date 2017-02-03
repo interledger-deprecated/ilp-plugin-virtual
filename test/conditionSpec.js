@@ -20,6 +20,7 @@ const info = {
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
+const peerAddress = 'peer.NavKx.usd.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
   currency: 'USD',
   secret: 'seeecret',
@@ -42,7 +43,8 @@ describe('Conditional Transfers', () => {
     this.transfer = {
       id: uuid(),
       ledger: this.plugin.getInfo().prefix,
-      account: this.plugin.getAccount(),
+      from: this.plugin.getAccount(),
+      to: peerAddress,
       amount: '5.0',
       data: {
         field: 'some stuff'
@@ -50,6 +52,11 @@ describe('Conditional Transfers', () => {
       executionCondition: this.condition,
       expiresAt: (new Date((new Date()) + 1000)).toISOString()
     }
+
+    this.incomingTransfer = Object.assign({}, this.transfer, {
+      from: peerAddress,
+      to: this.plugin.getAccount()
+    })
 
     yield this.plugin.connect()
   })
@@ -83,7 +90,7 @@ describe('Conditional Transfers', () => {
 
       const fulfilled = new Promise((resolve) => this.plugin.on('incoming_fulfill', resolve))
 
-      yield this.plugin.receive('send_transfer', [this.transfer])
+      yield this.plugin.receive('send_transfer', [this.incomingTransfer])
       yield this.plugin.fulfillCondition(this.transfer.id, this.fulfillment)
       yield fulfilled
 
@@ -129,7 +136,7 @@ describe('Conditional Transfers', () => {
 
       const cancel = new Promise((resolve) => this.plugin.on('incoming_cancel', resolve))
 
-      yield this.plugin.receive('send_transfer', [this.transfer])
+      yield this.plugin.receive('send_transfer', [this.incomingTransfer])
       yield cancel
 
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
@@ -144,7 +151,7 @@ describe('Conditional Transfers', () => {
 
       const rejected = new Promise((resolve) => this.plugin.on('incoming_reject', resolve))
 
-      yield this.plugin.receive('send_transfer', [this.transfer])
+      yield this.plugin.receive('send_transfer', [this.incomingTransfer])
       yield this.plugin.rejectIncomingTransfer(this.transfer.id, 'reason')
       yield rejected
 
@@ -174,7 +181,7 @@ describe('Conditional Transfers', () => {
     })
 
     it('should not allow an incoming transfer to be rejected by sender', function * () {
-      yield this.plugin.receive('send_transfer', [this.transfer])
+      yield this.plugin.receive('send_transfer', [this.incomingTransfer])
       yield expect(this.plugin.receive('reject_transfer', [this.transfer.id, 'reason']))
         .to.eventually.be.rejected
     })

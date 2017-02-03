@@ -43,3 +43,17 @@ and parsed body must be passed to the plugin like so:
 ```js
 plugin.receive(method, body)
 ```
+
+# Generate a trustline prefix
+
+If you want to generate a trustline prefix from a secret key, peer's public key, and currency,
+you can access the method through the token class:
+
+```js
+const Token = require('ilp-plugin-virtual/src/util/token')
+const prefix = Token.prefix({
+  secretKey: 'o9Lt0oZFek1ArM_A0HUAq8M8edRuoSeLjX8i10sVUiY',
+  peerPublicKey: 'KRixgcBCBdyQln7IBYiopjuNO78QSFtXgOwP1sbsCSk',
+  currency: 'USD'
+})
+```

@@ -39,9 +39,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._peerPublicKey = opts.peerPublicKey
     this._publicKey = Token.publicKey(this._secret)
 
-    // Token uses ECDH to get a secret channel name
-    this._token = Token.token(this._secret, this._peerPublicKey) + '/' + this._currency
-
     this._store = opts._store
     this._maxBalance = opts.maxBalance
     this._balance = new Balance({
@@ -54,7 +51,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       this.emit('balance', balance)
     })
 
-    this._prefix = 'peer.' + this._token.substring(0, 5) + '.' + this._currency + '.'
+    // Token uses ECDH to get the ledger prefix from secret and public key
+    this._prefix = Token.prefix({
+      secretKey: this._secret,
+      peerPublicKey: this._peerPublicKey,
+      currency: this._currency
+    })
+
     this._info = Object.assign({}, (opts.info || {}), { prefix: this._prefix })
     this._account = this._prefix + this._publicKey
 
@@ -279,7 +282,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       }
 
       yield that._balance.sub(packaged.transfer.amount)
-      yield that._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
+      yield that._rpc.call('expire_transfer', that._prefix, [transferId]).catch(() => {})
       yield that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
         packaged.transfer)
     }), (expiry - now))

@@ -128,6 +128,21 @@ describe('Conditional Transfers', () => {
     })
   })
 
+  describe('expireTransfer', () => {
+    it('expires a transfer', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.', [this.transfer.id])
+        .reply(200, true)
+
+      const cancel = new Promise((resolve) => this.plugin.on('incoming_cancel', resolve))
+
+      yield this.plugin.receive('send_transfer', [this.incomingTransfer])
+      yield cancel
+
+      assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
+    })
+  })
+
   describe('rejectIncomingTransfer', () => {
     it('rejects an incoming transfer', function * () {
       nock('https://example.com')

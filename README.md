@@ -53,7 +53,7 @@ you can access the method through the token class:
 const Token = require('ilp-plugin-virtual/src/util/token')
 const prefix = Token.prefix({
   secretKey: 'o9Lt0oZFek1ArM_A0HUAq8M8edRuoSeLjX8i10sVUiY',
-  publicKey: 'KRixgcBCBdyQln7IBYiopjuNO78QSFtXgOwP1sbsCSk',
+  peerPublicKey: 'KRixgcBCBdyQln7IBYiopjuNO78QSFtXgOwP1sbsCSk',
   currency: 'USD'
 })
 ```

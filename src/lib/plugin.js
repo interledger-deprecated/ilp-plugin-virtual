@@ -282,7 +282,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       }
 
       yield that._balance.sub(packaged.transfer.amount)
-      yield that._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
+      yield that._rpc.call('expire_transfer', that._prefix, [transferId]).catch(() => {})
       yield that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
         packaged.transfer)
     }), (expiry - now))

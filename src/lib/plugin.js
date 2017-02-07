@@ -121,7 +121,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _handleMessage (message) {
     this._validator.validateIncomingMessage(message)
-    yield this.emitAsync('incoming_message', message)
+
+    // assign legacy account field
+    yield this.emitAsync('incoming_message', Object.assign({},
+      message,
+      { account: this._prefix + this._peerPublicKey }))
     return true
   }
 

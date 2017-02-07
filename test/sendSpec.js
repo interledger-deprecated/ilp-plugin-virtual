@@ -108,8 +108,21 @@ describe('Send', () => {
     it('should receive a message', function * () {
       this.message.from = peerAddress
       this.message.to = this.plugin.getAccount()
+      this.message.account = this.plugin.getAccount()
 
-      const incoming = new Promise((resolve) => this.plugin.on('incoming_message', resolve))
+      const incoming = new Promise((resolve, reject) => {
+        this.plugin.on('incoming_message', (message) => {
+          try {
+            assert.deepEqual(message, Object.assign({},
+              this.message,
+              { account: peerAddress }))
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
       assert.isTrue(yield this.plugin.receive('send_message', [this.message]))
       yield incoming
     })

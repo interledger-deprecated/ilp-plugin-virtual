@@ -41,6 +41,34 @@ describe('Send', () => {
     assert(nock.isDone(), 'nocks should all have been called')
   })
 
+  describe('RPC', () => {
+    it('should throw an error on an error code', function () {
+      nock('https://example.com')
+        .post('/rpc?method=method&prefix=peer.NavKx.usd.', [])
+        .reply(500)
+
+      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.', []))
+        .to.eventually.be.rejected
+    })
+
+    it('should accept an object as a response', function () {
+      nock('https://example.com')
+        .post('/rpc?method=method&prefix=peer.NavKx.usd.', [])
+        .reply(200, {
+          a: {
+            b: 'c' 
+          }
+        })
+  
+      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.', []))
+        .to.eventually.deep.equal({
+          a: {
+            b: 'c'
+          }
+        })
+    })
+  })
+
   describe('sendMessage', () => {
     beforeEach(function * () {
       this.message = {
@@ -88,14 +116,6 @@ describe('Send', () => {
 
     it('should throw an error on no response', function () {
       this.timeout(3000)
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
-    })
-
-    it('should throw an error on an error code', function () {
-      nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
-        .reply(500)
-
       return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
     })
 

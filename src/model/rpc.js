@@ -42,6 +42,11 @@ module.exports = class HttpRpc extends EventEmitter {
       })
     ])
 
-    return JSON.parse(result.body)
+    if (result.statusCode !== 200) {
+      throw new Error('Unexpected status code ' + result.statusCode + ', with body "' +
+        res.body + '"')
+    }
+
+    return result.body
   }
 }

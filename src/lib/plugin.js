@@ -314,7 +314,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _getLimit () {
-    const peerMaxBalance = yield this._rpc.call('get_limit', this._prefix, [])
+    // rpc.call turns the balance into a number for some reason, so we turn it back to string
+    const peerMaxBalance = String(yield this._rpc.call('get_limit', this._prefix, []))
     if (isNaN(+peerMaxBalance)) {
       throw new Error('peer returned invalid limt: ' + peerMaxBalance)
     } else if (peerMaxBalance.charAt(0) === '-') {

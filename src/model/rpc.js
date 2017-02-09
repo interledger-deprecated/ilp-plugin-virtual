@@ -44,7 +44,7 @@ module.exports = class HttpRpc extends EventEmitter {
 
     if (result.statusCode !== 200) {
       throw new Error('Unexpected status code ' + result.statusCode + ', with body "' +
-        res.body + '"')
+        result.body + '"')
     }
 
     return result.body

@@ -254,8 +254,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _handleCancelTransfer (transferId) {
     const transfer = yield this._transfers.get(transferId)
-    if (yield this._transfer.cancel(transferId)) {
-      yield this.emitAsync('outgoing_cancel', transfer)
+    try {
+      if (yield this._transfer.cancel(transferId)) {
+        yield this.emitAsync('outgoing_cancel', transfer)
+      }
+    } catch (e) {
+      debug(e.message)
     }
 
     return true
@@ -274,22 +278,31 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const now = new Date()
 
     const that = this
-    setTimeout(co.wrap(function * () {
-      debug('going to time out ' + transferId)
+    setTimeout(
+      co.wrap(this._expireTransfer).bind(this, transferId),
+      (expiry - now))
+  }
 
-      const packaged = yield that._transfers._getPackaged(transferId)
+  * _expireTransfer (transferId) {
+    debug('checking time out on ' + transferId)
 
-      // don't cancel again if it's already cancelled
-      if (!(yield that._transfers.cancel(transferId))) {
-        debug(transferId + ' has already cancelled')
+    const packaged = yield this._transfers._getPackaged(transferId)
+
+    // don't cancel again if it's already cancelled/executed
+    try {
+      if (!(yield this._transfers.cancel(transferId))) {
+        debug(transferId + ' is already cancelled')
         return
       }
+    } catch (e) {
+      debug(e.message)
+      return
+    }
 
-      yield that._balance.sub(packaged.transfer.amount)
-      yield that._rpc.call('expire_transfer', that._prefix, [transferId]).catch(() => {})
-      yield that.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
-        packaged.transfer)
-    }), (expiry - now))
+    yield this._balance.sub(packaged.transfer.amount)
+    yield this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
+    yield this.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+      packaged.transfer)
   }
 
   * _handleExpireTransfer (transferId) {

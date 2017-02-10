@@ -141,6 +141,24 @@ describe('Conditional Transfers', () => {
 
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
     })
+
+    it('doesn\'t expire an executed transfer', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
+      const fulfilled = new Promise((resolve) => this.plugin.on('outgoing_fulfill', resolve))
+
+      yield this.plugin.sendTransfer(this.transfer)
+      yield sent
+
+      yield this.plugin.receive('fulfill_condition', [this.transfer.id, this.fulfillment])
+      yield fulfilled
+      yield this.plugin._expireTransfer(this.transfer.id)
+
+      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should not be rolled back')
+    })
   })
 
   describe('rejectIncomingTransfer', () => {

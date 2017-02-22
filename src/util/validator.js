@@ -1,8 +1,10 @@
 'use strict'
 const BigNumber = require('bignumber.js')
-const cc = require('five-bells-condition')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
 const util = require('util')
+
+// Regex matching a string containing 32 base64url-encoded bytes
+const REGEX_32_BYTES_AS_BASE64URL = /^[A-Za-z0-9_-]{43}$/
 
 module.exports = class Validator {
   constructor (opts) {
@@ -33,7 +35,7 @@ module.exports = class Validator {
     assertObject(t.data, 'data')
     assertObject(t.noteToSelf, 'noteToSelf')
     assertObject(t.custom, 'custom')
-    assertCondition(t.executionCondition, 'executionCondition')
+    assertConditionOrPreimage(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
 
     if (t.account) {
@@ -77,7 +79,7 @@ module.exports = class Validator {
 
   validateFulfillment (f) {
     assert(f, 'fulfillment must not be "' + f + '"')
-    assertFulfillment(f, 'fulfillment')
+    assertConditionOrPreimage(f, 'fulfillment')
   }
 
   assertIncoming (o) {
@@ -121,23 +123,11 @@ function assertAccount (value, account, name) {
     name + ' (' + value + ') must match account: ' + account)
 }
 
-function assertCondition (value, name) {
+function assertConditionOrPreimage (value, name) {
   if (!value) return
   assertString(value, name)
-  try {
-    cc.validateCondition(value)
-  } catch (e) {
-    throw new InvalidFieldsError(name + ' (' + value + '): ' + e.message)
-  }
-}
-
-function assertFulfillment (value, name) {
-  if (!value) return
-  assertString(value, name)
-  try {
-    cc.fromFulfillmentUri(value)
-  } catch (e) {
-    throw new InvalidFieldsError(name + ' (' + value + '): ' + e.message)
+  if (!REGEX_32_BYTES_AS_BASE64URL.test(value)) {
+    throw new InvalidFieldsError(name + ' (' + value + '): Not a valid 32-byte base64url encoded string')
   }
 }
 

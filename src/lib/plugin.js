@@ -2,7 +2,8 @@
 
 const EventEmitter2 = require('eventemitter2')
 const co = require('co')
-const cc = require('five-bells-condition')
+const crypto = require('crypto')
+const base64url = require('base64url')
 
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
@@ -338,10 +339,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _validateFulfillment (fulfillment, condition) {
-    try {
-      cc.validateFulfillment(fulfillment, condition)
-    } catch (e) {
-      throw new NotAcceptedError(e.message)
+    this._validator.validateFulfillment(fulfillment)
+    const hash = crypto.createHash('sha256')
+    hash.update(fulfillment, 'base64')
+    if (base64url(hash.digest()) !== condition) {
+      throw new NotAcceptedError('Fulfillment does not match the condition')
     }
   }
 }

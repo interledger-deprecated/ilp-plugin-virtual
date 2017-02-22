@@ -2,6 +2,8 @@
 
 const nock = require('nock')
 const uuid = require('uuid4')
+const crypto = require('crypto')
+const base64url = require('base64url')
 
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
@@ -10,7 +12,6 @@ const expect = chai.expect
 
 const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
-const cc = require('five-bells-condition')
 
 const info = {
   currencyCode: 'USD',
@@ -35,10 +36,10 @@ describe('Conditional Transfers', () => {
     this.plugin = new PluginVirtual(Object.assign({},
       options, { _store: new ObjStore() }))
 
-    const condition = new cc.PreimageSha256()
-    condition.setPreimage(new Buffer(''))
-    this.condition = condition.getConditionUri()
-    this.fulfillment = condition.serializeUri()
+    this.fulfillment = 'gHJ2QeIZpstXaGZVCSq4d3vkrMSChNYKriefys3KMtI'
+    const hash = crypto.createHash('sha256')
+    hash.update(this.fulfillment, 'base64')
+    this.condition = base64url(hash.digest())
 
     this.transfer = {
       id: uuid(),

@@ -56,10 +56,10 @@ describe('Send', () => {
         .post('/rpc?method=method&prefix=peer.NavKx.usd.', [])
         .reply(200, {
           a: {
-            b: 'c' 
+            b: 'c'
           }
         })
-  
+
       return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.', []))
         .to.eventually.deep.equal({
           a: {

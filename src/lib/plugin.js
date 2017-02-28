@@ -277,7 +277,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const expiry = Date.parse(expiresAt)
     const now = new Date()
 
-    const that = this
     setTimeout(
       co.wrap(this._expireTransfer).bind(this, transferId),
       (expiry - now))

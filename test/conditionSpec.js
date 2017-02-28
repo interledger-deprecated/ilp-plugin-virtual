@@ -133,7 +133,6 @@ describe('Conditional Transfers', () => {
         .reply(200, true)
 
       this.plugin.on('outgoing_prepare', () => new Promise((resolve, reject) => {}))
-      //const fulfilled = new Promise((resolve) => this.plugin.on('outgoing_fulfill', resolve))
 
       yield this.plugin.sendTransfer(this.transfer)
     })

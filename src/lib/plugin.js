@@ -104,26 +104,26 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _connect () {
     this._connected = true
-    yield this.emitAsync('connect')
+    this.emit('connect')
   }
 
   * _disconnect () {
     this._connected = false
-    yield this.emitAsync('disconnect')
+    this.emit('disconnect')
   }
 
   * _sendMessage (message) {
     this._validator.validateOutgoingMessage(message)
     yield this._rpc.call('send_message', this._prefix, [message])
 
-    yield this.emitAsync('outgoing_message', message)
+    this.emit('outgoing_message', message)
   }
 
   * _handleMessage (message) {
     this._validator.validateIncomingMessage(message)
 
     // assign legacy account field
-    yield this.emitAsync('incoming_message', Object.assign({},
+    this.emit('incoming_message', Object.assign({},
       message,
       { account: this._prefix + this._peerPublicKey }))
     return true
@@ -168,7 +168,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       yield this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     }
 
-    yield this.emitAsync('outgoing_' +
+    this.emit('outgoing_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
   }
 
@@ -182,7 +182,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     // balance is added on incoming transfers, regardless of condition
     yield this._balance.add(transfer.amount)
 
-    yield this.emitAsync('incoming_' +
+    this.emit('incoming_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
     // set up expiry here too, so both sides can send the expiration message
@@ -203,7 +203,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
-      yield this.emitAsync('incoming_fulfill', transfer, fulfillment)
+      this.emit('incoming_fulfill', transfer, fulfillment)
     }
 
     // let the other person know after we've already fulfilled, because they
@@ -221,7 +221,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
       yield this._balance.sub(transfer.amount)
-      yield this.emitAsync('outgoing_fulfill', transfer, fulfillment)
+      this.emit('outgoing_fulfill', transfer, fulfillment)
     }
 
     return true
@@ -233,7 +233,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertIncoming(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      yield this.emitAsync('incoming_reject', transfer, reason)
+      this.emit('incoming_reject', transfer, reason)
     }
     debug('rejected ' + transferId)
 
@@ -246,7 +246,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertOutgoing(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      yield this.emitAsync('outgoing_reject', transfer, reason)
+      this.emit('outgoing_reject', transfer, reason)
     }
 
     return true
@@ -256,7 +256,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const transfer = yield this._transfers.get(transferId)
     try {
       if (yield this._transfer.cancel(transferId)) {
-        yield this.emitAsync('outgoing_cancel', transfer)
+        this.emit('outgoing_cancel', transfer)
       }
     } catch (e) {
       debug(e.message)
@@ -301,7 +301,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._balance.sub(packaged.transfer.amount)
     yield this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
-    yield this.emitAsync((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+    this.emit((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
       packaged.transfer)
   }
 
@@ -316,7 +316,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     if (yield this._transfers.cancel(transferId)) {
-      yield this.emitAsync('outgoing_cancel', transfer)
+      this.emit('outgoing_cancel', transfer)
     }
 
     return true

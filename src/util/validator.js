@@ -2,7 +2,6 @@
 const BigNumber = require('bignumber.js')
 const cc = require('five-bells-condition')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
-const debug = require('debug')('ilp-plugin-virtual')
 const util = require('util')
 
 module.exports = class Validator {
@@ -15,13 +14,13 @@ module.exports = class Validator {
   validateIncomingTransfer (t) {
     this.validateTransfer(t)
     if (t.account) return
-    this.assertIncoming(t) 
+    this.assertIncoming(t)
   }
 
   validateOutgoingTransfer (t) {
     this.validateTransfer(t)
     if (t.account) return
-    this.assertOutgoing(t) 
+    this.assertOutgoing(t)
   }
 
   validateTransfer (t) {
@@ -51,7 +50,7 @@ module.exports = class Validator {
   validateIncomingMessage (m) {
     this.validateMessage(m)
     if (m.account) return
-    this.assertIncoming(m) 
+    this.assertIncoming(m)
   }
 
   validateOutgoingMessage (m) {

@@ -126,6 +126,17 @@ describe('Conditional Transfers', () => {
       this.transfer.expiresAt = undefined
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
+
+    it('should resolve even if the event notification handler takes forever', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      this.plugin.on('outgoing_prepare', () => new Promise((resolve, reject) => {}))
+      //const fulfilled = new Promise((resolve) => this.plugin.on('outgoing_fulfill', resolve))
+
+      yield this.plugin.sendTransfer(this.transfer)
+    })
   })
 
   describe('expireTransfer', () => {

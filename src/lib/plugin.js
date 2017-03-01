@@ -102,28 +102,39 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.getAccount = () => this._account
   }
 
+  // don't throw errors even if the event handler throws
+  // this is especially important in plugin virtual because
+  // errors can prevent the balance from being updated correctly
+  _safeEmit () {
+    try {
+      this.emit.apply(this, arguments)
+    } catch (err) {
+      debug('error in handler for event', arguments, err)
+    }
+  }
+
   * _connect () {
     this._connected = true
-    this.emit('connect')
+    this._safeEmit('connect')
   }
 
   * _disconnect () {
     this._connected = false
-    this.emit('disconnect')
+    this._safeEmit('disconnect')
   }
 
   * _sendMessage (message) {
     this._validator.validateOutgoingMessage(message)
     yield this._rpc.call('send_message', this._prefix, [message])
 
-    this.emit('outgoing_message', message)
+    this._safeEmit('outgoing_message', message)
   }
 
   * _handleMessage (message) {
     this._validator.validateIncomingMessage(message)
 
     // assign legacy account field
-    this.emit('incoming_message', Object.assign({},
+    this._safeEmit('incoming_message', Object.assign({},
       message,
       { account: this._prefix + this._peerPublicKey }))
     return true
@@ -168,7 +179,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       yield this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     }
 
-    this.emit('outgoing_' +
+    this._safeEmit('outgoing_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
   }
 
@@ -182,7 +193,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     // balance is added on incoming transfers, regardless of condition
     yield this._balance.add(transfer.amount)
 
-    this.emit('incoming_' +
+    this._safeEmit('incoming_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
     // set up expiry here too, so both sides can send the expiration message
@@ -203,7 +214,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
-      this.emit('incoming_fulfill', transfer, fulfillment)
+      this._safeEmit('incoming_fulfill', transfer, fulfillment)
     }
 
     // let the other person know after we've already fulfilled, because they
@@ -221,7 +232,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     yield this._validateFulfillment(fulfillment, transfer.executionCondition)
     if (yield this._transfers.fulfill(transferId, fulfillment)) {
       yield this._balance.sub(transfer.amount)
-      this.emit('outgoing_fulfill', transfer, fulfillment)
+      this._safeEmit('outgoing_fulfill', transfer, fulfillment)
     }
 
     return true
@@ -233,7 +244,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertIncoming(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      this.emit('incoming_reject', transfer, reason)
+      this._safeEmit('incoming_reject', transfer, reason)
     }
     debug('rejected ' + transferId)
 
@@ -246,7 +257,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._transfers.assertOutgoing(transferId)
     if (yield this._transfers.cancel(transferId)) {
-      this.emit('outgoing_reject', transfer, reason)
+      this._safeEmit('outgoing_reject', transfer, reason)
     }
 
     return true
@@ -256,7 +267,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const transfer = yield this._transfers.get(transferId)
     try {
       if (yield this._transfer.cancel(transferId)) {
-        this.emit('outgoing_cancel', transfer)
+        this._safeEmit('outgoing_cancel', transfer)
       }
     } catch (e) {
       debug(e.message)
@@ -300,7 +311,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     yield this._balance.sub(packaged.transfer.amount)
     yield this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
-    this.emit((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+    this._safeEmit((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
       packaged.transfer)
   }
 
@@ -315,7 +326,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     if (yield this._transfers.cancel(transferId)) {
-      this.emit('outgoing_cancel', transfer)
+      this._safeEmit('outgoing_cancel', transfer)
     }
 
     return true

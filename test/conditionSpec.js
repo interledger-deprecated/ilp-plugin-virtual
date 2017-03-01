@@ -136,6 +136,30 @@ describe('Conditional Transfers', () => {
 
       yield this.plugin.sendTransfer(this.transfer)
     })
+
+    it('should resolve even if the event notification handler throws an error', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      this.plugin.on('outgoing_prepare', () => {
+        throw new Error('blah')
+      })
+
+      yield this.plugin.sendTransfer(this.transfer)
+    })
+
+    it('should resolve even if the event notification handler rejects', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      this.plugin.on('outgoing_prepare', function * () {
+        throw new Error('blah')
+      })
+
+      yield this.plugin.sendTransfer(this.transfer)
+    })
   })
 
   describe('expireTransfer', () => {

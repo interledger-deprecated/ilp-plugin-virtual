@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "istanbul test -- _mocha"
+    "test": "istanbul test -- _mocha",
+    "integration": "integration-loader && integration all"
   },
   "repository": {
     "type": "git",
@@ -37,6 +38,7 @@
     "eslint-config-standard": "^6.0.0",
     "eslint-plugin-promise": "^3.0.0",
     "eslint-plugin-standard": "^2.0.1",
+    "five-bells-integration-test-loader": "^1.2.0",
     "ghooks": "^1.2.1",
     "ilp-plugin-tests": "^1.5.0",
     "istanbul": "^0.4.5",
@@ -62,6 +64,10 @@
     },
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
+    },
+    "five-bells-integration-test-loader": {
+      "module": "five-bells-integration-test",
+      "repo": "interledgerjs/five-bells-integration-test"
     }
   }
 }

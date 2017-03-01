@@ -3,10 +3,15 @@ machine:
     version: 6.2.0
 test:
   override:
+    # Run lint
     - npm run lint
+    # Run tests with coverage
     - npm test
+    # Run integration test suite
+    - if git log -1 --pretty=%B | grep -qF "[skip tests]"; then true; else npm run integration; fi
   post:
-    - bash <(curl -s https://codecov.io/bash)
+    # Upload code coverage data
+    - bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
 deployment:
   production:
     branch: master
@@ -14,3 +19,6 @@ deployment:
       # Push NPM package if not yet published
       - mv npmrc-env .npmrc
       - if [ $(npm show ilp-plugin-virtual version) != $(npm ls --depth=-1 2>/dev/null | head -1 | cut -f 1 -d " " | cut -f 2 -d @) ] ; then npm publish ; fi
+general:
+  artifacts:
+    - "coverage/lcov-report"

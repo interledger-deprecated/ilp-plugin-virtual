@@ -315,7 +315,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       return
     }
 
-    yield this._balance.sub(packaged.transfer.amount)
+    if (packaged.isIncoming) {
+      // the balance was only affected when the transfer was incoming.  in the
+      // outgoing case, the balance isn't affected until the transfer is
+      // fulfilled.
+      yield this._balance.sub(packaged.transfer.amount)
+    }
+
     yield this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
     this._safeEmit((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
       packaged.transfer)

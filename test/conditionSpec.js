@@ -193,6 +193,24 @@ describe('Conditional Transfers', () => {
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
     })
 
+    it('expires an outgoing transfer', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.', [this.transfer.id])
+        .reply(200, true)
+
+      this.transfer.expiresAt = (new Date((new Date()) + 200)).toISOString()
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(200, true)
+
+      const cancel = new Promise((resolve) => this.plugin.on('outgoing_cancel', resolve))
+
+      yield this.plugin.sendTransfer(this.transfer)
+      yield cancel
+
+      assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
+    })
+
     it('doesn\'t expire an executed transfer', function * () {
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])

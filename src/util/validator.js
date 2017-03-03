@@ -3,6 +3,7 @@ const BigNumber = require('bignumber.js')
 const cc = require('five-bells-condition')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
 const util = require('util')
+const xor = (a, b) => ((a || b) && (!a || !b))
 
 module.exports = class Validator {
   constructor (opts) {
@@ -35,6 +36,12 @@ module.exports = class Validator {
     assertObject(t.custom, 'custom')
     assertCondition(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
+
+    if (xor(t.executionCondition, t.expiresAt)) {
+      throw new Error('executionCondition (' + t.executionCondition +
+        ') and expiresAt (' + t.expiresAt +
+        ') must both be set if either is set')
+    }
 
     if (t.account) {
       util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()

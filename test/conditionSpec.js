@@ -97,6 +97,22 @@ describe('Conditional Transfers', () => {
       assert.equal((yield this.plugin.getBalance()), '5', 'balance should increase by amount')
     })
 
+    it('should fulfill a transfer even if inital RPC failed', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(500)
+
+      const fulfilled = new Promise((resolve) => this.plugin.on('outgoing_fulfill', resolve))
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
+
+      yield this.plugin.sendTransfer(this.transfer)
+      yield sent
+      yield this.plugin.receive('fulfill_condition', [this.transfer.id, this.fulfillment])
+      yield fulfilled
+
+      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+    })
+
     it('doesn\'t fulfill a transfer with invalid fulfillment', function * () {
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])

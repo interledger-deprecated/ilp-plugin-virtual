@@ -191,6 +191,17 @@ describe('Send', () => {
       assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
     })
 
+    it('should roll back a transfer if the RPC call fails', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .reply(500)
+
+      yield this.plugin.sendTransfer(this.transfer)
+        .catch((e) => assert.match(e.message, /Unexpected status code 500/))
+
+      assert.equal((yield this.plugin.getBalance()), '0', 'balance should be rolled back')
+    })
+
     it('should send a transfer with deprecated fields', function * () {
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])

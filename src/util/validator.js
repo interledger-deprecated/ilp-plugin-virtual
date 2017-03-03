@@ -5,6 +5,7 @@ const util = require('util')
 
 // Regex matching a string containing 32 base64url-encoded bytes
 const REGEX_32_BYTES_AS_BASE64URL = /^[A-Za-z0-9_-]{43}$/
+const xor = (a, b) => ((a || b) && (!a || !b))
 
 module.exports = class Validator {
   constructor (opts) {
@@ -37,6 +38,12 @@ module.exports = class Validator {
     assertObject(t.custom, 'custom')
     assertConditionOrPreimage(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
+
+    if (xor(t.executionCondition, t.expiresAt)) {
+      throw new Error('executionCondition (' + t.executionCondition +
+        ') and expiresAt (' + t.expiresAt +
+        ') must both be set if either is set')
+    }
 
     if (t.account) {
       util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()

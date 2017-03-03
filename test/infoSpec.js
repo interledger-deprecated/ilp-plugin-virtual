@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('chai').assert
+const nock = require('nock')
 
 const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
@@ -32,6 +33,28 @@ describe('Info', () => {
   describe('getBalance', () => {
     it('should start at zero', function * () {
       assert.equal((yield this.plugin.getBalance()), '0')
+    })
+  })
+
+  describe('getLimit', () => {
+    it('return the result of the RPC call', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=get_limit&prefix=peer.NavKx.usd.', [])
+        .reply(200, '5')
+
+      // the value is reversed so it makes sense to our side
+      assert.equal((yield this.plugin.getLimit()), '-5')
+    })
+  })
+
+  describe('getPeerBalance', () => {
+    it('return the result of the RPC call', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=get_balance&prefix=peer.NavKx.usd.', [])
+        .reply(200, '5')
+
+      // the value is reversed so it makes sense to our side
+      assert.equal((yield this.plugin.getPeerBalance()), '-5')
     })
   })
 

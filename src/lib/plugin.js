@@ -84,6 +84,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
     this._rpc.addMethod('get_limit', this._handleGetLimit)
+    this._rpc.addMethod('get_balance', this._getBalance)
 
     // wrap around generator methods
     this.receive = co.wrap(this._rpc.receive).bind(this._rpc)
@@ -96,6 +97,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.rejectIncomingTransfer = co.wrap(this._rejectIncomingTransfer).bind(this)
     this.getFulfillment = co.wrap(this._getFulfillment).bind(this)
     this.getLimit = co.wrap(this._getLimit).bind(this)
+    this.getPeerBalance = co.wrap(this._getPeerBalance).bind(this)
 
     // simple getters
     this.getInfo = () => JSON.parse(JSON.stringify(this._info))
@@ -159,6 +161,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
         // erase our note to self
         { noteToSelf: undefined })])
 
+      debug('transfer acknowledged ' + transfer.id)
+
       // end now, so as not to duplicate any effects
       if (repeat) return
     } catch (e) {
@@ -170,12 +174,14 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       debug(e.name + ' during transfer ' + transfer.id)
       if (!transfer.executionCondition) {
         yield this._balance.add(transfer.amount)
+        // only roll back if the transfer is not conditional.  if the receiver
+        // somehow found out about the transfer but failed to respond, they
+        // still have a chance to fulfill before the timeout is reached
+        yield this._transfers.drop(transfer.id)
+        throw e
       }
-      yield this._transfers.drop(transfer.id)
-      throw e
     }
 
-    debug('transfer acknowledged ' + transfer.id)
     if (transfer.executionCondition) {
       yield this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     }
@@ -337,16 +343,25 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     return this._maxBalance
   }
 
+  _stringNegate (num) {
+    if (isNaN(+num)) {
+      throw new Error('invalid number: ' + num)
+    } else if (num.charAt(0) === '-') {
+      return num.substring(1)
+    } else {
+      return '-' + num
+    }
+  }
+
   * _getLimit () {
     // rpc.call turns the balance into a number for some reason, so we turn it back to string
     const peerMaxBalance = String(yield this._rpc.call('get_limit', this._prefix, []))
-    if (isNaN(+peerMaxBalance)) {
-      throw new Error('peer returned invalid limt: ' + peerMaxBalance)
-    } else if (peerMaxBalance.charAt(0) === '-') {
-      return peerMaxBalance.substring(1)
-    } else {
-      return '-' + peerMaxBalance
-    }
+    return this._stringNegate(peerMaxBalance)
+  }
+
+  * _getPeerBalance () {
+    const peerBalance = String(yield this._rpc.call('get_balance', this._prefix, []))
+    return this._stringNegate(peerBalance)
   }
 
   * _validateFulfillment (fulfillment, condition) {

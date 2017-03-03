@@ -4,7 +4,7 @@
   "description": "ILP virtual ledger plugin for directly transacting connectors",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint src test",
     "test": "istanbul test -- _mocha",
     "integration": "integration-loader && integration all"
   },

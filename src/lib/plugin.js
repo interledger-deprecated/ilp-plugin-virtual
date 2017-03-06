@@ -38,6 +38,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._secret = opts.secret
     this._peerPublicKey = opts.peerPublicKey
     this._publicKey = Token.publicKey(this._secret)
+    this._call = opts._call
 
     this._store = opts._store
     this._maxBalance = opts.maxBalance
@@ -127,7 +128,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   * _sendMessage (message) {
     this._validator.validateOutgoingMessage(message)
-    yield this._rpc.call('send_message', this._prefix, [message])
+    yield this._call('send_message', [message])
 
     this._safeEmit('outgoing_message', message)
   }
@@ -155,7 +156,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     try {
-      yield this._rpc.call('send_transfer', this._prefix, [Object.assign({},
+      yield this._call('send_transfer', [Object.assign({},
         transfer,
         // erase our note to self
         { noteToSelf: undefined })])
@@ -225,7 +226,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // let the other person know after we've already fulfilled, because they
     // don't have to edit their database.
-    yield this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
+    yield this._call('fulfill_condition', [transferId, fulfillment])
   }
 
   * _handleFulfillCondition (transferId, fulfillment) {
@@ -255,7 +256,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     debug('rejected ' + transferId)
 
     yield this._balance.sub(transfer.amount)
-    yield this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
+    yield this._call('reject_incoming_transfer', [transferId, reason])
   }
 
   * _handleRejectIncomingTransfer (transferId, reason) {
@@ -322,7 +323,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       yield this._balance.sub(packaged.transfer.amount)
     }
 
-    yield this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
+    yield this._call('expire_transfer', [transferId]).catch(() => {})
     this._safeEmit((packaged.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
       packaged.transfer)
   }
@@ -359,13 +360,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _getLimit () {
-    // rpc.call turns the balance into a number for some reason, so we turn it back to string
-    const peerMaxBalance = String(yield this._rpc.call('get_limit', this._prefix, []))
+    // _call turns the balance into a number for some reason, so we turn it back to string
+    const peerMaxBalance = String(yield this._call('get_limit', []))
     return this._stringNegate(peerMaxBalance)
   }
 
   * _getPeerBalance () {
-    const peerBalance = String(yield this._rpc.call('get_balance', this._prefix, []))
+    const peerBalance = String(yield this._call('get_balance', []))
     return this._stringNegate(peerBalance)
   }
 

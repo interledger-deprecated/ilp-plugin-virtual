@@ -28,7 +28,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     super()
 
     assertOptionType(opts, 'currency', 'string')
-    assertOptionType(opts, 'maxBalance', 'string')
+    assertOptionType(opts, 'maxBalanceInCurrency', 'string')
     assertOptionType(opts, 'secret', 'string')
     assertOptionType(opts, 'peerPublicKey', 'string')
     assertOptionType(opts, '_store', 'object')
@@ -38,12 +38,14 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._secret = opts.secret
     this._peerPublicKey = opts.peerPublicKey
     this._publicKey = Token.publicKey(this._secret)
+    this._info = Object.assign({}, (opts.info || {}), { prefix: this._prefix })
 
     this._store = opts._store
-    this._maxBalance = opts.maxBalance
+    this._maxBalanceInCurrency = opts.maxBalanceInCurrency
     this._balance = new Balance({
       store: this._store,
-      maximum: this._maxBalance
+      maximumInCurrency: this._maxBalanceInCurrency,
+      scale: this._info.scale
     })
 
     // give a 'balance' event on balance change
@@ -58,7 +60,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       currency: this._currency
     })
 
-    this._info = Object.assign({}, (opts.info || {}), { prefix: this._prefix })
     this._account = this._prefix + this._publicKey
 
     if (opts.prefix && opts.prefix !== this._prefix) {
@@ -323,7 +324,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   * _handleGetLimit () {
-    return this._maxBalance
+    return this._maxBalanceInCurrency
   }
 
   * _getLimit () {

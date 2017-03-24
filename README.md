@@ -24,7 +24,7 @@ When instantiating the plugin, make sure to pass in an object with the right fie
 
 ```js
 {
-  "maxBalance": "highest balance allowed",
+  "maxBalanceInCurrency": "highest balance allowed",
   "prefix": "prefix for ilp address",
   "secret": "your secret. your peer must know the corresponding public key.",
   "peerPublicKey": "base64url encoded public key of your peer",

@@ -8,7 +8,7 @@ const PluginVirtual = require('..')
 const options = {
   currency: 'USD',
   secret: 'seeecret',
-  maxBalance: '10',
+  maxBalanceInCurrency: '10',
   rpcUri: 'https://example.com/rpc',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   _store: new ObjStore()
@@ -30,7 +30,7 @@ describe('constructor', () => {
     })
   }
 
-  omitField('maxBalance')
+  omitField('maxBalanceInCurrency')
   omitField('currency')
   omitField('secret')
   omitField('peerPublicKey')

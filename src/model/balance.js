@@ -11,7 +11,9 @@ module.exports = class Balance extends EventEmitter {
   constructor (opts) {
     super()
 
-    this._maximum = new BigNumber(opts.maximum)
+    this._maximumInCurrency = new BigNumber(opts.maximumInCurrency)
+    this._scale = opts.scale || 10
+    this._scaledMaximum = this._maximumInCurrency * new BigNumber(Math.pow(10, this._scale))
     this._store = opts.store
     this._cached = null
 
@@ -45,10 +47,10 @@ module.exports = class Balance extends EventEmitter {
     this._assertNumber(number)
 
     const balance = yield this._getNumber()
-    if (balance.add(new BigNumber(number)).gt(this._maximum)) {
-      throw new NotAcceptedError('adding amount (' + number +
+    if (balance.add(new BigNumber(number)).gt(this._scaledMaximum)) {
+      throw new NotAcceptedError('adding amount (' + number / Math.pow(10, this._scale) +
         ') to balance (' + balance +
-        ') exceeds maximum (' + this._maximum.toString() +
+        ') exceeds maximum (' + this._maximumInCurrency.toString() +
         ')')
     }
 

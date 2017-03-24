@@ -16,7 +16,7 @@ const info = {
 const options = {
   currency: 'USD',
   secret: 'seeecret',
-  maxBalance: '10',
+  maxBalanceInCurrency: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   _store: new ObjStore(),

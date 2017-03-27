@@ -6,9 +6,10 @@ const expect = require('chai').expect
 const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 const options = {
-  currency: 'USD',
+  currencyScale: 2,
+  currencyCode: 'USD',
   secret: 'seeecret',
-  maxBalance: '10',
+  maxBalance: '1000',
   rpcUri: 'https://example.com/rpc',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   _store: new ObjStore()
@@ -31,7 +32,8 @@ describe('constructor', () => {
   }
 
   omitField('maxBalance')
-  omitField('currency')
+  omitField('currencyScale')
+  omitField('currencyCode')
   omitField('secret')
   omitField('peerPublicKey')
   omitField('_store')

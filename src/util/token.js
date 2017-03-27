@@ -32,9 +32,9 @@ const publicKey = (seed) => {
   ))
 }
 
-const prefix = ({ secretKey, peerPublicKey, currency }) => {
+const prefix = ({ secretKey, peerPublicKey, currencyCode, currencyScale }) => {
   const tokenPart = token(secretKey, peerPublicKey).substring(0, 5)
-  return ('peer.' + tokenPart + '.' + currency.toLowerCase() + '.')
+  return ('peer.' + tokenPart + '.' + currencyCode.toLowerCase() + '.' + currencyScale + '.')
 }
 
 // use ECDH and HMAC to get the channel's token

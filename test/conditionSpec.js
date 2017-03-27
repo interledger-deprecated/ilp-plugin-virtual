@@ -15,15 +15,14 @@ const PluginVirtual = require('..')
 
 const info = {
   currencyCode: 'USD',
-  currencySymbol: '$',
-  precision: 15,
-  scale: 15,
+  currencyScale: 2,
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
-const peerAddress = 'peer.NavKx.usd.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
+const peerAddress = 'peer.NavKx.usd.2.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
-  currency: 'USD',
+  currencyCode: 'USD',
+  currencyScale: 2,
   secret: 'seeecret',
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
@@ -69,7 +68,7 @@ describe('Conditional Transfers', () => {
   describe('sendTransfer (conditional)', () => {
     it('allows an outgoing transfer to be fulfilled', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
@@ -86,7 +85,7 @@ describe('Conditional Transfers', () => {
 
     it('fulfills an incoming transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.', [this.transfer.id, this.fulfillment])
+        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.', [this.transfer.id, this.fulfillment])
         .reply(200, true)
 
       const fulfilled = new Promise((resolve) => this.plugin.on('incoming_fulfill', resolve))
@@ -100,7 +99,7 @@ describe('Conditional Transfers', () => {
 
     it('should fulfill a transfer even if inital RPC failed', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(500)
 
       const fulfilled = new Promise((resolve) => this.plugin.on('outgoing_fulfill', resolve))
@@ -116,7 +115,7 @@ describe('Conditional Transfers', () => {
 
     it('doesn\'t fulfill a transfer with invalid fulfillment', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -126,7 +125,7 @@ describe('Conditional Transfers', () => {
 
     it('doesn\'t fulfill an outgoing transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -146,7 +145,7 @@ describe('Conditional Transfers', () => {
 
     it('should resolve even if the event notification handler takes forever', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       this.plugin.on('outgoing_prepare', () => new Promise((resolve, reject) => {}))
@@ -156,7 +155,7 @@ describe('Conditional Transfers', () => {
 
     it('should resolve even if the event notification handler throws an error', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       this.plugin.on('outgoing_prepare', () => {
@@ -168,7 +167,7 @@ describe('Conditional Transfers', () => {
 
     it('should resolve even if the event notification handler rejects', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       this.plugin.on('outgoing_prepare', function * () {
@@ -182,7 +181,7 @@ describe('Conditional Transfers', () => {
   describe('expireTransfer', () => {
     it('expires a transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.', [this.transfer.id])
+        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.2.', [this.transfer.id])
         .reply(200, true)
 
       const cancel = new Promise((resolve) => this.plugin.on('incoming_cancel', resolve))
@@ -195,12 +194,12 @@ describe('Conditional Transfers', () => {
 
     it('expires an outgoing transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.', [this.transfer.id])
+        .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.2.', [this.transfer.id])
         .reply(200, true)
 
       this.transfer.expiresAt = (new Date((new Date()) + 200)).toISOString()
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const cancel = new Promise((resolve) => this.plugin.on('outgoing_cancel', resolve))
@@ -213,7 +212,7 @@ describe('Conditional Transfers', () => {
 
     it('doesn\'t expire an executed transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
@@ -233,7 +232,7 @@ describe('Conditional Transfers', () => {
   describe('rejectIncomingTransfer', () => {
     it('rejects an incoming transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=reject_incoming_transfer&prefix=peer.NavKx.usd.', [this.transfer.id, 'reason'])
+        .post('/rpc?method=reject_incoming_transfer&prefix=peer.NavKx.usd.2.', [this.transfer.id, 'reason'])
         .reply(200, true)
 
       const rejected = new Promise((resolve) => this.plugin.on('incoming_reject', resolve))
@@ -247,7 +246,7 @@ describe('Conditional Transfers', () => {
 
     it('should allow an outgoing transfer to be rejected', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const rejected = new Promise((resolve) => this.plugin.on('outgoing_reject', resolve))
@@ -259,7 +258,7 @@ describe('Conditional Transfers', () => {
 
     it('should not reject an outgoing transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       yield this.plugin.sendTransfer(this.transfer)

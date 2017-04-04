@@ -65,6 +65,16 @@ describe('Info', () => {
     })
   })
 
+  describe('isAuthorized', () => {
+    it('should authorize its own auth token', function () {
+      assert.isTrue(this.plugin.isAuthorized(this.plugin._authToken))
+    })
+
+    it('should not authorize any other token', function () {
+      assert.isFalse(this.plugin.isAuthorized('any other token'))
+    })
+  })
+
   describe('disconnect', () => {
     it('should disconnect when connected', function * () {
       assert.isTrue(this.plugin.isConnected(), 'should have connected before')

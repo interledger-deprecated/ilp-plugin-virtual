@@ -5,11 +5,12 @@ const request = require('co-request')
 
 // TODO: really call it HTTP RPC?
 module.exports = class HttpRpc extends EventEmitter {
-  constructor (rpcUri, that) {
+  constructor ({ rpcUri, plugin, authToken }) {
     super()
     this._methods = {}
-    this._that = that
+    this._plugin = plugin
     this.rpcUri = rpcUri
+    this.authToken = authToken
 
     this.receive = co.wrap(this._receive).bind(this)
     this.call = co.wrap(this._call).bind(this)
@@ -21,7 +22,7 @@ module.exports = class HttpRpc extends EventEmitter {
 
   * _receive (method, params) {
     // TODO: 4XX when method doesn't exist
-    return yield this._methods[method].apply(this._that, params)
+    return yield this._methods[method].apply(this._plugin, params)
   }
 
   * _call (method, prefix, params) {
@@ -33,6 +34,7 @@ module.exports = class HttpRpc extends EventEmitter {
         method: 'POST',
         uri: uri,
         body: params,
+        auth: { bearer: this.authToken },
         json: true
       }),
       new Promise((resolve, reject) => {

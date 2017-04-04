@@ -3,17 +3,9 @@ const crypto = require('crypto') // sodium doesn't have HMAC
 const base64url = require('base64url')
 
 const TOKEN_HMAC_INPUT = 'token'
+const AUTH_HMAC_INPUT = 'authorization'
 
-const token = (seed, publicKey) => {
-  // seed and public key should be stored as base64url strings
-  const seedBuffer = base64url.toBuffer(seed)
-  const publicKeyBuffer = base64url.toBuffer(publicKey)
-
-  const sharedSecretBuffer = tweetnacl.scalarMult(
-    crypto.createHash('sha256').update(seedBuffer).digest(),
-    publicKeyBuffer
-  )
-
+const tokenFromSharedSecret = (sharedSecretBuffer) => {
   // token is created by feeding the string 'token' into
   // an HMAC, using the shared secret as the key.
   return base64url(
@@ -21,6 +13,27 @@ const token = (seed, publicKey) => {
       .update(TOKEN_HMAC_INPUT, 'ascii')
       .digest()
   )
+}
+
+const hmac = (key, data) => {
+  return base64url(
+    crypto.createHmac('sha256', key)
+      .update(data, 'ascii')
+      .digest()
+  )
+}
+
+const authToken = ({ secretKey, peerPublicKey }) => {
+  return hmac(sharedSecret({
+    secretKey, peerPublicKey
+  }), AUTH_HMAC_INPUT)
+}
+
+const token = ({ secretKey, peerPublicKey }) => {
+  // secret and public key should be stored as base64url strings
+  return hmac(sharedSecret({
+    secretKey, peerPublicKey
+  }), TOKEN_HMAC_INPUT)
 }
 
 const publicKey = (seed) => {
@@ -32,8 +45,20 @@ const publicKey = (seed) => {
   ))
 }
 
-const prefix = ({ secretKey, peerPublicKey, currencyCode, currencyScale }) => {
-  const tokenPart = token(secretKey, peerPublicKey).substring(0, 5)
+const sharedSecret = ({ secretKey, peerPublicKey }) => {
+  const seedBuffer = base64url.toBuffer(secretKey)
+  const publicKeyBuffer = base64url.toBuffer(peerPublicKey)
+
+  const sharedSecretBuffer = tweetnacl.scalarMult(
+    crypto.createHash('sha256').update(seedBuffer).digest(),
+    publicKeyBuffer
+  )
+
+  return sharedSecretBuffer
+}
+
+const prefix = ({ secretKey, peerPublicKey, currencyScale, currencyCode }) => {
+  const tokenPart = token({ secretKey, peerPublicKey }).substring(0, 5)
   return ('peer.' + tokenPart + '.' + currencyCode.toLowerCase() + '.' + currencyScale + '.')
 }
 
@@ -41,5 +66,8 @@ const prefix = ({ secretKey, peerPublicKey, currencyCode, currencyScale }) => {
 module.exports = {
   token,
   publicKey,
+  tokenFromSharedSecret,
+  sharedSecret,
+  authToken,
   prefix
 }

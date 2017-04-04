@@ -9,6 +9,12 @@
 
 > ILP virtual ledger plugin for directly transacting connectors
 
+### NOTE:
+
+The current version of `ilp-plugin-virtual` is designed to be used in [ILP
+Kit](https://github.com/interledgerjs/ilp-kit). An HTTP server is required in
+order to pass RPC calls to the plugin, and to perform authorization on RPC calls.
+
 ## Installation
 
 ``` sh

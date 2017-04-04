@@ -51,6 +51,19 @@ describe('Send', () => {
         .to.eventually.be.rejected
     })
 
+    it('should send authorization bearer token', function () {
+      nock('https://example.com', {
+        reqheaders: {
+          'Authorization': 'Bearer ' + this.plugin._authToken
+        }
+      })
+        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
+        .reply(200, { a: 'b' })
+
+      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
+        .to.eventually.deep.equal({ a: 'b' })
+    })
+
     it('should accept an object as a response', function () {
       nock('https://example.com')
         .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])

@@ -55,6 +55,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     })
 
     // Token uses ECDH to get the ledger prefix from secret and public key
+    this._authToken = Token.authToken({
+      secretKey: this._secret,
+      peerPublicKey: this._peerPublicKey
+    })
+
     this._prefix = Token.prefix({
       secretKey: this._secret,
       peerPublicKey: this._peerPublicKey,
@@ -84,7 +89,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._connected = false
 
     // register RPC methods
-    this._rpc = new HttpRpc(opts.rpcUri, this)
+    this._rpc = new HttpRpc({
+      rpcUri: opts.rpcUri,
+      plugin: this,
+      authToken: this._authToken
+    })
+
     this._rpc.addMethod('send_message', this._handleMessage)
     this._rpc.addMethod('send_transfer', this._handleTransfer)
     this._rpc.addMethod('fulfill_condition', this._handleFulfillCondition)
@@ -110,6 +120,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.getInfo = () => JSON.parse(JSON.stringify(this._info))
     this.isConnected = () => this._connected
     this.getAccount = () => this._account
+    this.isAuthorized = (authToken) => (authToken === this._authToken)
   }
 
   // don't throw errors even if the event handler throws

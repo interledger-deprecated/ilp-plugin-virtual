@@ -19,11 +19,6 @@ class ObjStore {
     delete this.s[k]
     return Promise.resolve(null)
   }
-
-  clone () {
-    let newS = JSON.parse(JSON.stringify(this.s))
-    return new ObjStore(newS)
-  }
 }
 
 module.exports = ObjStore

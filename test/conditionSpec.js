@@ -40,6 +40,9 @@ describe('Conditional Transfers', () => {
     hash.update(this.fulfillment, 'base64')
     this.condition = base64url(hash.digest())
 
+    const expiry = new Date()
+    expiry.setSeconds(expiry.getSeconds() + 5)
+
     this.transfer = {
       id: uuid(),
       ledger: this.plugin.getInfo().prefix,
@@ -50,7 +53,7 @@ describe('Conditional Transfers', () => {
         field: 'some stuff'
       },
       executionCondition: this.condition,
-      expiresAt: (new Date((new Date()) + 1000)).toISOString()
+      expiresAt: expiry.toISOString()
     }
 
     this.incomingTransfer = Object.assign({}, this.transfer, {
@@ -81,6 +84,7 @@ describe('Conditional Transfers', () => {
       yield fulfilled
 
       assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('fulfills an incoming transfer', function * () {
@@ -95,6 +99,7 @@ describe('Conditional Transfers', () => {
       yield fulfilled
 
       assert.equal((yield this.plugin.getBalance()), '5', 'balance should increase by amount')
+      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('should fulfill a transfer even if inital RPC failed', function * () {
@@ -184,12 +189,14 @@ describe('Conditional Transfers', () => {
         .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.2.', [this.transfer.id])
         .reply(200, true)
 
+      this.incomingTransfer.expiresAt = (new Date()).toISOString()
       const cancel = new Promise((resolve) => this.plugin.on('incoming_cancel', resolve))
 
       yield this.plugin.receive('send_transfer', [this.incomingTransfer])
       yield cancel
 
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
+      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('expires an outgoing transfer', function * () {
@@ -197,11 +204,11 @@ describe('Conditional Transfers', () => {
         .post('/rpc?method=expire_transfer&prefix=peer.NavKx.usd.2.', [this.transfer.id])
         .reply(200, true)
 
-      this.transfer.expiresAt = (new Date((new Date()) + 200)).toISOString()
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
+      this.transfer.expiresAt = (new Date()).toISOString()
       const cancel = new Promise((resolve) => this.plugin.on('outgoing_cancel', resolve))
 
       yield this.plugin.sendTransfer(this.transfer)

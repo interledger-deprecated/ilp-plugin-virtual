@@ -2,6 +2,7 @@
 
 const nock = require('nock')
 const uuid = require('uuid4')
+const request = require('co-request')
 
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
@@ -188,6 +189,8 @@ describe('Send', () => {
       yield balanced
 
       assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
+      assert.equal((yield this.plugin._store.get('balance__')), '-5', 'correct balance should be stored')
+      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('should roll back a transfer if the RPC call fails', function * () {
@@ -258,6 +261,71 @@ describe('Send', () => {
       yield this.plugin.receive('send_transfer', [this.transfer])
       yield received
       yield balanced
+    })
+
+    it('should not race when reading the balance', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .reply(200, true)
+
+      const transfer2 = Object.assign({}, this.transfer, { id: uuid() })
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [transfer2])
+        .reply(200, true)
+
+      const send1 = this.plugin.sendTransfer(this.transfer)
+      const send2 = this.plugin.sendTransfer(transfer2)
+
+      yield Promise.all([ send1, send2 ])
+      assert.equal(yield this.plugin.getBalance(), '-10',
+        'both transfers should be applied to the balance')
+    })
+
+    it('should not apply twice when two identical transfers come in with the same id', function * () {
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .reply(200, true)
+
+      nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .reply(200, true)
+
+      const send1 = this.plugin.sendTransfer(this.transfer)
+      const send2 = this.plugin.sendTransfer(this.transfer)
+
+      yield Promise.all([ send1, send2 ])
+      assert.equal(yield this.plugin.getBalance(), '-5',
+        'only one of the transfers should be applied to the balance')
+    })
+
+    it('should not race when two different transfers come in with the same id', function * () {
+      const transfer1nock = nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .reply(200, true)
+
+      const transfer2 = Object.assign({}, this.transfer, { amount: '10' })
+      const transfer2nock = nock('https://example.com')
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [transfer2])
+        .reply(200, true)
+
+      const send1 = this.plugin.sendTransfer(this.transfer)
+      const send2 = this.plugin.sendTransfer(transfer2)
+
+      // one of these should be rejected because they are two transfer with the
+      // same ID but different data
+      yield expect(Promise.all([ send1, send2 ]))
+        .to.eventually.be.rejectedWith(/transfer .* matches the id of .* but not the contents/)
+
+      assert.isFalse(transfer1nock.isDone() && transfer2nock.isDone(),
+        'one of the sendTransfer calls should fail')
+
+      // this is the only way to clean up a nock
+      yield request({
+        uri: 'https://example.com/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.',
+        body: [transfer2],
+        json: true,
+        method: 'POST'
+      })
     })
 
     it('should not send a transfer without id', function () {

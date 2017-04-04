@@ -7,44 +7,59 @@ const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
 const InvalidFieldsError = errors.InvalidFieldsError
 
+const BALANCE_PREFIX = 'balance__'
+
 module.exports = class Balance extends EventEmitter {
   constructor (opts) {
     super()
 
     this._maximum = new BigNumber(opts.maximum)
+    this._balance = null
+
+    this._key = BALANCE_PREFIX
     this._store = opts.store
-    this._cached = null
 
-    // all reserved DB key prefixes are 9 characters
-    // so it lines up with 'transfer_'
-    this._key = 'balance__'
+    // used to keep writes to store in order. See queueWrite.
+    this._writeToStoreQueue = Promise.resolve()
   }
 
-  * get () {
-    return (yield this._getNumber()).toString()
+  // _queueWrite solves the problem of balance updates being committed to the
+  // store out of order. Because calling balance gets and puts asynchronously
+  // would cause a race condition, we keep a promise chain in
+  // `this._writeToStoreQueue` and attach each balance update to the end via
+  // `.then()`. No update to the balance will be committed to the database
+  // unless all previous writes are resolved.
+  _queueWriteBalance () {
+    this._writeToStoreQueue = this._writeToStoreQueue.then(() => {
+      return this._store.put(this._key, this._balance.toString())
+    })
+    return this._writeToStoreQueue
   }
 
-  * _getNumber () {
-    if (this._cached) {
-      return this._cached
-    }
-
-    const stored = yield this._store.get(this._key)
+  * connect () {
+    let stored = yield this._store.get(this._key)
 
     if (!this._isNumber(stored)) {
       debug('stored balance (' + stored + ') is invalid. rewriting as 0.')
       yield this._store.put(this._key, '0')
-      return new BigNumber('0')
+      stored = '0'
     }
 
-    this._cached = new BigNumber(stored)
-    return new BigNumber(stored)
+    this._balance = new BigNumber(stored)
+  }
+
+  get () {
+    return this._balance.toString()
+  }
+
+  _getNumber () {
+    return this._balance
   }
 
   * add (number) {
     this._assertNumber(number)
 
-    const balance = yield this._getNumber()
+    const balance = this._balance
     if (balance.add(new BigNumber(number)).gt(this._maximum)) {
       throw new NotAcceptedError('adding amount (' + number +
         ') to balance (' + balance +
@@ -52,19 +67,19 @@ module.exports = class Balance extends EventEmitter {
         ')')
     }
 
-    this._cached = balance.add(new BigNumber(number))
-    this._store.put(this._key, this._cached.toString())
-    this.emitAsync('balance', this._cached.toString())
+    this._balance = balance.add(new BigNumber(number))
+    yield this._queueWriteBalance()
+    this.emitAsync('balance', this._balance.toString())
   }
 
   * sub (number) {
     this._assertNumber(number)
-    this._cached = (yield this._getNumber()).sub(new BigNumber(number))
-    this._store.put(this._key, this._cached.toString())
-    this.emitAsync('balance', this._cached.toString())
+    this._balance = this._balance.sub(new BigNumber(number))
+    yield this._queueWriteBalance()
+    this.emitAsync('balance', this._balance.toString())
   }
 
-  * _assertNumber (number) {
+  _assertNumber (number) {
     if (!this._isNumber(number)) {
       throw new InvalidFieldsError('"' + number + '" is not a number.')
     }

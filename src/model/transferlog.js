@@ -9,172 +9,182 @@ const AlreadyFulfilledError = errors.AlreadyFulfilledError
 const MissingFulfillmentError = errors.MissingFulfillmentError
 const debug = require('debug')('ilp-plugin-virtual:store')
 
+const TRANSFER_PREFIX = 'transfer_'
+
 module.exports = class TransferLog {
 
   constructor (opts) {
     this._store = opts.store
-
-    this._cacheItems = {}
-    this._cacheStack = []
-    this._cacheSize = 500
-
-    this.incoming = 'incoming'
-    this.outgoing = 'outgoing'
+    this._storeCache = {}
   }
 
-  * get (transferId) {
-    return (yield this._getPackaged(transferId)).transfer
+  _getFromCache (transferId) {
+    debug('_getFromCache', transferId)
+    return this._storeCache[transferId]
+  }
+
+  _putToCache (id, transferWithInfo) {
+    debug('_putToCache', id)
+    this._storeCache[id] = transferWithInfo
+  }
+
+  drop (id) {
+    delete this._storeCache[id]
+  }
+
+  _putToStore (id) {
+    const cached = this._getCachedTransferWithInfo(id)
+    if (cached.written) return
+
+    cached.written = true
+    this._putCachedTransferWithInfo(cached)
+    this._store.put(TRANSFER_PREFIX + id, JSON.stringify(cached))
+  }
+
+  get (transferId) {
+    return this._getCachedTransferWithInfo(transferId).transfer
   }
 
   * getFulfillment (transferId) {
-    const packaged = yield this._getPackaged(transferId)
+    const transferWithInfo = yield this._getTransferWithInfo(transferId)
 
-    if (!packaged.transfer.executionCondition) {
+    if (!transferWithInfo.transfer.executionCondition) {
       throw new TransferNotConditionalError('transfer with id ' + transferId +
         ' is not conditional')
-    } else if (packaged.state === 'cancelled') {
+    } else if (transferWithInfo.state === 'cancelled') {
       throw new AlreadyRolledBackError('transfer with id ' + transferId +
         ' has already been rolled back')
-    } else if (packaged.state === 'prepared') {
+    } else if (transferWithInfo.state === 'prepared') {
       throw new MissingFulfillmentError('transfer with id ' + transferId +
         ' has not been fulfilled')
     }
 
-    return packaged.fulfillment
+    return transferWithInfo.fulfillment
   }
 
-  * fulfill (transferId, fulfillment) {
+  fulfill (transferId, fulfillment) {
     debug('fulfilling with ' + fulfillment)
-    return yield this._setState(transferId, 'executed', fulfillment)
+    return this._setState(transferId, 'executed', fulfillment)
   }
 
-  * cancel (transferId) {
-    return yield this._setState(transferId, 'cancelled', null)
-  }
-
-  * drop (transferId) {
-    this._removeFromCache(transferId)
-    this._store.del('transfer_' + transferId)
+  cancel (transferId) {
+    debug('cancelling ' + transferId)
+    return this._setState(transferId, 'cancelled', null)
   }
 
   // returns whether or not the state changed
-  * _setState (transferId, state, fulfillment) {
-    const existingTransfer = yield this._getPackaged(transferId)
-    if (!(yield this.assertAllowedChange(transferId, state))) {
-      return false
-    }
+  _setState (transferId, state, fulfillment) {
+    const cachedTransferWithInfo = this._getCachedTransferWithInfo(transferId)
+    cachedTransferWithInfo.state = state
+    cachedTransferWithInfo.fulfillment = fulfillment
 
-    existingTransfer.state = state
-    existingTransfer.fulfillment = fulfillment
+    this._putCachedTransferWithInfo(cachedTransferWithInfo)
+    this._putToStore(cachedTransferWithInfo.transfer.id)
 
-    yield this._storePackaged(existingTransfer)
+    // clear from cache now that the transfer is resolved
+    this.drop(cachedTransferWithInfo.transfer.id)
     return true
   }
 
-  * storeIncoming (transfer) {
-    return yield this._storeTransfer(transfer, true)
+  cacheIncoming (transfer) {
+    return this._putCachedTransfer(transfer, true)
   }
 
-  * storeOutgoing (transfer) {
-    return yield this._storeTransfer(transfer, false)
+  cacheOutgoing (transfer) {
+    return this._putCachedTransfer(transfer, false)
   }
 
-  * _storeTransfer (transfer, isIncoming) {
-    const stored = yield this._safeGet(transfer.id)
+  * notInStore (transfer) {
+    const stored = yield this._store.get(TRANSFER_PREFIX + transfer.id)
+    return !stored
+  }
 
-    if (stored && !deepEqual(transfer, stored)) {
+  _putCachedTransfer (transfer, isIncoming) {
+    const cachedTransferWithInfo = this._getFromCache(transfer.id)
+    const cachedTransfer = cachedTransferWithInfo &&
+      cachedTransferWithInfo.transfer
+
+    if (cachedTransfer && !deepEqual(transfer, cachedTransfer)) {
       throw new DuplicateIdError('transfer ' +
         JSON.stringify(transfer) +
         ' matches the id of ' +
-        JSON.stringify(stored) +
+        JSON.stringify(cachedTransfer) +
         ' but not the contents.')
-    } else if (stored) {
+    } else if (cachedTransfer) {
       return false
     }
 
     debug('stored ' + transfer.id, 'isIncoming', isIncoming)
-    yield this._storePackaged({
+    this._putCachedTransferWithInfo({
       transfer: transfer,
-      state: (transfer.executionCondition ? 'prepared' : 'executed'),
+      state: 'prepared',
       isIncoming: isIncoming
     })
 
     return true
   }
 
-  * _storePackaged (packaged) {
-    this._storeInCache(packaged)
-    this._store.put('transfer_' + packaged.transfer.id, JSON.stringify(packaged))
+  _putCachedTransferWithInfo (transferWithInfo) {
+    this._putToCache(transferWithInfo.transfer.id, transferWithInfo)
   }
 
-  * assertIncoming (transferId) {
-    yield this._assertDirection(transferId, true)
+  assertIncoming (transferId) {
+    this._assertDirection(transferId, true)
   }
 
-  * assertOutgoing (transferId) {
-    yield this._assertDirection(transferId, false)
+  assertOutgoing (transferId) {
+    this._assertDirection(transferId, false)
   }
 
-  * _assertDirection (transferId, isIncoming) {
-    const packaged = yield this._getPackaged(transferId)
+  _assertDirection (transferId, isIncoming) {
+    const cachedTransferWithInfo = this._getCachedTransferWithInfo(transferId)
 
-    if (packaged.isIncoming !== isIncoming) {
-      debug('is incoming?', packaged.isIncoming, 'looking for', isIncoming)
+    if (cachedTransferWithInfo.isIncoming !== isIncoming) {
+      debug('is incoming?', cachedTransferWithInfo.isIncoming, 'looking for', isIncoming)
       throw new NotAcceptedError('transfer with id ' + transferId + ' is not ' +
         (isIncoming ? 'incoming' : 'outgoing'))
     }
   }
 
-  * assertAllowedChange (transferId, targetState) {
-    const packaged = yield this._getPackaged(transferId)
+  assertAllowedChange (transferId, targetState) {
+    const cachedTransferWithInfo = this._getCachedTransferWithInfo(transferId)
 
     // top priority is making sure not to change an optimistic
-    if (!packaged.transfer.executionCondition) {
+    if (!cachedTransferWithInfo.transfer.executionCondition) {
       throw new TransferNotConditionalError('transfer with id ' + transferId + ' is not conditional')
     // next priority is to silently return if the change has already occurred
-    } else if (packaged.state === targetState) {
-      return false
-    } else if (packaged.state === 'executed') {
-      throw new AlreadyFulfilledError('transfer with id ' + transferId + ' has already executed')
-    } else if (packaged.state === 'cancelled') {
-      throw new AlreadyRolledBackError('transfer with id ' + transferId + ' has already rolled back')
+    } else if (cachedTransferWithInfo.state === 'prepared') {
+      return
     }
 
-    return true
+    return this._getTransferWithInfo().then((transferWithInfo) => {
+      if (transferWithInfo.state === targetState) {
+        return
+      } else if (transferWithInfo.state === 'executed') {
+        throw new AlreadyFulfilledError('transfer with id ' + transferId + ' has already executed')
+      } else if (transferWithInfo.state === 'cancelled') {
+        throw new AlreadyRolledBackError('transfer with id ' + transferId + ' has already rolled back')
+      }
+    })
   }
 
-  * _safeGet (transferId) {
-    try {
-      return yield this.get(transferId)
-    } catch (e) {
-      return null
-    }
-  }
+  * _getTransferWithInfo (transferId) {
+    const cachedTransferWithInfo = this._getFromCache(transferId)
+    const storedTransferWithInfo = yield this._store.get(transferId)
 
-  * _getPackaged (transferId) {
-    // try to retreive from cache
-    if (this._cacheItems[transferId]) {
-      return this._cacheItems[transferId]
-    }
-
-    const packaged = yield this._store.get('transfer_' + transferId)
-    if (!packaged) {
+    if (!cachedTransferWithInfo && !storedTransferWithInfo) {
       throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
     }
-    return JSON.parse(packaged)
+
+    return cachedTransferWithInfo || JSON.parse(storedTransferWithInfo)
   }
 
-  _removeFromCache (transferId) {
-    delete this._cacheItems[transferId]
-    this._cacheStack.splice(this._cacheStack.indexOf(transferId), 1)
-  }
-
-  _storeInCache (packaged) {
-    this._cacheStack.push(packaged.transfer.id)
-    this._cacheItems[packaged.transfer.id] = packaged
-    if (this._cacheItems.length > this._cacheSize) {
-      this._cacheItems.shift()
+  _getCachedTransferWithInfo (transferId) {
+    const cachedTransferWithInfo = this._getFromCache(transferId)
+    if (!cachedTransferWithInfo) {
+      throw new TransferNotFoundError('no prepared transfer with id ' + transferId + ' was found.')
     }
+    return cachedTransferWithInfo
   }
 }
 

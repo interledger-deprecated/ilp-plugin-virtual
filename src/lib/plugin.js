@@ -28,17 +28,19 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   constructor (opts) {
     super()
 
-    assertOptionType(opts, 'currency', 'string')
+    assertOptionType(opts, 'currencyCode', 'string')
+    assertOptionType(opts, 'currencyScale', 'number')
     assertOptionType(opts, 'maxBalance', 'string')
     assertOptionType(opts, 'secret', 'string')
     assertOptionType(opts, 'peerPublicKey', 'string')
     assertOptionType(opts, '_store', 'object')
     assertOptionType(opts, 'rpcUri', 'string')
 
-    this._currency = opts.currency.toLowerCase()
     this._secret = opts.secret
     this._peerPublicKey = opts.peerPublicKey
     this._publicKey = Token.publicKey(this._secret)
+    this._currencyCode = opts.currencyCode.toUpperCase()
+    this._currencyScale = opts.currencyScale
 
     this._store = opts._store
     this._maxBalance = opts.maxBalance
@@ -56,10 +58,15 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._prefix = Token.prefix({
       secretKey: this._secret,
       peerPublicKey: this._peerPublicKey,
-      currency: this._currency
+      currencyCode: this._currencyCode,
+      currencyScale: this._currencyScale
     })
 
-    this._info = Object.assign({}, (opts.info || {}), { prefix: this._prefix })
+    this._info = Object.assign({}, (opts.info || {}), {
+      currencyCode: this._currencyCode,
+      currencyScale: this._currencyScale,
+      prefix: this._prefix
+    })
     this._account = this._prefix + this._publicKey
 
     if (opts.prefix && opts.prefix !== this._prefix) {

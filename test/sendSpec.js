@@ -13,17 +13,16 @@ const PluginVirtual = require('..')
 
 const info = {
   currencyCode: 'USD',
-  currencySymbol: '$',
-  precision: 15,
-  scale: 15,
+  currencyScale: 2,
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
-const peerAddress = 'peer.NavKx.usd.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
+const peerAddress = 'peer.NavKx.usd.2.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
-  currency: 'USD',
+  currencyCode: 'USD',
+  currencyScale: 2,
   secret: 'seeecret',
-  maxBalance: '10',
+  maxBalance: '1000000',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   info: info
@@ -44,23 +43,23 @@ describe('Send', () => {
   describe('RPC', () => {
     it('should throw an error on an error code', function () {
       nock('https://example.com')
-        .post('/rpc?method=method&prefix=peer.NavKx.usd.', [])
+        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
         .reply(500)
 
-      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.', []))
+      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
         .to.eventually.be.rejected
     })
 
     it('should accept an object as a response', function () {
       nock('https://example.com')
-        .post('/rpc?method=method&prefix=peer.NavKx.usd.', [])
+        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
         .reply(200, {
           a: {
             b: 'c'
           }
         })
 
-      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.', []))
+      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
         .to.eventually.deep.equal({
           a: {
             b: 'c'
@@ -83,7 +82,7 @@ describe('Send', () => {
 
     it('should send a message', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
         .reply(200, true)
 
       const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
@@ -93,7 +92,7 @@ describe('Send', () => {
 
     it('should send a message with deprecated fields', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.', [this.message])
+        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
         .reply(200, true)
 
       delete this.message.to
@@ -169,7 +168,7 @@ describe('Send', () => {
 
     it('should send a transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const balanced = new Promise((resolve, reject) => {
@@ -193,7 +192,7 @@ describe('Send', () => {
 
     it('should roll back a transfer if the RPC call fails', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(500)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -204,7 +203,7 @@ describe('Send', () => {
 
     it('should send a transfer with deprecated fields', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
       const balanced = new Promise((resolve, reject) => {

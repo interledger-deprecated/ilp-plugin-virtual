@@ -7,17 +7,16 @@ const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
+  currencyScale: 2,
   currencyCode: 'USD',
-  currencySymbol: '$',
-  precision: 15,
-  scale: 15,
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
 const options = {
-  currency: 'USD',
+  currencyScale: 2,
+  currencyCode: 'USD',
   secret: 'seeecret',
-  maxBalance: '10',
+  maxBalance: '1000000',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   _store: new ObjStore(),
@@ -39,7 +38,7 @@ describe('Info', () => {
   describe('getLimit', () => {
     it('return the result of the RPC call', function * () {
       nock('https://example.com')
-        .post('/rpc?method=get_limit&prefix=peer.NavKx.usd.', [])
+        .post('/rpc?method=get_limit&prefix=peer.NavKx.usd.2.', [])
         .reply(200, '5')
 
       // the value is reversed so it makes sense to our side
@@ -50,7 +49,7 @@ describe('Info', () => {
   describe('getPeerBalance', () => {
     it('return the result of the RPC call', function * () {
       nock('https://example.com')
-        .post('/rpc?method=get_balance&prefix=peer.NavKx.usd.', [])
+        .post('/rpc?method=get_balance&prefix=peer.NavKx.usd.2.', [])
         .reply(200, '5')
 
       // the value is reversed so it makes sense to our side

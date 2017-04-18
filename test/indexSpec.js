@@ -6,6 +6,7 @@ const expect = require('chai').expect
 const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 const options = {
+  someNewFeatureWhichIlpKitDoesntHaveYet: true,
   currencyScale: 2,
   currencyCode: 'USD',
   secret: 'seeecret',

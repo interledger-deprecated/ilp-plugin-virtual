@@ -20,6 +20,7 @@ const info = {
 
 const peerAddress = 'peer.NavKx.usd.2.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
 const options = {
+  someNewFeatureWhichIlpKitDoesntHaveYet: true,
   currencyCode: 'USD',
   currencyScale: 2,
   secret: 'seeecret',

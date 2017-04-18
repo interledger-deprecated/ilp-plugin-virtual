@@ -35,6 +35,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     assertOptionType(opts, 'peerPublicKey', 'string')
     assertOptionType(opts, '_store', 'object')
     assertOptionType(opts, 'rpcUri', 'string')
+    assertOptionType(opts, 'someNewFeatureWhichIlpKitDoesntHaveYet', 'boolean')
 
     this._secret = opts.secret
     this._peerPublicKey = opts.peerPublicKey

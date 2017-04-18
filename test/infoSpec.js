@@ -13,6 +13,7 @@ const info = {
 }
 
 const options = {
+  someNewFeatureWhichIlpKitDoesntHaveYet: true,
   currencyScale: 2,
   currencyCode: 'USD',
   secret: 'seeecret',

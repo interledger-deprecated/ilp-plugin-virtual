@@ -102,6 +102,24 @@ describe('Conditional Transfers', () => {
       assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
+    it('cancels an incoming transfer for too much money', function * () {
+      this.incomingTransfer.amount = 100
+
+      let incomingPrepared = false
+      this.plugin.on('incoming_prepare', () => (incomingPrepared = true))
+
+      yield expect(this.plugin.receive('send_transfer', [this.incomingTransfer]))
+        .to.eventually.be.rejectedWith(/adding amount .* to balance .* exceeds maximum/)
+
+      assert.isFalse(incomingPrepared, 'incoming_prepare should not be emitted')
+      assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
+      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
+
+      const stored = JSON.parse(yield this.plugin._store.get('transfer_' + this.incomingTransfer.id))
+      assert.equal(stored.state, 'cancelled')
+      assert.equal(stored.transfer.id, this.incomingTransfer.id)
+    })
+
     it('should fulfill a transfer even if inital RPC failed', function * () {
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])

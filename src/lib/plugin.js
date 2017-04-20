@@ -231,7 +231,15 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       return true
     }
 
-    // balance is added on incoming transfers, regardless of condition
+    // balance is added on incoming transfers, but if it fails then the
+    // transfer is cancelled so that it can't be rolled back twice
+    try {
+      yield this._balance.add(transfer.amount)
+    } catch (e) {
+      this._transfers.cancel(transfer.id)
+      throw e
+    }
+
     this._safeEmit('incoming_' +
       (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
@@ -244,7 +252,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     debug('acknowledging transfer id ', transfer.id)
-    yield this._balance.add(transfer.amount)
     return true
   }
 

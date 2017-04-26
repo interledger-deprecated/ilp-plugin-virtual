@@ -2,6 +2,8 @@ const co = require('co')
 const EventEmitter = require('events')
 const debug = require('debug')('ilp-plugin-virtual:rpc')
 const request = require('co-request')
+const url = require('url')
+const spdy = require('spdy')
 
 // TODO: really call it HTTP RPC?
 module.exports = class HttpRpc extends EventEmitter {
@@ -11,6 +13,16 @@ module.exports = class HttpRpc extends EventEmitter {
     this._plugin = plugin
     this.rpcUri = rpcUri
     this.authToken = authToken
+
+    const parsed = url.parse(this.rpcUri)
+    this.agent = (parsed.protocol === 'https') && spdy.createAgent({
+      host: parsed.host,
+      port: parsed.port || 443,
+      spdy: {
+        plain: false,
+        ssl: true
+      }
+    })
 
     this.receive = co.wrap(this._receive).bind(this)
     this.call = co.wrap(this._call).bind(this)
@@ -35,7 +47,8 @@ module.exports = class HttpRpc extends EventEmitter {
         uri: uri,
         body: params,
         auth: { bearer: this.authToken },
-        json: true
+        json: true,
+        agent: this.agent
       }),
       new Promise((resolve, reject) => {
         setTimeout(() => {

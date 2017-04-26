@@ -44,9 +44,17 @@ module.exports = class HttpRpc extends EventEmitter {
       })
     ])
 
+    // 401 is a common error when a peering relationship isn't mutual, so a more
+    // helpful error is printed.
+    if (result.statusCode === 401) {
+      throw new Error('Unable to call "' + this.rpcUri +
+        '" (401 Unauthorized). They may not have you as a peer. (error body=' +
+        JSON.stringify(result.body) + ')')
+    }
+
     if (result.statusCode !== 200) {
       throw new Error('Unexpected status code ' + result.statusCode + ', with body "' +
-        result.body + '"')
+        JSON.stringify(result.body) + '"')
     }
 
     return result.body

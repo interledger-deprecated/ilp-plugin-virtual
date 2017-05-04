@@ -163,6 +163,12 @@ describe('Send', () => {
       yield outgoing
     })
 
+    it('should throw an error if a handler is already registered', function * () {
+      this.plugin.registerRequestHandler(() => {})
+      assert.throws(() => this.plugin.registerRequestHandler(() => {}),
+        /requestHandler is already registered/)
+    })
+
     it('should throw an error if no handler is registered', function * () {
       this.response.to = this.message.from = peerAddress
       this.response.from = this.message.to = this.plugin.getAccount()

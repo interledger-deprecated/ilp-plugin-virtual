@@ -14,6 +14,7 @@ const Token = require('../util/token')
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
 const InvalidFieldsError = errors.InvalidFieldsError
+const RequestHandlerAlreadyRegisteredError = errors.RequestHandlerAlreadyRegisteredError
 
 const assertOptionType = (opts, field, type) => {
   const val = opts[field]
@@ -125,6 +126,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   registerRequestHandler (handler) {
+    if (this._requestHandler) {
+      throw new RequestHandlerAlreadyRegisteredError('requestHandler is already registered')
+    }
+
     if (typeof handler !== 'function') {
       throw new InvalidFieldsError('requestHandler must be a function')
     }

@@ -82,87 +82,134 @@ describe('Send', () => {
     })
   })
 
-  describe('sendMessage', () => {
+  describe('sendRequest', () => {
     beforeEach(function * () {
       this.message = {
         from: this.plugin.getAccount(),
         to: peerAddress,
         ledger: this.plugin.getInfo().prefix,
-        data: {
+        ilp: 'some_base64_encoded_data_goes_here',
+        custom: {
           field: 'some stuff'
+        }
+      }
+
+      this.response = {
+        from: peerAddress,
+        to: this.plugin.getAccount(),
+        ledger: this.plugin.getInfo().prefix,
+        ilp: 'some_other_base64_encoded_data_goes_here',
+        custom: {
+          field: 'some other stuff'
         }
       }
     })
 
-    it('should send a message', function * () {
+    it('should send a request', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
-        .reply(200, true)
+        .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
+        .reply(200, this.response)
 
-      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
-      yield this.plugin.sendMessage(this.message)
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_request', resolve))
+      const incoming = new Promise((resolve) => this.plugin.on('incoming_response', resolve))
+
+      const response = yield this.plugin.sendRequest(this.message)
       yield outgoing
+      yield incoming
+
+      assert.deepEqual(response, this.response)
     })
 
-    it('should send a message with deprecated fields', function * () {
-      nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
-        .reply(200, true)
+    it('should send a request with deprecated fields', function * () {
+      delete this.response.to
+      delete this.response.from
+      this.response.account = 'other'
 
       delete this.message.to
       delete this.message.from
       this.message.account = 'other'
+      
+      nock('https://example.com')
+        .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
+        .reply(200, this.response)
 
-      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
-      yield this.plugin.sendMessage(this.message)
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_request', resolve))
+      const incoming = new Promise((resolve) => this.plugin.on('incoming_response', resolve))
+
+      const response = yield this.plugin.sendRequest(this.message)
+      yield outgoing
+      yield incoming
+
+      assert.deepEqual(response, this.response)
+    })
+
+    it('should response to a request', function * () {
+      this.response.to = this.message.from = peerAddress
+      this.response.from = this.message.to = this.plugin.getAccount()
+
+      this.plugin.registerRequestHandler((request) => {
+        assert.deepEqual(request, this.message)
+        return Promise.resolve(this.response)
+      })
+
+      const incoming = new Promise((resolve) => this.plugin.on('incoming_request', resolve))
+      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_response', resolve))
+
+      assert.deepEqual(
+        yield this.plugin.receive('send_request', [this.message]),
+        this.response)
+
+      yield incoming
       yield outgoing
     })
 
-    it('should receive a message', function * () {
-      this.message.from = peerAddress
-      this.message.to = this.plugin.getAccount()
-      this.message.account = this.plugin.getAccount()
+    it('should throw an error if no handler is registered', function * () {
+      this.response.to = this.message.from = peerAddress
+      this.response.from = this.message.to = this.plugin.getAccount()
 
-      const incoming = new Promise((resolve, reject) => {
-        this.plugin.on('incoming_message', (message) => {
-          try {
-            assert.deepEqual(message, Object.assign({},
-              this.message,
-              { account: peerAddress }))
-            resolve()
-          } catch (e) {
-            reject(e)
-          }
-        })
+      assert.isNotOk(this.plugin._requestHandler, 'handler should not be registered yet')
+
+      this.plugin.registerRequestHandler((request) => {
+        assert.deepEqual(request, this.message)
+        return Promise.resolve(this.response)
       })
 
-      assert.isTrue(yield this.plugin.receive('send_message', [this.message]))
-      yield incoming
+      this.plugin.deregisterRequestHandler()
+
+      yield expect(this.plugin.receive('send_request', [this.message]))
+        .to.be.rejectedWith(/no request handler registered/)
     })
 
     it('should throw an error on no response', function () {
       this.timeout(3000)
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendRequest(this.message)).to.eventually.be.rejected
     })
 
     it('should not send without an account or to-from', function () {
       this.message.account = undefined
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+      this.message.to = undefined
+      this.message.from = undefined
+
+      return expect(this.plugin.sendRequest(this.message))
+        .to.eventually.be.rejectedWith(/must have a destination/)
     })
 
     it('should not send with incorrect ledger', function () {
       this.message.ledger = 'bogus'
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendRequest(this.message))
+        .to.eventually.be.rejectedWith(/ledger .+ must match ILP prefix/)
     })
 
     it('should not send with missing ledger', function () {
       this.message.ledger = undefined
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+      return expect(this.plugin.sendRequest(this.message))
+        .to.eventually.be.rejectedWith(/must have a ledger/)
     })
 
-    it('should not send without any data', function () {
-      this.message.data = undefined
-      return expect(this.plugin.sendMessage(this.message)).to.eventually.be.rejected
+    it('should not send without any ilp packet', function () {
+      this.message.ilp = undefined
+      return expect(this.plugin.sendRequest(this.message))
+        .to.eventually.be.rejectedWith(/must have ilp field/)
     })
   })
 

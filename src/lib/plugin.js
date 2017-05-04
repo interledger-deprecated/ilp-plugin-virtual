@@ -87,6 +87,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       store: this._store
     })
     this._connected = false
+    this._requestHandler = null
 
     // register RPC methods
     this._rpc = new HttpRpc({
@@ -95,8 +96,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       authToken: this._authToken
     })
 
-    this._rpc.addMethod('send_message', this._handleMessage)
     this._rpc.addMethod('send_transfer', this._handleTransfer)
+    this._rpc.addMethod('send_request', this._handleRequest)
     this._rpc.addMethod('fulfill_condition', this._handleFulfillCondition)
     this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
@@ -107,8 +108,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.receive = co.wrap(this._rpc.receive).bind(this._rpc)
     this.connect = co.wrap(this._connect).bind(this)
     this.disconnect = co.wrap(this._disconnect).bind(this)
-    this.sendMessage = co.wrap(this._sendMessage).bind(this)
     this.sendTransfer = co.wrap(this._sendTransfer).bind(this)
+    this.sendRequest = co.wrap(this._sendRequest).bind(this)
     this.getBalance = co.wrap(this._getBalance).bind(this)
     this.fulfillCondition = co.wrap(this._fulfillCondition).bind(this)
     this.rejectIncomingTransfer = co.wrap(this._rejectIncomingTransfer).bind(this)
@@ -134,6 +135,18 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
   }
 
+  registerRequestHandler (handler) {
+    if (typeof handler !== 'function') {
+      throw new InvalidFieldsError('requestHandler must be a function')
+    }
+
+    this._requestHandler = handler
+  }
+
+  deregisterRequestHandler () {
+    this._requestHandler = null
+  }
+
   * _connect () {
     // read in from the store and write the balance
     yield this._balance.connect()
@@ -147,21 +160,30 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._safeEmit('disconnect')
   }
 
-  * _sendMessage (message) {
+  * _sendRequest (message) {
     this._validator.validateOutgoingMessage(message)
-    yield this._rpc.call('send_message', this._prefix, [message])
+    this._safeEmit('outgoing_request', message)
 
-    this._safeEmit('outgoing_message', message)
+    const response = yield this._rpc.call('send_request', this._prefix, [message])
+    this._validator.validateIncomingMessage(response)
+    this._safeEmit('incoming_response', response)
+
+    return response
   }
 
-  * _handleMessage (message) {
+  * _handleRequest (message) {
     this._validator.validateIncomingMessage(message)
+    this._safeEmit('incoming_request', message)
+    
+    if (!this._requestHandler) {
+      throw new NotAcceptedError('no request handler registered')
+    }
 
-    // assign legacy account field
-    this._safeEmit('incoming_message', Object.assign({},
-      message,
-      { account: this._prefix + this._peerPublicKey }))
-    return true
+    const response = yield this._requestHandler(message)
+    this._validator.validateOutgoingMessage(response)
+    this._safeEmit('outgoing_response', response)
+
+    return response
   }
 
   * _sendTransfer (preTransfer) {

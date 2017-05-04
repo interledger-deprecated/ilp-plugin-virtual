@@ -54,6 +54,13 @@ class TransferNotConditionalError extends Error {
   }
 }
 
+class RequestHandlerAlreadyRegisteredError extends Error {
+  constructor () {
+    super(...arguments)
+    this.name = 'RequestHandlerAlreadyRegisteredError'
+  }
+}
+
 module.exports = {
   AlreadyFulfilledError,
   AlreadyRolledBackError,
@@ -62,5 +69,6 @@ module.exports = {
   TransferNotConditionalError,
   DuplicateIdError,
   MissingFulfillmentError,
-  NotAcceptedError
+  NotAcceptedError,
+  RequestHandlerAlreadyRegisteredError
 }

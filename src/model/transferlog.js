@@ -45,8 +45,8 @@ module.exports = class TransferLog {
     return this._getCachedTransferWithInfo(transferId).transfer
   }
 
-  * getFulfillment (transferId) {
-    const transferWithInfo = yield this._getTransferWithInfo(transferId)
+  async getFulfillment (transferId) {
+    const transferWithInfo = await this._getTransferWithInfo(transferId)
 
     if (!transferWithInfo.transfer.executionCondition) {
       throw new TransferNotConditionalError('transfer with id ' + transferId +
@@ -94,8 +94,8 @@ module.exports = class TransferLog {
     return this._putCachedTransfer(transfer, false)
   }
 
-  * notInStore (transfer) {
-    const stored = yield this._store.get(TRANSFER_PREFIX + transfer.id)
+  async notInStore (transfer) {
+    const stored = await this._store.get(TRANSFER_PREFIX + transfer.id)
     return !stored
   }
 
@@ -168,9 +168,9 @@ module.exports = class TransferLog {
     })
   }
 
-  * _getTransferWithInfo (transferId) {
+  async _getTransferWithInfo (transferId) {
     const cachedTransferWithInfo = this._getFromCache(transferId)
-    const storedTransferWithInfo = yield this._store.get(transferId)
+    const storedTransferWithInfo = await this._store.get(transferId)
 
     if (!cachedTransferWithInfo && !storedTransferWithInfo) {
       throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')

@@ -128,7 +128,7 @@ describe('Send', () => {
       delete this.message.to
       delete this.message.from
       this.message.account = 'other'
-      
+
       nock('https://example.com')
         .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
         .reply(200, this.response)

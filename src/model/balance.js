@@ -36,12 +36,12 @@ module.exports = class Balance extends EventEmitter {
     return this._writeToStoreQueue
   }
 
-  * connect () {
-    let stored = yield this._store.get(this._key)
+  async connect () {
+    let stored = await this._store.get(this._key)
 
     if (!this._isNumber(stored)) {
       debug('stored balance (' + stored + ') is invalid. rewriting as 0.')
-      yield this._store.put(this._key, '0')
+      await this._store.put(this._key, '0')
       stored = '0'
     }
 
@@ -56,7 +56,7 @@ module.exports = class Balance extends EventEmitter {
     return this._balance
   }
 
-  * add (number) {
+  async add (number) {
     this._assertNumber(number)
 
     const balance = this._balance
@@ -68,14 +68,14 @@ module.exports = class Balance extends EventEmitter {
     }
 
     this._balance = balance.add(new BigNumber(number))
-    yield this._queueWriteBalance()
+    await this._queueWriteBalance()
     this.emitAsync('balance', this._balance.toString())
   }
 
-  * sub (number) {
+  async sub (number) {
     this._assertNumber(number)
     this._balance = this._balance.sub(new BigNumber(number))
-    yield this._queueWriteBalance()
+    await this._queueWriteBalance()
     this.emitAsync('balance', this._balance.toString())
   }
 

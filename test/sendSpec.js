@@ -3,6 +3,7 @@
 const nock = require('nock')
 const uuid = require('uuid4')
 const request = require('co-request')
+const IlpPacket = require('ilp-packet')
 
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
@@ -163,6 +164,27 @@ describe('Send', () => {
       yield outgoing
     })
 
+    it('should return an ILP error if the request handler errors', function * () {
+      this.response.to = this.message.from = peerAddress
+      this.response.from = this.message.to = this.plugin.getAccount()
+
+      this.plugin.registerRequestHandler((request) => {
+        return Promise.reject(new Error('this is an error'))
+      })
+
+      const response = yield this.plugin.receive('send_request', [this.message])
+      assert.equal(response.to, this.message.from)
+      assert.equal(response.from, this.message.to)
+      assert.equal(response.ledger, this.message.ledger)
+
+      const error = IlpPacket.deserializeIlpError(Buffer.from(response.ilp, 'base64'))
+      assert.equal(error.code, 'F00')
+      assert.equal(error.name, 'Bad Request')
+      assert.equal(error.triggeredBy, this.plugin.getAccount())
+      assert.deepEqual(error.forwardedBy, [])
+      assert.deepEqual(JSON.parse(error.data), { message: 'this is an error' })
+    })
+
     it('should throw an error if a handler is already registered', function * () {
       this.plugin.registerRequestHandler(() => {})
       assert.throws(() => this.plugin.registerRequestHandler(() => {}),
@@ -210,12 +232,6 @@ describe('Send', () => {
       this.message.ledger = undefined
       return expect(this.plugin.sendRequest(this.message))
         .to.eventually.be.rejectedWith(/must have a ledger/)
-    })
-
-    it('should not send without any ilp packet', function () {
-      this.message.ilp = undefined
-      return expect(this.plugin.sendRequest(this.message))
-        .to.eventually.be.rejectedWith(/must have ilp field/)
     })
   })
 

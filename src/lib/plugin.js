@@ -3,6 +3,7 @@
 const EventEmitter2 = require('eventemitter2')
 const crypto = require('crypto')
 const base64url = require('base64url')
+const IlpPacket = require('ilp-packet')
 
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
@@ -174,6 +175,20 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     }
 
     const response = await this._requestHandler(message)
+      .catch((e) => ({
+        ledger: message.ledger,
+        to: message.from,
+        from: this.getAccount(),
+        ilp: base64url(IlpPacket.serializeIlpError({
+          code: 'F00',
+          name: 'Bad Request',
+          triggeredBy: this.getAccount(),
+          forwardedBy: [],
+          triggeredAt: new Date(),
+          data: JSON.stringify({ message: e.message })
+        }))
+      }))
+
     this._validator.validateOutgoingMessage(response)
     this._safeEmit('outgoing_response', response)
 

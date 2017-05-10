@@ -70,6 +70,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._info = Object.assign({}, (opts.info || {}), {
       currencyCode: this._currencyCode,
       currencyScale: this._currencyScale,
+      maxBalance: this._maxBalance,
       prefix: this._prefix
     })
     this._account = this._prefix + this._publicKey

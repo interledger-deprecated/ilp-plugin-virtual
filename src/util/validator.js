@@ -70,8 +70,10 @@ module.exports = class Validator {
 
   validateMessage (m) {
     assert(m.ledger, 'must have a ledger')
-    assert(m.data, 'must have data')
-    assertObject(m.data, 'data')
+
+    if (m.ilp) {
+      assertString(m.ilp, 'message ilp must be a string')
+    }
 
     if (m.account) {
       util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()

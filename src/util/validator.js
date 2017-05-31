@@ -52,7 +52,6 @@ module.exports = class Validator {
     }
 
     assert(t.to, 'must have a destination (.to)')
-    assert(t.from, 'must have a source (.from)')
     assertPrefix(t.ledger, this._prefix, 'ledger')
   }
 
@@ -80,7 +79,6 @@ module.exports = class Validator {
     }
 
     assert(m.to, 'must have a destination (.to)')
-    assert(m.from, 'must have a source (.from)')
     assertPrefix(m.ledger, this._prefix, 'ledger')
   }
 
@@ -91,12 +89,12 @@ module.exports = class Validator {
 
   assertIncoming (o) {
     assertAccount(o.to, this._account, 'to')
-    assertAccount(o.from, this._peer, 'from')
+    if (o.from) assertAccount(o.from, this._peer, 'from')
   }
 
   assertOutgoing (o) {
     assertAccount(o.to, this._peer, 'to')
-    assertAccount(o.from, this._account, 'from')
+    if (o.from) assertAccount(o.from, this._account, 'from')
   }
 
 }

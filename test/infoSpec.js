@@ -9,6 +9,7 @@ const PluginVirtual = require('..')
 const info = {
   currencyScale: 2,
   currencyCode: 'USD',
+  maxBalance: '1000000',
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 

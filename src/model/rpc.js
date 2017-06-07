@@ -1,4 +1,3 @@
-const co = require('co')
 const EventEmitter = require('events')
 const debug = require('debug')('ilp-plugin-virtual:rpc')
 const request = require('co-request')
@@ -11,25 +10,22 @@ module.exports = class HttpRpc extends EventEmitter {
     this._plugin = plugin
     this.rpcUri = rpcUri
     this.authToken = authToken
-
-    this.receive = co.wrap(this._receive).bind(this)
-    this.call = co.wrap(this._call).bind(this)
   }
 
   addMethod (name, handler) {
     this._methods[name] = handler
   }
 
-  * _receive (method, params) {
+  async receive (method, params) {
     // TODO: 4XX when method doesn't exist
-    return yield this._methods[method].apply(this._plugin, params)
+    return await this._methods[method].apply(this._plugin, params)
   }
 
-  * _call (method, prefix, params) {
+  async call (method, prefix, params) {
     debug('calling', method, 'with', params)
 
     const uri = this.rpcUri + '?method=' + method + '&prefix=' + prefix
-    const result = yield Promise.race([
+    const result = await Promise.race([
       request({
         method: 'POST',
         uri: uri,

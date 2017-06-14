@@ -15,6 +15,7 @@ module.exports = class TransferLog {
 
   constructor (opts) {
     this._store = opts.store
+    this._stateful = !!this._store
     this._storeCache = {}
   }
 
@@ -33,6 +34,8 @@ module.exports = class TransferLog {
   }
 
   _putToStore (id) {
+    if (!this._stateful) return
+
     const cached = this._getCachedTransferWithInfo(id)
     if (cached.written) return
 
@@ -47,6 +50,9 @@ module.exports = class TransferLog {
 
   async getFulfillment (transferId) {
     const transferWithInfo = await this._getTransferWithInfo(transferId)
+    if (!this._stateful && !transferWithInfo) {
+      throw new TransferNotFoundError('Client plugin cannot access state')
+    }
 
     if (!transferWithInfo.transfer.executionCondition) {
       throw new TransferNotConditionalError('transfer with id ' + transferId +
@@ -95,6 +101,8 @@ module.exports = class TransferLog {
   }
 
   async notInStore (transfer) {
+    if (!this._stateful) return false
+
     const stored = await this._store.get(TRANSFER_PREFIX + transfer.id)
     return !stored
   }
@@ -170,13 +178,15 @@ module.exports = class TransferLog {
 
   async _getTransferWithInfo (transferId) {
     const cachedTransferWithInfo = this._getFromCache(transferId)
-    const storedTransferWithInfo = await this._store.get(transferId)
 
-    if (!cachedTransferWithInfo && !storedTransferWithInfo) {
-      throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
+    if (cachedTransferWithInfo) return cachedTransferWithInfo
+    if (!cachedTransferWithInfo && !this.stateful) {
+      throw new TransferNotFoundError('Client plugin cannot access state')
     }
 
-    return cachedTransferWithInfo || JSON.parse(storedTransferWithInfo)
+    const storedTransferWithInfo = await this._store.get(transferId)
+    if (storedTransferWithInfo) return storedTransferWithInfo
+    throw new TransferNotFoundError('no transfer with id ' + transferId + ' was found.')
   }
 
   _getCachedTransferWithInfo (transferId) {

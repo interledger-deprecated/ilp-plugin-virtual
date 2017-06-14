@@ -5,12 +5,12 @@ const util = require('util')
 
 // Regex matching a string containing 32 base64url-encoded bytes
 const REGEX_32_BYTES_AS_BASE64URL = /^[A-Za-z0-9_-]{43}$/
-const xor = (a, b) => ((a || b) && (!a || !b))
 
 module.exports = class Validator {
   constructor (opts) {
     this._account = opts.account
     this._peer = opts.peer
+    this._account = opts.account
     this._prefix = opts.prefix
   }
 
@@ -28,8 +28,9 @@ module.exports = class Validator {
 
   validateTransfer (t) {
     assert(t.id, 'must have an id')
-    assert(t.ledger, 'must have a ledger')
     assert(t.amount, 'must have an amount')
+    assert(t.executionCondition, 'must have executionCondition')
+    assert(t.expiresAt, 'must have expiresAt')
 
     assertString(t.id, 'id')
     assertNumber(t.amount, 'amount')
@@ -39,32 +40,17 @@ module.exports = class Validator {
     assertConditionOrPreimage(t.executionCondition, 'executionCondition')
     assertString(t.expiresAt, 'expiresAt')
 
-    if (xor(t.executionCondition, t.expiresAt)) {
-      throw new Error('executionCondition (' + t.executionCondition +
-        ') and expiresAt (' + t.expiresAt +
-        ') must both be set if either is set')
-    }
-
-    if (t.account) {
-      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
-      assertString(t.account, 'account')
-      return
-    }
-
     assert(t.to, 'must have a destination (.to)')
-    assert(t.from, 'must have a source (.from)')
     assertPrefix(t.ledger, this._prefix, 'ledger')
   }
 
   validateIncomingMessage (m) {
     this.validateMessage(m)
-    if (m.account) return
     this.assertIncoming(m)
   }
 
   validateOutgoingMessage (m) {
     this.validateMessage(m)
-    if (m.account) return
     this.assertOutgoing(m)
   }
 
@@ -75,14 +61,7 @@ module.exports = class Validator {
       assertString(m.ilp, 'message ilp must be a string')
     }
 
-    if (m.account) {
-      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
-      assertString(m.account, 'account')
-      return
-    }
-
     assert(m.to, 'must have a destination (.to)')
-    assert(m.from, 'must have a source (.from)')
     assertPrefix(m.ledger, this._prefix, 'ledger')
   }
 
@@ -92,13 +71,13 @@ module.exports = class Validator {
   }
 
   assertIncoming (o) {
-    assertAccount(o.to, this._account, 'to')
     assertAccount(o.from, this._peer, 'from')
+    assertAccount(o.to, this._account, 'from')
   }
 
   assertOutgoing (o) {
-    assertAccount(o.to, this._peer, 'to')
     assertAccount(o.from, this._account, 'from')
+    assertAccount(o.to, this._peer, 'to')
   }
 
 }
@@ -121,12 +100,14 @@ function assertObject (value, name) {
 }
 
 function assertPrefix (value, prefix, name) {
+  if (!value) return
   assertString(value, name)
   assert(value === prefix,
     name + ' (' + value + ') must match ILP prefix: ' + prefix)
 }
 
 function assertAccount (value, account, name) {
+  if (!value) return
   assertString(value, name)
   assert(value === account,
     name + ' (' + value + ') must match account: ' + account)

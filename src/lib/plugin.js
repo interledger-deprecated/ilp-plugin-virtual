@@ -29,44 +29,78 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   constructor (opts) {
     super()
 
-    assertOptionType(opts, 'currencyCode', 'string')
-    assertOptionType(opts, 'currencyScale', 'number')
-    assertOptionType(opts, 'maxBalance', 'string')
-    assertOptionType(opts, 'secret', 'string')
-    assertOptionType(opts, 'peerPublicKey', 'string')
-    assertOptionType(opts, '_store', 'object')
-    assertOptionType(opts, 'rpcUri', 'string')
+    this._stateful = !!opts._store
+    if (this._stateful) {
+      assertOptionType(opts, 'currencyCode', 'string')
+      assertOptionType(opts, 'currencyScale', 'number')
+      assertOptionType(opts, 'maxBalance', 'string')
 
-    this._secret = opts.secret
-    this._peerPublicKey = opts.peerPublicKey
-    this._publicKey = Token.publicKey(this._secret)
+      this._store = opts._store
+      this._maxBalance = opts.maxBalance
+      this._minBalance = opts.minBalance
+      this._highestBalance = new Balance({
+        key: 'balance__',
+        store: this._store,
+        maximum: this._maxBalance
+      })
+
+      this._lowestBalance = new Balance({
+        key: 'balance_l',
+        minimum: this._minBalance,
+        store: this._store
+      })
+
+      // give a 'balance' event on balance change
+      this._highestBalance.on('balance', (balance) => {
+        this.emit('balance', balance)
+      })
+    }
+
+    if (opts.rpcUris) {
+      assertOptionType(opts, 'rpcUris', 'object')
+      this._rpcUris = opts.rpcUris
+    } else {
+      assertOptionType(opts, 'rpcUri', 'string')
+      this._rpcUris = [ opts.rpcUri ]
+    }
+
     this._currencyCode = opts.currencyCode.toUpperCase()
     this._currencyScale = opts.currencyScale
 
-    this._store = opts._store
-    this._maxBalance = opts.maxBalance
-    this._balance = new Balance({
-      maximum: this._maxBalance,
-      store: this._store
-    })
+    if (opts.token && opts.prefix) {
+      assertOptionType(opts, 'token', 'string')
+      assertOptionType(opts, 'prefix', 'string')
 
-    // give a 'balance' event on balance change
-    this._balance.on('balance', (balance) => {
-      this.emit('balance', balance)
-    })
+      this._peerAccountName = this._stateful ? 'client' : 'server'
+      this._accountName = this._stateful ? 'server' : 'client'
+      this._authToken = opts.token
+      this._prefix = opts.prefix
+    } else {
+      // deprecate this version?
+      assertOptionType(opts, 'secret', 'string')
+      assertOptionType(opts, 'peerPublicKey', 'string')
 
-    // Token uses ECDH to get the ledger prefix from secret and public key
-    this._authToken = Token.authToken({
-      secretKey: this._secret,
-      peerPublicKey: this._peerPublicKey
-    })
+      this._secret = opts.secret
+      this._peerAccountName = opts.peerPublicKey
+      this._accountName = Token.publicKey(this._secret)
+      this._prefix = Token.prefix({
+        secretKey: this._secret,
+        peerPublicKey: this._peerAccountName,
+        currencyCode: this._currencyCode,
+        currencyScale: this._currencyScale
+      })
 
-    this._prefix = Token.prefix({
-      secretKey: this._secret,
-      peerPublicKey: this._peerPublicKey,
-      currencyCode: this._currencyCode,
-      currencyScale: this._currencyScale
-    })
+      // Token uses ECDH to get the ledger prefix from secret and public key
+      this._authToken = Token.authToken({
+        secretKey: this._secret,
+        peerPublicKey: this._peerAccountName
+      })
+
+      if (opts.prefix && opts.prefix !== this._prefix) {
+        throw new InvalidFieldsError('invalid prefix. got "' +
+          opts.prefix + '", expected "' + this._prefix + '"')
+      }
+    }
 
     this._info = Object.assign({}, (opts.info || {}), {
       currencyCode: this._currencyCode,
@@ -74,28 +108,28 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       maxBalance: this._maxBalance,
       prefix: this._prefix
     })
-    this._account = this._prefix + this._publicKey
-
-    if (opts.prefix && opts.prefix !== this._prefix) {
-      throw new InvalidFieldsError('invalid prefix. got "' + opts.prefix + '", expected "' + this._prefix + '"')
-    }
+    this._account = this._prefix + this._accountName
 
     this._validator = new Validator({
       account: this._account,
-      peer: this._prefix + this._peerPublicKey,
+      peer: this._prefix + this._peerAccountName,
+      account: this._prefix + this._accountName,
       prefix: this._prefix
     })
+
     this._transfers = new TransferLog({
-      store: this._store
+      store: this._stateful && this._store
     })
+
     this._connected = false
     this._requestHandler = null
 
     // register RPC methods
     this._rpc = new HttpRpc({
-      rpcUri: opts.rpcUri,
+      rpcUris: this._rpcUris,
       plugin: this,
-      authToken: this._authToken
+      authToken: this._authToken,
+      tolerateFailure: opts.tolerateRpcFailure
     })
 
     this._rpc.addMethod('send_transfer', this._handleTransfer)
@@ -104,8 +138,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._rpc.addMethod('fulfill_condition', this._handleFulfillCondition)
     this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
-    this._rpc.addMethod('get_limit', this._handleGetLimit)
-    this._rpc.addMethod('get_balance', this._getBalance)
+
+    if (this._stateful) {
+      this._rpc.addMethod('get_limit', this._handleGetLimit)
+      this._rpc.addMethod('get_balance', this._getLowestBalance)
+      this._rpc.addMethod('get_info', () => Promise.resolve(this.getInfo))
+    }
+
     this.receive = this._rpc.receive.bind(this._rpc)
 
     // simple getters
@@ -144,7 +183,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   async connect () {
     // read in from the store and write the balance
-    await this._balance.connect()
+    if (this._stateful) {
+      await this._highestBalance.connect()
+      await this._lowestBalance.connect()
+    } else {
+      this._info = await this._rpc.call('get_info', this._prefix, [])
+    }
 
     this._connected = true
     this._safeEmit('connect')
@@ -167,7 +211,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     // assign legacy account field
     this._safeEmit('incoming_message', Object.assign({},
       message,
-      { account: this._prefix + this._peerPublicKey }))
+      { account: this._prefix + this._peerAccountName }))
     return true
   }
 
@@ -226,10 +270,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const noRepeat = (this._transfers.cacheOutgoing(transfer) &&
       (await this._transfers.notInStore(transfer)))
 
-    if (!transfer.executionCondition && noRepeat) {
-      debug('marking unconditional payment', transfer.id, 'as fulfilled')
-      this._transfers.fulfill(transfer.id)
-      await this._balance.sub(transfer.amount)
+    if (noRepeat) {
+      await this._lowestBalance.sub(transfer.amount)
     }
 
     try {
@@ -249,22 +291,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       // roll this back, because the other plugin didn't acknowledge
       // the transfer.
       debug(e.name + ' during transfer ' + transfer.id)
-      if (!transfer.executionCondition) {
-        // only roll back if the transfer is not conditional.  if the receiver
-        // somehow found out about the transfer but failed to respond, they
-        // still have a chance to fulfill before the timeout is reached
-        this._transfers.drop(transfer.id)
-        await this._balance.add(transfer.amount)
-        throw e
-      }
     }
 
-    if (transfer.executionCondition) {
-      this._setupTransferExpiry(transfer.id, transfer.expiresAt)
-    }
-
-    this._safeEmit('outgoing_' +
-      (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
+    this._setupTransferExpiry(transfer.id, transfer.expiresAt)
+    this._safeEmit('outgoing_prepare', transfer)
   }
 
   async _handleTransfer (transfer) {
@@ -280,23 +310,18 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // balance is added on incoming transfers, but if it fails then the
     // transfer is cancelled so that it can't be rolled back twice
-    try {
-      await this._balance.add(transfer.amount)
-    } catch (e) {
-      this._transfers.cancel(transfer.id)
-      throw e
+    if (this._stateful) {
+      try {
+        await this._highestBalance.add(transfer.amount)
+      } catch (e) {
+        this._transfers.cancel(transfer.id)
+        throw e
+      }
     }
-
-    this._safeEmit('incoming_' +
-      (transfer.executionCondition ? 'prepare' : 'transfer'), transfer)
 
     // set up expiry here too, so both sides can send the expiration message
-    if (transfer.executionCondition) {
-      this._setupTransferExpiry(transfer.id, transfer.expiresAt)
-    } else {
-      debug('marking unconditional payment', transfer.id, 'as fulfilled')
-      this._transfers.fulfill(transfer.id)
-    }
+    this._safeEmit('incoming_prepare', transfer)
+    this._setupTransferExpiry(transfer.id, transfer.expiresAt)
 
     debug('acknowledging transfer id ', transfer.id)
     return true
@@ -342,7 +367,9 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validateFulfillment(fulfillment, transfer.executionCondition)
     this._transfers.fulfill(transferId, fulfillment)
     this._safeEmit('outgoing_fulfill', transfer, fulfillment)
-    await this._balance.sub(transfer.amount)
+    if (this._stateful) {
+      await this._highestBalance.sub(transfer.amount)
+    }
 
     return true
   }
@@ -364,7 +391,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     debug('rejected ' + transferId)
     this._transfers.cancel(transferId)
     this._safeEmit('incoming_reject', transfer, reason)
-    await this._balance.sub(transfer.amount)
+    if (this._stateful) {
+      await this._highestBalance.sub(transfer.amount)
+      await this._lowestBalance.sub(transfer.amount)
+    }
     await this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
   }
 
@@ -383,8 +413,16 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     return true
   }
 
-  async getBalance () {
-    return Promise.resolve(this._balance.get())
+  getBalance () {
+    if (this._stateful) {
+      return Promise.resolve(this._highestBalance.get())
+    } else {
+      return this.getPeerBalance()
+    }
+  }
+
+  _getLowestBalance () {
+    return Promise.resolve(this._lowestBalance.get())
   }
 
   async getFulfillment (transferId) {
@@ -418,11 +456,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const cached = this._transfers._getCachedTransferWithInfo(transferId)
     this._transfers.cancel(transferId)
 
-    if (cached.isIncoming) {
+    if (cached.isIncoming && this._stateful) {
       // the balance was only affected when the transfer was incoming.  in the
       // outgoing case, the balance isn't affected until the transfer is
       // fulfilled.
-      await this._balance.sub(cached.transfer.amount)
+      await this._highestBalance.sub(cached.transfer.amount)
+    } else if (this._stateful) {
+      await this._lowestBalance.add(cached.transfer.amount)
     }
 
     await this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})

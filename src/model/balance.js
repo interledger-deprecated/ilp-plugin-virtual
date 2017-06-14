@@ -13,10 +13,11 @@ module.exports = class Balance extends EventEmitter {
   constructor (opts) {
     super()
 
-    this._maximum = new BigNumber(opts.maximum)
+    this._maximum = new BigNumber(opts.maximum || 'Infinity')
+    this._minimum = new BigNumber(opts.minimum || '-Infinity')
     this._balance = null
 
-    this._key = BALANCE_PREFIX
+    this._key = opts.key || BALANCE_PREFIX
     this._store = opts.store
 
     // used to keep writes to store in order. See queueWrite.
@@ -68,13 +69,26 @@ module.exports = class Balance extends EventEmitter {
     }
 
     this._balance = balance.add(new BigNumber(number))
+    debug('add', number, 'and set balance to', this._balance.toString())
+
     await this._queueWriteBalance()
     this.emitAsync('balance', this._balance.toString())
   }
 
   async sub (number) {
     this._assertNumber(number)
+
+    const balance = this._balance
+    if (balance.sub(new BigNumber(number)).lt(this._minimum)) {
+      throw new NotAcceptedError('subtracting amount (' + number +
+        ') from balance (' + balance +
+        ') goes below minimum (' + this._minimum.toString() +
+        ')')
+    }
+
     this._balance = this._balance.sub(new BigNumber(number))
+    debug('sub', number, 'and set balance to', this._balance.toString())
+
     await this._queueWriteBalance()
     this.emitAsync('balance', this._balance.toString())
   }

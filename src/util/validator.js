@@ -55,8 +55,6 @@ module.exports = class Validator {
   }
 
   validateMessage (m) {
-    assert(m.ledger, 'must have a ledger')
-
     if (m.ilp) {
       assertString(m.ilp, 'message ilp must be a string')
     }

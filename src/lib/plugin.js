@@ -7,8 +7,7 @@ const IlpPacket = require('ilp-packet')
 
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
-const TransferLog = require('../model/transferlog')
-const Balance = require('../model/balance')
+const Backend = require('../util/backend')
 const debug = require('debug')('ilp-plugin-virtual')
 const Token = require('../util/token')
 
@@ -29,30 +28,24 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   constructor (opts) {
     super()
 
-    this._stateful = !!opts._store
+    this._stateful = !!opts._backend
     if (this._stateful) {
       assertOptionType(opts, 'currencyCode', 'string')
       assertOptionType(opts, 'currencyScale', 'number')
       assertOptionType(opts, 'maxBalance', 'string')
 
-      this._store = opts._store
+      this._backend = opts._backend
       this._maxBalance = opts.maxBalance
       this._minBalance = opts.minBalance
-      this._highestBalance = new Balance({
-        key: 'balance__',
-        store: this._store,
-        maximum: this._maxBalance
-      })
 
-      this._lowestBalance = new Balance({
-        key: 'balance_l',
-        minimum: this._minBalance,
-        store: this._store
+      this._transfers = this._backend.getTransferLog({
+        maximum: this._maxBalance || 'Infinity',
+        minimum: this._minBalance || '-Infinity'
       })
-
-      // give a 'balance' event on balance change
-      this._highestBalance.on('balance', (balance) => {
-        this.emit('balance', balance)
+    } else {
+      this._transfers = Backend.getTransferLog({
+        maximum: 'Infinity',
+        minimum: '-Infinity'
       })
     }
 
@@ -117,10 +110,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       prefix: this._prefix
     })
 
-    this._transfers = new TransferLog({
-      store: this._stateful && this._store
-    })
-
     this._connected = false
     this._requestHandler = null
 
@@ -182,11 +171,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   async connect () {
-    // read in from the store and write the balance
-    if (this._stateful) {
-      await this._highestBalance.connect()
-      await this._lowestBalance.connect()
-    } else {
+    if (!this._stateful) {
       this._info = await this._rpc.call('get_info', this._prefix, [])
     }
 
@@ -260,19 +245,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateOutgoingTransfer(transfer)
 
     // apply the transfer before the other plugin can
-    // emit any events about it.
-
-    // one synchronous check and one asynchronous check allows us to first make
-    // sure that other functions in the event loop can't apply this transfer
-    // (because there's now an entry in the cache that can be checked
-    // synchronously) while also checking the long-term store to see if this
-    // transfer was added in the past.
-    const noRepeat = (this._transfers.cacheOutgoing(transfer) &&
-      (await this._transfers.notInStore(transfer)))
-
-    if (noRepeat) {
-      await this._lowestBalance.sub(transfer.amount)
-    }
+    // emit any events about it. isIncoming = false.
+    await this._transfers.prepare(transfer, false)
 
     try {
       await this._rpc.call('send_transfer', this._prefix, [Object.assign({},
@@ -281,16 +255,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
         { noteToSelf: undefined })])
 
       debug('transfer acknowledged ' + transfer.id)
-
-      // end now, so as not to duplicate any effects
-      if (!noRepeat) return
     } catch (e) {
-      // don't roll back, because nothing happened
-      if (!noRepeat) return
-
-      // roll this back, because the other plugin didn't acknowledge
-      // the transfer.
       debug(e.name + ' during transfer ' + transfer.id)
+      if (!this._stateful) {
+        throw e
+      }
     }
 
     this._safeEmit('outgoing_prepare', transfer)
@@ -301,25 +270,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   async _handleTransfer (transfer) {
     this._validator.validateIncomingTransfer(transfer)
-
-    const repeat = !(this._transfers.cacheIncoming(transfer) &&
-      (await this._transfers.notInStore(transfer)))
-
-    if (repeat) {
-      // return if this transfer has already been stored
-      return true
-    }
-
-    // balance is added on incoming transfers, but if it fails then the
-    // transfer is cancelled so that it can't be rolled back twice
-    if (this._stateful) {
-      try {
-        await this._highestBalance.add(transfer.amount)
-      } catch (e) {
-        this._transfers.cancel(transfer.id)
-        throw e
-      }
-    }
+    await this._transfers.prepare(transfer, true)
 
     // set up expiry here too, so both sides can send the expiration message
     this._safeEmit('incoming_prepare', transfer)
@@ -333,95 +284,101 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
   async fulfillCondition (transferId, fulfillment) {
     this._validator.validateFulfillment(fulfillment)
+    const transferInfo = await this._transfers.get(transferId)
 
-    const error = this._transfers.assertAllowedChange(transferId, 'executed')
-    if (error) {
-      await error
-      // if there wasn't an error thrown but the transfer is not able to be executed,
-      // forward the RPC call to the other end anyways. They might not have gotten it
-      // the first time.
-      await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
-      return
+    // TODO: 'cancelled' or 'rejected'?
+    if (transferInfo.state === 'cancelled') {
+      throw new AlreadyRejectedError(transferId + ' has already been cancelled: ' +
+        JSON.stringify(transferInfo))
     }
 
-    this._transfers.assertIncoming(transferId)
-    const transfer = this._transfers.get(transferId)
+    if (!transferInfo.isIncoming) {
+      throw new Error(transferId + ' is outgoing; cannot fulfill')
+    }
 
-    this._validateFulfillment(fulfillment, transfer.executionCondition)
-    this._transfers.fulfill(transferId, fulfillment)
-    this._safeEmit('incoming_fulfill', transfer, fulfillment)
+    if (new Date(transferInfo.transfer.expiresAt).getTime() < Date.now()) {
+      throw new AlreadyRejectedError(transferId + ' has already expired: ' +
+        JSON.stringify(transferInfo))
+    }
 
-    // let the other person know after we've already fulfilled, because they
-    // don't have to edit their database.
+    this._validateFulfillment(fulfillment, transferInfo.transfer.executionCondition)
+    await this._transfers.fulfill(transferId, fulfillment)
+    this._safeEmit('incoming_fulfill', transferInfo.transfer, fulfillment)
     await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
   }
 
   async _handleFulfillCondition (transferId, fulfillment) {
     this._validator.validateFulfillment(fulfillment)
+    const transferInfo = await this._transfers.get(transferId)
 
-    const error = this._transfers.assertAllowedChange(transferId, 'executed')
-    if (error) {
-      await error
-      return true
+    // TODO: 'cancelled' or 'rejected'?
+    if (transferInfo.state === 'cancelled') {
+      throw new AlreadyRejectedError(transferId + ' has already been cancelled: ' +
+        JSON.stringify(transferInfo))
     }
 
-    this._transfers.assertOutgoing(transferId)
-    const transfer = this._transfers.get(transferId)
-
-    this._validateFulfillment(fulfillment, transfer.executionCondition)
-    this._transfers.fulfill(transferId, fulfillment)
-    this._safeEmit('outgoing_fulfill', transfer, fulfillment)
-    if (this._stateful) {
-      await this._highestBalance.sub(transfer.amount)
+    if (transferInfo.isIncoming) {
+      throw new Error(transferId + ' is incoming; refusing to fulfill.')
     }
 
+    if (new Date(transferInfo.transfer.expiresAt).getTime() < Date.now()) {
+      throw new AlreadyRejectedError(transferId + ' has already expired: ' +
+        JSON.stringify(transferInfo))
+    }
+
+    this._validateFulfillment(fulfillment, transferInfo.transfer.executionCondition)
+    await this._transfers.fulfill(transferId, fulfillment)
+    this._safeEmit('outgoing_fulfill', transferInfo.transfer, fulfillment)
     return true
   }
 
   async rejectIncomingTransfer (transferId, reason) {
-    const transfer = this._transfers.get(transferId)
     debug('going to reject ' + transferId)
+    const transferInfo = await this._transfers.get(transferId)
 
-    const error = this._transfers.assertAllowedChange(transferId, 'cancelled')
-    if (error) {
-      await error
-      // send another notification to our peer if the error wasn't thrown
-      await this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
-      return
+    if (transferInfo.state === 'fulfilled') {
+      throw new AlreadyFulfilledError(transferId + ' has already been fulfilled: ' +
+        JSON.stringify(transferInfo))
     }
 
-    this._transfers.assertIncoming(transferId)
+    if (!transferInfo.isIncoming) {
+      throw new Error(transferId + ' is outgoing; cannot reject.')
+    }
 
+    // TODO: add rejectionReason to interface
+    await this._transfers.cancel(transferId, reason)
     debug('rejected ' + transferId)
-    this._transfers.cancel(transferId)
-    this._safeEmit('incoming_reject', transfer, reason)
-    if (this._stateful) {
-      await this._highestBalance.sub(transfer.amount)
-      await this._lowestBalance.sub(transfer.amount)
-    }
+
+    this._safeEmit('incoming_reject', transferInfo.transfer, reason)
     await this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
   }
 
   async _handleRejectIncomingTransfer (transferId, reason) {
-    const transfer = this._transfers.get(transferId)
+    debug('handling rejection of ' + transferId)
+    const transferInfo = await this._transfers.get(transferId)
 
-    const error = this._transfers.assertAllowedChange(transferId, 'cancelled')
-    if (error) {
-      await error
-      return true
+    if (transferInfo.state === 'fulfilled') {
+      throw new AlreadyFulfilledError(transferId + ' has already been fulfilled: ' +
+        JSON.stringify(transferInfo))
     }
 
-    this._transfers.assertOutgoing(transferId)
-    this._transfers.cancel(transferId)
-    this._safeEmit('outgoing_reject', transfer, reason)
+    if (transferInfo.isIncoming) {
+      throw new Error(transferId + ' is incoming; peer cannot reject.')
+    }
+
+    // TODO: add rejectionReason to interface
+    await this._transfers.cancel(transferId, reason)
+    debug('peer rejected ' + transferId)
+
+    this._safeEmit('outgoing_reject', transferInfo.transfer, reason)
     return true
   }
 
-  getBalance () {
+  async getBalance () {
     if (this._stateful) {
-      return Promise.resolve(this._highestBalance.get())
+      return await this._transfers.getBalance()
     } else {
-      return this.getPeerBalance()
+      return await this.getPeerBalance()
     }
   }
 
@@ -430,7 +387,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   async getFulfillment (transferId) {
-    return await this._transfers.getFulfillment(transferId)
+    if (this._stateful) {
+      return await this._transfers.getFulfillment(transferId)
+    } else {
+      return await this._rpc.call('get_fulfillment', this._prefix, [ transferId ])
+    }
   }
 
   _setupTransferExpiry (transferId, expiresAt) {
@@ -443,61 +404,46 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   }
 
   async _expireTransfer (transferId) {
-    debug('checking time out on ' + transferId)
+    const transferInfo = await this._transfers.get(transferId)
+    if (!transferInfo || transferInfo.state !== 'prepared') return
 
-    // don't cancel again if it's already cancelled/executed
+    debug('timing out ' + transferId)
     try {
-      const error = this._transfers.assertAllowedChange(transferId, 'cancelled')
-      if (error) {
-        await error
-        return
-      }
+      await this._transfers.cancel(transferId, 'expired')
     } catch (e) {
-      debug(e.message)
+      debug('error expiring ' + transferId + ': ' + e.message)
       return
     }
 
-    const cached = this._transfers._getCachedTransferWithInfo(transferId)
-    this._transfers.cancel(transferId)
-
-    if (cached.isIncoming && this._stateful) {
-      // the balance was only affected when the transfer was incoming.  in the
-      // outgoing case, the balance isn't affected until the transfer is
-      // fulfilled.
-      await this._highestBalance.sub(cached.transfer.amount)
-    } else if (this._stateful) {
-      await this._lowestBalance.add(cached.transfer.amount)
-    }
-
     await this._rpc.call('expire_transfer', this._prefix, [transferId]).catch(() => {})
-    this._safeEmit((cached.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
-      cached.transfer)
+    this._safeEmit((transferInfo.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+      transferInfo.transfer)
   }
 
   async _handleExpireTransfer (transferId) {
-    const transfer = this._transfers.get(transferId)
-    const now = new Date()
+    const transferInfo = await this._transfers.get(transferId)
+    if (transferInfo.state !== 'prepared') return true
 
-    // only expire the transfer if you agree that it's supposed to be expired
-    if (now.getTime() < Date.parse(transfer.expiresAt)) {
+    if (Date.now() < Date.parse(transferInfo.transfer.expiresAt)) {
       throw new Error(transferId + ' doesn\'t expire until ' + transfer.expiresAt +
         ' (current time is ' + now.toISOString() + ')')
     }
 
-    const error = this._transfers.assertAllowedChange(transferId, 'cancelled')
-    if (error) {
-      await error
+    debug('timing out ' + transferId)
+    try {
+      await this._transfers.cancel(transferId, 'expired')
+    } catch (e) {
+      debug('error expiring ' + transferId + ': ' + e.message)
       return true
     }
 
-    this._transfers.cancel(transferId)
-    this._safeEmit('outgoing_cancel', transfer)
-
+    this._safeEmit((transferInfo.isIncoming ? 'incoming' : 'outgoing') + '_cancel',
+      transferInfo.transfer)
     return true
   }
 
   async _handleGetLimit () {
-    return this._maxBalance
+    return await this._transfers.getMaximum()
   }
 
   _stringNegate (num) {

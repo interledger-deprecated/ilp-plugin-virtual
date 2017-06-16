@@ -3,7 +3,7 @@
 const assert = require('chai').assert
 const expect = require('chai').expect
 
-const ObjStore = require('./helpers/objStore')
+const ObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
 const options = {
   currencyScale: 2,
@@ -12,7 +12,7 @@ const options = {
   maxBalance: '1000',
   rpcUri: 'https://example.com/rpc',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
-  _store: new ObjStore()
+  _backend: ObjBackend
 }
 
 describe('constructor', () => {

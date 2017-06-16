@@ -10,7 +10,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 const expect = chai.expect
 
-const ObjStore = require('./helpers/objStore')
+const ObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
 
 const info = {
@@ -27,13 +27,13 @@ const options = {
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  info: info
+  info: info,
+  _backend: ObjBackend
 }
 
 describe('Conditional Transfers', () => {
   beforeEach(function * () {
-    this.plugin = new PluginVirtual(Object.assign({},
-      options, { _store: new ObjStore() }))
+    this.plugin = new PluginVirtual(options)
 
     this.fulfillment = 'gHJ2QeIZpstXaGZVCSq4d3vkrMSChNYKriefys3KMtI'
     const hash = crypto.createHash('sha256')
@@ -84,7 +84,6 @@ describe('Conditional Transfers', () => {
       yield fulfilled
 
       assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
-      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('fulfills an incoming transfer', function * () {
@@ -99,7 +98,6 @@ describe('Conditional Transfers', () => {
       yield fulfilled
 
       assert.equal((yield this.plugin.getBalance()), '5', 'balance should increase by amount')
-      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('cancels an incoming transfer for too much money', function * () {
@@ -109,15 +107,10 @@ describe('Conditional Transfers', () => {
       this.plugin.on('incoming_prepare', () => (incomingPrepared = true))
 
       yield expect(this.plugin.receive('send_transfer', [this.incomingTransfer]))
-        .to.eventually.be.rejectedWith(/adding amount .* to balance .* exceeds maximum/)
+        .to.eventually.be.rejectedWith(/highBalance exceeds greatest allowed value/)
 
       assert.isFalse(incomingPrepared, 'incoming_prepare should not be emitted')
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
-      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
-
-      const stored = JSON.parse(yield this.plugin._store.get('transfer_' + this.incomingTransfer.id))
-      assert.equal(stored.state, 'cancelled')
-      assert.equal(stored.transfer.id, this.incomingTransfer.id)
     })
 
     it('should fulfill a transfer even if inital RPC failed', function * () {
@@ -214,7 +207,6 @@ describe('Conditional Transfers', () => {
       yield cancel
 
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')
-      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('expires an outgoing transfer', function * () {

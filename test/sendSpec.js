@@ -12,7 +12,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 const expect = chai.expect
 
-const ObjStore = require('./helpers/objStore')
+const ObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
 
 const info = {
@@ -30,13 +30,13 @@ const options = {
   minBalance: '-40',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  info: info
+  info: info,
+  _backend: ObjBackend
 }
 
 describe('Send', () => {
   beforeEach(function * () {
-    this.plugin = new PluginVirtual(Object.assign({},
-      options, { _store: new ObjStore() }))
+    this.plugin = new PluginVirtual(options)
 
     yield this.plugin.connect()
   })
@@ -207,12 +207,6 @@ describe('Send', () => {
       return expect(this.plugin.sendRequest(this.message))
         .to.eventually.be.rejectedWith(/ledger .+ must match ILP prefix/)
     })
-
-    it('should not send with missing ledger', function () {
-      this.message.ledger = undefined
-      return expect(this.plugin.sendRequest(this.message))
-        .to.eventually.be.rejectedWith(/must have a ledger/)
-    })
   })
 
   describe('sendTransfer (log and balance logic)', () => {
@@ -257,17 +251,6 @@ describe('Send', () => {
     })
 
     it('should receive a transfer', function * () {
-      const balanced = new Promise((resolve, reject) => {
-        this.plugin.on('balance', (balance) => {
-          try {
-            assert.equal(balance, '5')
-            resolve()
-          } catch (e) {
-            reject(e)
-          }
-        })
-      })
-
       const received = new Promise((resolve, reject) => {
         this.plugin.on('incoming_prepare', (transfer) => {
           try {
@@ -284,7 +267,6 @@ describe('Send', () => {
 
       yield this.plugin.receive('send_transfer', [this.transfer])
       yield received
-      yield balanced
     })
 
     it('should not race when reading the balance', function * () {

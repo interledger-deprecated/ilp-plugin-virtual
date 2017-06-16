@@ -293,8 +293,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       debug(e.name + ' during transfer ' + transfer.id)
     }
 
-    this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     this._safeEmit('outgoing_prepare', transfer)
+    if (this._stateful) {
+      this._setupTransferExpiry(transfer.id, transfer.expiresAt)
+    }
   }
 
   async _handleTransfer (transfer) {
@@ -321,7 +323,9 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     // set up expiry here too, so both sides can send the expiration message
     this._safeEmit('incoming_prepare', transfer)
-    this._setupTransferExpiry(transfer.id, transfer.expiresAt)
+    if (this._stateful) {
+      this._setupTransferExpiry(transfer.id, transfer.expiresAt)
+    }
 
     debug('acknowledging transfer id ', transfer.id)
     return true

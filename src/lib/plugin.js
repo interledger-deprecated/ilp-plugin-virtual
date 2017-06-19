@@ -14,6 +14,8 @@ const Token = require('../util/token')
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
 const InvalidFieldsError = errors.InvalidFieldsError
+const AlreadyRejectedError = errors.AlreadyRejectedError
+const AlreadyFulfilledError = errors.AlreadyFulfilledError
 const RequestHandlerAlreadyRegisteredError = errors.RequestHandlerAlreadyRegisteredError
 
 const assertOptionType = (opts, field, type) => {
@@ -28,19 +30,20 @@ module.exports = class PluginVirtual extends EventEmitter2 {
   constructor (opts) {
     super()
 
-    this._stateful = !!opts._backend
+    this._stateful = !!(opts._backend || opts._store)
     if (this._stateful) {
       assertOptionType(opts, 'currencyCode', 'string')
       assertOptionType(opts, 'currencyScale', 'number')
       assertOptionType(opts, 'maxBalance', 'string')
 
-      this._backend = opts._backend
+      this._backend = opts._backend || Backend
       this._maxBalance = opts.maxBalance
       this._minBalance = opts.minBalance
 
       this._transfers = this._backend.getTransferLog({
         maximum: this._maxBalance || 'Infinity',
-        minimum: this._minBalance || '-Infinity'
+        minimum: this._minBalance || '-Infinity',
+        store: (opts._backend ? undefined : opts._store)
       })
     } else {
       this._transfers = Backend.getTransferLog({
@@ -106,7 +109,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator = new Validator({
       account: this._account,
       peer: this._prefix + this._peerAccountName,
-      account: this._prefix + this._accountName,
       prefix: this._prefix
     })
 
@@ -425,8 +427,9 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     if (transferInfo.state !== 'prepared') return true
 
     if (Date.now() < Date.parse(transferInfo.transfer.expiresAt)) {
-      throw new Error(transferId + ' doesn\'t expire until ' + transfer.expiresAt +
-        ' (current time is ' + now.toISOString() + ')')
+      throw new Error(transferId + ' doesn\'t expire until ' +
+        transferInfo.transfer.expiresAt + ' (current time is ' +
+        new Date(Date.now()).toISOString() + ')')
     }
 
     debug('timing out ' + transferId)

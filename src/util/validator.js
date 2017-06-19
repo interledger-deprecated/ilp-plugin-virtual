@@ -1,7 +1,6 @@
 'use strict'
 const BigNumber = require('bignumber.js')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
-const util = require('util')
 
 // Regex matching a string containing 32 base64url-encoded bytes
 const REGEX_32_BYTES_AS_BASE64URL = /^[A-Za-z0-9_-]{43}$/

@@ -12,7 +12,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 const expect = chai.expect
 
-const ObjBackend = require('../src/util/backend')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
@@ -30,12 +30,12 @@ const options = {
   minBalance: '-40',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  info: info,
-  _backend: ObjBackend
+  info: info
 }
 
 describe('Send', () => {
   beforeEach(function * () {
+    options._store = new ObjStore()
     this.plugin = new PluginVirtual(options)
 
     yield this.plugin.connect()

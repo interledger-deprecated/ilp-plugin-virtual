@@ -4,12 +4,18 @@ class ObjTransferLog {
   constructor (opts) {
     this.maximum = +opts.maximum
     this.minimum = +opts.minimum
-    this.store = {}
+    this.cache = {}
+
+    // optional, for stateful plugin only
+    this.store = opts.store
+    this.writeQueue = Promise.resolve()
 
     // TODO: disable balance? (not needed for client plugin)
     this.balance = 0
-    this.highBalance = 0
-    this.lowBalance = 0
+
+    // legacy field names for ILP kit support
+    this.balance__ = 0
+    this.balance_l = 0
   }
 
   async setMaximum (n) {
@@ -35,7 +41,8 @@ class ObjTransferLog {
   async get (id) {
     // TODO: errors
     // - what if the transfer doesn't exist?
-    return this.store[id]
+    return this.cache[id] ||
+      (this.store && (await this.store.get('transfer_' + id)))
   }
 
   async prepare (transfer, isIncoming) {
@@ -52,7 +59,16 @@ class ObjTransferLog {
       state: 'prepared'
     }
 
-    const existing = this.store[transferWithInfo.transfer.id]
+    // TODO: more elegant way to fix race condition?
+    let existing = this.cache[transferWithInfo.transfer.id]
+    if (!existing) {
+      this.cache[transferWithInfo.transfer.id] = transferWithInfo
+      existing = (this.store && (await this.store.get('transfer_' + transfer.id)))
+      if (existing) {
+        delete this.cache[transferWithInfo.transfer.id]
+      }
+    }
+
     if (existing) {
       if (!deepEqual(existing.transfer, transferWithInfo.transfer)) {
         throw new Error('transfer ' + JSON.stringify(transferWithInfo) +
@@ -62,11 +78,11 @@ class ObjTransferLog {
       return
     }
 
-    const balance = isIncoming ? 'highBalance' : 'lowBalance'
+    const balance = isIncoming ? 'balance__' : 'balance_l'
     const difference = transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
     const isOver = isIncoming
-      ? ((n) => n > this.maximum)
-      : ((n) => n < this.minimum)
+      ? (n) => n > this.maximum
+      : (n) => n < this.minimum
 
     if (isOver(difference + this[balance])) {
       throw new Error(balance + ' exceeds greatest allowed value after: ' +
@@ -74,7 +90,19 @@ class ObjTransferLog {
     }
 
     this[balance] += transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
-    this.store[transferWithInfo.transfer.id] = transferWithInfo
+    this.cache[transferWithInfo.transfer.id] = transferWithInfo
+
+    if (this.store) {
+      this.writeQueue = this.writeQueue
+        .then(() => {
+          return this.store.put('transfer_' + transfer.id,
+            JSON.stringify(transferWithInfo))
+        }).then(() => {
+          return this.store.put(balance, String(this[balance]))
+        })
+
+      await this.writeQueue
+    }
   }
 
   async fulfill (transferId, fulfillment) {
@@ -83,7 +111,7 @@ class ObjTransferLog {
     // - what if transfer doesn't exist?
     // - should the fulfillment be validated?
     // - what if the transfer is rejected?
-    const transferWithInfo = this.store[transferId]
+    const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
 
     if (transferWithInfo.state === 'prepared') {
@@ -96,7 +124,19 @@ class ObjTransferLog {
         JSON.stringify(transferWithInfo))
     }
 
-    delete this.store[transferId]
+    delete this.cache[transferId]
+
+    if (this.store) {
+      this.writeQueue = this.writeQueue
+        .then(() => {
+          return this.store.put('transfer_' + transferWithInfo.transfer.id,
+            JSON.stringify(transferWithInfo))
+        }).then(() => {
+          return this.store.put('balance_f', String(this.balance))
+        })
+
+      await this.writeQueue
+    }
   }
 
   // TODO: should there be some kind of rejectionReason field? it's useful in FBL.
@@ -105,9 +145,9 @@ class ObjTransferLog {
     // - what if a transfer is already cancelled?
     // - what if transfer doesn't exist?
     // - what if the transfer is fulfilled?
-    const transferWithInfo = this.store[transferId]
+    const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
-    const balance = isIncoming ? 'highBalance' : 'lowBalance'
+    const balance = isIncoming ? 'balance__' : 'balance_l'
 
     if (transferWithInfo.state === 'prepared') {
       this[balance] -= transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
@@ -119,7 +159,19 @@ class ObjTransferLog {
         JSON.stringify(transferWithInfo))
     }
 
-    delete this.store[transferId]
+    delete this.cache[transferId]
+
+    if (this.store) {
+      this.writeQueue = this.writeQueue
+        .then(() => {
+          return this.store.put('transfer_' + transferId,
+            JSON.stringify(transferWithInfo))
+        }).then(() => {
+          return this.store.put(balance, String(this[balance]))
+        })
+
+      await this.writeQueue
+    }
   }
 }
 

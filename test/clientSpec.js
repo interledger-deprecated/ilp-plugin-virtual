@@ -2,15 +2,11 @@
 
 const nock = require('nock')
 const crypto = require('crypto')
-const uuid = require('uuid4')
-const request = require('co-request')
-const IlpPacket = require('ilp-packet')
 const base64url = require('base64url')
 
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const assert = chai.assert
-const expect = chai.expect
 
 const ObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
@@ -129,7 +125,7 @@ describe('Asymmetric plugin virtual', () => {
       await prepared
 
       nock('https://example.com')
-        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.', 
+        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.',
           [ this.transfer.id, this.fulfillment ])
         .reply(200, true)
 

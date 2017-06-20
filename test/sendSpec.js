@@ -1,9 +1,11 @@
 'use strict'
 
 const nock = require('nock')
+const crypto = require('crypto')
 const uuid = require('uuid4')
 const request = require('co-request')
 const IlpPacket = require('ilp-packet')
+const base64url = require('base64url')
 
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
@@ -25,6 +27,7 @@ const options = {
   currencyScale: 2,
   secret: 'seeecret',
   maxBalance: '1000000',
+  minBalance: '-40',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   info: info
@@ -107,29 +110,6 @@ describe('Send', () => {
     })
 
     it('should send a request', function * () {
-      nock('https://example.com')
-        .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
-        .reply(200, this.response)
-
-      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_request', resolve))
-      const incoming = new Promise((resolve) => this.plugin.on('incoming_response', resolve))
-
-      const response = yield this.plugin.sendRequest(this.message)
-      yield outgoing
-      yield incoming
-
-      assert.deepEqual(response, this.response)
-    })
-
-    it('should send a request with deprecated fields', function * () {
-      delete this.response.to
-      delete this.response.from
-      this.response.account = 'other'
-
-      delete this.message.to
-      delete this.message.from
-      this.message.account = 'other'
-
       nock('https://example.com')
         .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
         .reply(200, this.response)
@@ -235,17 +215,23 @@ describe('Send', () => {
     })
   })
 
-  describe('sendTransfer (non-conditional)', () => {
+  describe('sendTransfer (log and balance logic)', () => {
     beforeEach(function * () {
+      this.fulfillment = require('crypto').randomBytes(32)
       this.transfer = {
         id: uuid(),
         ledger: this.plugin.getInfo().prefix,
         from: this.plugin.getAccount(),
         to: peerAddress,
+        expiresAt: new Date(Date.now() + 10000).toISOString(),
         amount: '5.0',
-        data: {
+        custom: {
           field: 'some stuff'
-        }
+        },
+        executionCondition: base64url(crypto
+          .createHash('sha256')
+          .update(this.fulfillment)
+          .digest())
       }
     })
 
@@ -254,25 +240,9 @@ describe('Send', () => {
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
-      const balanced = new Promise((resolve, reject) => {
-        this.plugin.on('balance', (balance) => {
-          try {
-            assert.equal(balance, '-5')
-            resolve()
-          } catch (e) {
-            reject(e)
-          }
-        })
-      })
-
-      const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
+      const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
       yield this.plugin.sendTransfer(this.transfer)
       yield sent
-      yield balanced
-
-      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
-      assert.equal((yield this.plugin._store.get('balance__')), '-5', 'correct balance should be stored')
-      assert.deepEqual(this.plugin._transfers._storeCache, {}, 'transfer cache should be clear')
     })
 
     it('should roll back a transfer if the RPC call fails', function * () {
@@ -284,34 +254,6 @@ describe('Send', () => {
         .catch((e) => assert.match(e.message, /Unexpected status code 500/))
 
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should be rolled back')
-    })
-
-    it('should send a transfer with deprecated fields', function * () {
-      nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
-        .reply(200, true)
-
-      const balanced = new Promise((resolve, reject) => {
-        this.plugin.on('balance', (balance) => {
-          try {
-            assert.equal(balance, '-5')
-            resolve()
-          } catch (e) {
-            reject(e)
-          }
-        })
-      })
-
-      delete this.transfer.to
-      delete this.transfer.from
-      this.transfer.account = 'other'
-
-      const sent = new Promise((resolve) => this.plugin.on('outgoing_transfer', resolve))
-      yield this.plugin.sendTransfer(this.transfer)
-      yield sent
-      yield balanced
-
-      assert.equal((yield this.plugin.getBalance()), '-5', 'balance should decrease by amount')
     })
 
     it('should receive a transfer', function * () {
@@ -327,7 +269,7 @@ describe('Send', () => {
       })
 
       const received = new Promise((resolve, reject) => {
-        this.plugin.on('incoming_transfer', (transfer) => {
+        this.plugin.on('incoming_prepare', (transfer) => {
           try {
             assert.deepEqual(transfer, this.transfer)
           } catch (e) {
@@ -355,8 +297,14 @@ describe('Send', () => {
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [transfer2])
         .reply(200, true)
 
-      const send1 = this.plugin.sendTransfer(this.transfer)
-      const send2 = this.plugin.sendTransfer(transfer2)
+      yield this.plugin.sendTransfer(this.transfer)
+      yield this.plugin.sendTransfer(transfer2)
+
+      const send1 = this.plugin.receive('fulfill_condition',
+        [ this.transfer.id, base64url(this.fulfillment) ])
+
+      const send2 = this.plugin.receive('fulfill_condition',
+        [ transfer2.id, base64url(this.fulfillment) ])
 
       yield Promise.all([ send1, send2 ])
       assert.equal(yield this.plugin.getBalance(), '-10',
@@ -372,8 +320,15 @@ describe('Send', () => {
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)
 
-      const send1 = this.plugin.sendTransfer(this.transfer)
-      const send2 = this.plugin.sendTransfer(this.transfer)
+      yield this.plugin.sendTransfer(this.transfer)
+      yield this.plugin.sendTransfer(this.transfer)
+
+      const send1 = this.plugin.receive('fulfill_condition',
+        [ this.transfer.id, base64url(this.fulfillment) ])
+
+      const send2 = this.plugin.receive('fulfill_condition',
+        [ this.transfer.id, base64url(this.fulfillment) ])
+        .catch((e) => {})
 
       yield Promise.all([ send1, send2 ])
       assert.equal(yield this.plugin.getBalance(), '-5',
@@ -415,23 +370,23 @@ describe('Send', () => {
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
-    it('should not send a transfer without account', function () {
-      this.transfer.account = undefined
-      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
-    })
-
     it('should not send a transfer with an invalid id', function () {
       this.transfer.id = 666
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
-    it('should not send a transfer with an invalid account', function () {
-      this.transfer.account = '$$$ cawiomdaAW ($Q@@)$@$'
+    it('should not send a transfer without to', function () {
+      delete this.transfer.to
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
-    it('should not send a transfer with a non-string account', function () {
-      this.transfer.account = 42
+    it('should not send a transfer with an invalid to', function () {
+      this.transfer.to = '$$$ cawiomdaAW ($Q@@)$@$'
+      return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
+    })
+
+    it('should not send a transfer with a non-string to', function () {
+      this.transfer.to = 42
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
@@ -450,7 +405,7 @@ describe('Send', () => {
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
 
-    it('should not send a transfer with amount over maximum', function () {
+    it('should not send a transfer with amount over limit', function () {
       this.transfer.amount = '50.0'
       return expect(this.plugin.sendTransfer(this.transfer)).to.eventually.be.rejected
     })
@@ -477,20 +432,6 @@ describe('Send', () => {
       nock('https://example.com')
         .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
         .reply(200, true)
-
-      const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
-      yield this.plugin.sendMessage(this.message)
-      yield outgoing
-    })
-
-    it('should send a message with deprecated fields', function * () {
-      nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
-        .reply(200, true)
-
-      delete this.message.to
-      delete this.message.from
-      this.message.account = 'other'
 
       const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))
       yield this.plugin.sendMessage(this.message)

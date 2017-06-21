@@ -107,7 +107,7 @@ describe('Conditional Transfers', () => {
       this.plugin.on('incoming_prepare', () => (incomingPrepared = true))
 
       yield expect(this.plugin.receive('send_transfer', [this.incomingTransfer]))
-        .to.eventually.be.rejectedWith(/balance__ exceeds greatest allowed value/)
+        .to.eventually.be.rejectedWith(/balance_i exceeds greatest allowed value/)
 
       assert.isFalse(incomingPrepared, 'incoming_prepare should not be emitted')
       assert.equal((yield this.plugin.getBalance()), '0', 'balance should not change')

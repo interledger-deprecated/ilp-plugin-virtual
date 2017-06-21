@@ -26,11 +26,12 @@ const assertOptionType = (opts, field, type) => {
 }
 
 module.exports = class PluginVirtual extends EventEmitter2 {
-
-  constructor (opts) {
+  constructor (PaymentChannelBackend, opts) {
     super()
 
+    this._opts = opts
     this._stateful = !!(opts._backend || opts._store)
+
     if (this._stateful) {
       assertOptionType(opts, 'currencyCode', 'string')
       assertOptionType(opts, 'currencyScale', 'number')
@@ -143,6 +144,15 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.isConnected = () => this._connected
     this.getAccount = () => this._account
     this.isAuthorized = (authToken) => (authToken === this._authToken)
+
+    this._paychanBackend = PaymentChannelBackend || {}
+    this._paychanContext = {
+      state: {},
+      rpc: this._rpc,
+      backend: this._backend,
+      transferLog: this._transfers,
+      plugin: this
+    }
   }
 
   // don't throw errors even if the event handler throws
@@ -177,11 +187,19 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       this._info = await this._rpc.call('get_info', this._prefix, [])
     }
 
+    if (this._paychanBackend.connect) {
+      await this._paychanBackend.connect(this._paychanContext, this._opts)
+    }
+
     this._connected = true
     this._safeEmit('connect')
   }
 
   async disconnect () {
+    if (this._paychanBackend.disconnect) {
+      await this._paychanBackend.disconnect(this._paychanContext)
+    }
+
     this._connected = false
     this._safeEmit('disconnect')
   }
@@ -274,6 +292,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateIncomingTransfer(transfer)
     await this._transfers.prepare(transfer, true)
 
+    if (this._paychanBackend.handleIncoming) {
+      await this._paychanBackend.handleIncoming(this._paychanContext, transfer)
+    }
+
     // set up expiry here too, so both sides can send the expiration message
     this._safeEmit('incoming_prepare', transfer)
     if (this._stateful) {
@@ -306,7 +328,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validateFulfillment(fulfillment, transferInfo.transfer.executionCondition)
     await this._transfers.fulfill(transferId, fulfillment)
     this._safeEmit('incoming_fulfill', transferInfo.transfer, fulfillment)
-    await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
+    const result = await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
+
+    if (this._paychanBackend.handleSettlement) {
+      await this._paychanBackend.handleSettlement(this._paychanContext, result)
+    }
   }
 
   async _handleFulfillCondition (transferId, fulfillment) {
@@ -331,7 +357,15 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validateFulfillment(fulfillment, transferInfo.transfer.executionCondition)
     await this._transfers.fulfill(transferId, fulfillment)
     this._safeEmit('outgoing_fulfill', transferInfo.transfer, fulfillment)
-    return true
+
+    let result = true
+    if (this._paychanBackend.settleToBalance) {
+      result = await this._paychanBackend.settleToBalance(
+        this._paychanContext,
+        await this._transfers.getOutgoingBalance())
+    }
+
+    return result
   }
 
   async rejectIncomingTransfer (transferId, reason) {

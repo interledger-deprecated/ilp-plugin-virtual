@@ -11,11 +11,10 @@ class ObjTransferLog {
     this.writeQueue = Promise.resolve()
 
     // TODO: disable balance? (not needed for client plugin)
-    this.balance = 0
-
-    // legacy field names for ILP kit support
-    this.balance__ = 0
-    this.balance_l = 0
+    this.balance_if = 0
+    this.balance_i = 0
+    this.balance_o = 0
+    this.balance_of = 0
   }
 
   async setMaximum (n) {
@@ -35,7 +34,23 @@ class ObjTransferLog {
   }
 
   async getBalance () {
-    return String(this.balance)
+    return String(this.balance_if - this.balance_of)
+  }
+
+  async getIncomingBalance () {
+    return String(this.balance_if)
+  }
+
+  async getOutgoingBalance () {
+    return String(this.balance_of)
+  }
+
+  async getHighestIncomingBalance () {
+    return String(this.balance_i)
+  }
+
+  async getHighestOutgoingBalance () {
+    return String(this.balance_o)
   }
 
   async get (id) {
@@ -78,18 +93,20 @@ class ObjTransferLog {
       return
     }
 
-    const balance = isIncoming ? 'balance__' : 'balance_l'
-    const difference = transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
-    const isOver = isIncoming
-      ? (n) => n > this.maximum
-      : (n) => n < this.minimum
+    const balance = isIncoming ? 'balance_i' : 'balance_o'
+    const otherBalance = this[isIncoming ? 'balance_of' : 'balance_if']
 
-    if (isOver(difference + this[balance])) {
+    const amount = transferWithInfo.transfer.amount
+    const isOver = isIncoming
+      ? (n) => n - otherBalance > this.maximum
+      : (n) => n - otherBalance > -this.minimum
+
+    if (isOver(Number(amount) + Number(this[balance]))) {
       throw new Error(balance + ' exceeds greatest allowed value after: ' +
         JSON.stringify(transferWithInfo))
     }
 
-    this[balance] += transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
+    this[balance] += +transferWithInfo.transfer.amount
     this.cache[transferWithInfo.transfer.id] = transferWithInfo
 
     if (this.store) {
@@ -113,9 +130,10 @@ class ObjTransferLog {
     // - what if the transfer is rejected?
     const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
+    const balance = isIncoming ? 'balance_if' : 'balance_of'
 
     if (transferWithInfo.state === 'prepared') {
-      this.balance += transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
+      this[balance] += +transferWithInfo.transfer.amount
     }
 
     // TODO: should the failure state be rejected, like FBL API?
@@ -132,7 +150,7 @@ class ObjTransferLog {
           return this.store.put('transfer_' + transferWithInfo.transfer.id,
             JSON.stringify(transferWithInfo))
         }).then(() => {
-          return this.store.put('balance_f', String(this.balance))
+          return this.store.put(balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -147,10 +165,10 @@ class ObjTransferLog {
     // - what if the transfer is fulfilled?
     const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
-    const balance = isIncoming ? 'balance__' : 'balance_l'
+    const balance = isIncoming ? 'balance_i' : 'balance_o'
 
     if (transferWithInfo.state === 'prepared') {
-      this[balance] -= transferWithInfo.transfer.amount * (isIncoming ? 1 : -1)
+      this[balance] -= +transferWithInfo.transfer.amount
     }
 
     // TODO: should the success state be executed, like FBL API?

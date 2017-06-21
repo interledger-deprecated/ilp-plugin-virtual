@@ -269,7 +269,7 @@ describe('Send', () => {
       yield received
     })
 
-    it('should not race when reading the balance', function * () {
+    it.only('should not race when reading the balance', function * () {
       nock('https://example.com')
         .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
         .reply(200, true)

@@ -292,8 +292,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateIncomingTransfer(transfer)
     await this._transfers.prepare(transfer, true)
 
-    if (this._paychanBackend.handleIncoming) {
-      await this._paychanBackend.handleIncoming(this._paychanContext, transfer)
+    if (this._paychanBackend.handleIncomingPrepare) {
+      await this._paychanBackend.handleIncomingPrepare(this._paychanContext, transfer)
     }
 
     // set up expiry here too, so both sides can send the expiration message
@@ -330,8 +330,8 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._safeEmit('incoming_fulfill', transferInfo.transfer, fulfillment)
     const result = await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
 
-    if (this._paychanBackend.handleSettlement) {
-      await this._paychanBackend.handleSettlement(this._paychanContext, result)
+    if (this._paychanBackend.handleIncomingClaim) {
+      await this._paychanBackend.handleIncomingClaim(this._paychanContext, result)
     }
   }
 
@@ -359,10 +359,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._safeEmit('outgoing_fulfill', transferInfo.transfer, fulfillment)
 
     let result = true
-    if (this._paychanBackend.settleToBalance) {
-      result = await this._paychanBackend.settleToBalance(
+    if (this._paychanBackend.createOutgoingClaim) {
+      result = await this._paychanBackend.createOutgoingClaim(
         this._paychanContext,
-        await this._transfers.getOutgoingBalance())
+        await this._transfers.getOutgoingFulfilled())
     }
 
     return result

@@ -5,6 +5,7 @@ class ObjTransferLog {
     this.maximum = +opts.maximum
     this.minimum = +opts.minimum
     this.cache = {}
+    this.key = opts.key || ''
 
     // optional, for stateful plugin only
     this.store = opts.store
@@ -37,19 +38,19 @@ class ObjTransferLog {
     return String(this.balance_if - this.balance_of)
   }
 
-  async getIncomingBalance () {
+  async getIncomingFulfilled () {
     return String(this.balance_if)
   }
 
-  async getOutgoingBalance () {
+  async getOutgoingFulfilled () {
     return String(this.balance_of)
   }
 
-  async getHighestIncomingBalance () {
+  async getIncomingFulfilledAndPrepared () {
     return String(this.balance_i)
   }
 
-  async getHighestOutgoingBalance () {
+  async getOutgoingFulfilledAndPrepared () {
     return String(this.balance_o)
   }
 
@@ -57,7 +58,7 @@ class ObjTransferLog {
     // TODO: errors
     // - what if the transfer doesn't exist?
     return this.cache[id] ||
-      (this.store && (await this.store.get('transfer_' + id)))
+      (this.store && (await this.store.get(this.key + 'transfer_' + id)))
   }
 
   async prepare (transfer, isIncoming) {
@@ -78,7 +79,7 @@ class ObjTransferLog {
     let existing = this.cache[transferWithInfo.transfer.id]
     if (!existing) {
       this.cache[transferWithInfo.transfer.id] = transferWithInfo
-      existing = (this.store && (await this.store.get('transfer_' + transfer.id)))
+      existing = (this.store && (await this.store.get(this.key + 'transfer_' + transfer.id)))
       if (existing) {
         delete this.cache[transferWithInfo.transfer.id]
       }
@@ -112,10 +113,10 @@ class ObjTransferLog {
     if (this.store) {
       this.writeQueue = this.writeQueue
         .then(() => {
-          return this.store.put('transfer_' + transfer.id,
+          return this.store.put(this.key + 'transfer_' + transfer.id,
             JSON.stringify(transferWithInfo))
         }).then(() => {
-          return this.store.put(balance, String(this[balance]))
+          return this.store.put(this.key + balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -147,10 +148,10 @@ class ObjTransferLog {
     if (this.store) {
       this.writeQueue = this.writeQueue
         .then(() => {
-          return this.store.put('transfer_' + transferWithInfo.transfer.id,
+          return this.store.put(this.key + 'transfer_' + transferWithInfo.transfer.id,
             JSON.stringify(transferWithInfo))
         }).then(() => {
-          return this.store.put(balance, String(this[balance]))
+          return this.store.put(this.key + balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -182,10 +183,10 @@ class ObjTransferLog {
     if (this.store) {
       this.writeQueue = this.writeQueue
         .then(() => {
-          return this.store.put('transfer_' + transferId,
+          return this.store.put(this.key + 'transfer_' + transferId,
             JSON.stringify(transferWithInfo))
         }).then(() => {
-          return this.store.put(balance, String(this[balance]))
+          return this.store.put(this.key + balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -193,6 +194,31 @@ class ObjTransferLog {
   }
 }
 
+class getMaxValueTracker {
+  constructor (opts) {
+    this.highest = { value: '0', data: null }
+
+    // TODO: load from store
+    this.store = opts.store
+    this.key = opts.key
+  }
+
+  async setIfMax (entry) {
+    const last = this.highest
+    if (+entry.value > +last.value) {
+      this.highest = entry
+      return last
+    }
+
+    return entry
+  }
+
+  async getMax () {
+    return this.highest
+  }
+}
+
 module.exports = {
-  getTransferLog: (opts) => (new ObjTransferLog(opts))
+  getTransferLog: (opts) => (new ObjTransferLog(opts)),
+  getMaxValueTracker: (opts) => (new MaxValueTracker(opts))
 }

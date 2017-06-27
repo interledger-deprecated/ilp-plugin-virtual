@@ -43,8 +43,8 @@ return MakePluginVirtual({
     ctx.state.maxInFlight = opts.maxInFlight
   },
 
-  handleIncoming: async function (ctx, transfer) {
-    const incoming = await ctx.transferLog.getHighestIncomingBalance()
+  handleIncomingPrepare: async function (ctx, transfer) {
+    const incoming = await ctx.transferLog.getIncomingFulfilledAndPrepared()
     const bestClaim = await ctx.state.bestClaim.getMax() || { value: '0', data: null }
 
     const exceeds = new BigNumber(incoming)
@@ -56,7 +56,7 @@ return MakePluginVirtual({
     }
   },
 
-  settleToBalance: async function (ctx, outgoingBalance) {
+  createOutgoingClaim: async function (ctx, outgoingBalance) {
     const claim = Network.createClaim(outgoingBalance)
 
     return {
@@ -65,8 +65,8 @@ return MakePluginVirtual({
     }
   },
 
-  handleSettlement: async function (ctx, settlement) {
-    const { balance, claim } = settlement
+  handleIncomingClaim: async function (ctx, claim) {
+    const { balance, claim } = claim
 
     if (Network.verify(claim, balance)) {
       await ctx.state.bestClaim.setIfMax({ value: balance, data: claim })
@@ -102,9 +102,9 @@ return MakePluginVirtual({
     ctx.state.maxInFlight = opts.maxInFlight
   },
 
-  handleIncoming: async function (ctx, transfer) {
-    const incoming = await ctx.transferLog.getHighestIncomingBalance() 
-    const amountReceived = await ctx.state.incomingSettlements.getHighestIncomingBalance()
+  handleIncomingPrepare: async function (ctx, transfer) {
+    const incoming = await ctx.transferLog.getIncomingFulfilledAndPrepared() 
+    const amountReceived = await ctx.state.incomingSettlements.getIncomingFulfilledAndPrepared()
 
     const exceeds = new BigNumber(incoming)
       .sub(amountReceived)
@@ -115,7 +115,7 @@ return MakePluginVirtual({
     }
   },
 
-  settleToBalance: async function (ctx, outgoingBalance) {
+  createOutgoingClaim: async function (ctx, outgoingBalance) {
     const lastPaid = ctx.state.amountSettled.setIfMax({ value: outgoingBalance, data: null })
     const diff = outgoingBalance - lastPaid.value
 
@@ -128,8 +128,8 @@ return MakePluginVirtual({
     return { txid }
   },
 
-  handleSettlement: async function (ctx, settlement) {
-    const { txid } = settlement
+  handleIncomingClaim: async function (ctx, claim) {
+    const { txid } = claim
     const payment = await Network.getPayment(txid)
 
     if (!payment) {
@@ -153,7 +153,7 @@ return MakePluginVirtual({
 
 -------
 
-### `async TransferLog.getIncomingBalance ()`
+### `async TransferLog.getIncomingFulfilled ()`
 
 Get the sum of all incoming payments in the `fulfilled` state.
 
@@ -163,7 +163,7 @@ Get the sum of all incoming payments in the `fulfilled` state.
 
 -------
 
-### `async TransferLog.getHighestIncomingBalance ()`
+### `async TransferLog.getIncomingFulfilledAndPrepared ()`
 
 Get the sum of all incoming payments, including those which are in the `prepared` state.
 
@@ -173,7 +173,7 @@ Get the sum of all incoming payments, including those which are in the `prepared
 
 -------
 
-### `async TransferLog.getOutgoingBalance ()`
+### `async TransferLog.getOutgoingFulfilled ()`
 
 Get the sum of all outgoing payments in the `fulfilled` state.
 
@@ -183,7 +183,7 @@ Get the sum of all outgoing payments in the `fulfilled` state.
 
 -------
 
-### `async TransferLog.getHighestOutgoingBalance ()`
+### `async TransferLog.getOutgoingFulfilledAndPrepared ()`
 
 Get the sum of all outgoing payments, including those which are in the `prepared` state.
 
@@ -273,7 +273,7 @@ Called when `plugin.disconnect()` is called.
 
 -------
 
-### `async handleIncoming (ctx, transfer)`
+### `async handleIncomingPrepare (ctx, transfer)`
 
 Called when an incoming transfer is being processed, but has not yet been
 prepared. If this function throws an error, the transfer will not be prepared
@@ -286,11 +286,11 @@ and the error will be passed back to the peer.
 
 -------
 
-### `async settleToBalance (ctx, balance)`
+### `async createOutgoingClaim (ctx, balance)`
 
 Called when settlement is triggered. This may occur in the flow of a single payment,
 or it may occur only once per several payments. The return value of this function is
-passed to the peer, and into their `handleSettlement()` function. The return value must
+passed to the peer, and into their `handleIncomingClaim()` function. The return value must
 be stringifiable to JSON.
 
 #### Parameters
@@ -300,14 +300,14 @@ be stringifiable to JSON.
 
 -------
 
-### `async handleSettlement (ctx, settlement)`
+### `async handleIncomingClaim (ctx, claim)`
 
-Called after peer's `settleToBalance()` function is called.
+Called after peer's `createOutgoingClaim()` function is called.
 
 #### Parameters
 
 - `ctx` (PluginContext) current plugin context.
-- `settlement` (Object) return value of peer's `settleToBalance()` function.
+- `claim` (Object) return value of peer's `createOutgoingClaim()` function.
 
 ## Plugin Context API
 

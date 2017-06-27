@@ -7,7 +7,8 @@
 [codecov-image]: https://codecov.io/gh/interledgerjs/ilp-plugin-virtual/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/interledgerjs/ilp-plugin-virtual
 
-> ILP virtual ledger plugin for directly transacting connectors
+> ILP virtual ledger plugin for directly transacting connectors, including a
+> framework for attaching on-ledger settlement mechanisms.
 
 ## Installation
 
@@ -16,6 +17,14 @@ npm install --save ilp-plugin-virtual
 ```
 
 # ILP Plugin Payment Channel Framework
+
+The plugin payment channel framework includes all the functionality of
+`ilp-plugin-virtual`, but wrapped around a [Payment Channel
+Backend](#payment-channel-backend-api). A payment channel backend includes
+methods for securing a trustline balance, whether by payment channel claims or
+by periodically sending unconditional payments. The common functionality, such
+as implementing the ledger plugin interface, logging transfers, keeping
+balances, etc. are handled by the payment channel framework itself.
 
 ILP Plugin virtual exposes a field called `MakePluginVirtual`.  This function
 takes a [Payment Channel Backend](#payment-channel-backend-api), and returns a
@@ -29,6 +38,16 @@ LedgerPlugin class.
 
 ## Example Code with Claim-Based Settlement
 
+Claim-based settlement is the simple case that this framework uses as its
+abstraction for settlement. Claim based settlement uses a unidirectional
+payment channel. You put your funds on hold, and give your peer signed claims
+for more and more of the funds. These signed claims are passed off-ledger, and
+your peer submits the highest claim when they want to get their funds.
+
+Claim based settlement has been implemented on ripple with the PayChan
+functionality, or on bitcoin (and many other blockchains) by signing
+transactions that pay out of some script output.
+
 ```js
 const { MakePluginVirtual } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
@@ -36,49 +55,85 @@ const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
 return MakePluginVirtual({
+  // the connect function runs when the plugin is connected.
   connect: async function (ctx, opts) {
+    // network initiation should happen here. In a claim-based plugin, this
+    // would be the place to connect to the network and initiate payment
+    // channels if they don't exist already.
     await Network.connectToNetwork()
 
+    // we have one maxValueTracker to track the best incoming claim we've
+    // gotten so far. it starts with a value of '0', and contains no data.
     ctx.state.bestClaim = ctx.backend.getMaxValueTracker('incoming_claim')
-    ctx.state.maxInFlight = opts.maxInFlight
+
+    // the 'maxUnsecured' option is taken from the plugin's constructor.
+    // it defines how much the best incoming claim can differs from the amount
+    // of incoming transfers.
+    ctx.state.maxUnsecured = opts.maxUnsecured
   },
 
+  // this function is called every time an incoming transfer has been prepared.
+  // throwing an error will stop the incoming transfer from being emitted as an
+  // event.
   handleIncomingPrepare: async function (ctx, transfer) {
+    // we get the incomingFulfilledAndPrepared because it represents the most
+    // that can be owed to us, if all prepared transfers get fulfilled. The
+    // 'transfer' has already been applied to this balance.
     const incoming = await ctx.transferLog.getIncomingFulfilledAndPrepared()
     const bestClaim = await ctx.state.bestClaim.getMax() || { value: '0', data: null }
 
+    // make sure that if all incoming transfers are fulfilled (including the
+    // new one), it won't put us too far from the best incoming claim we've
+    // gotten.  'incoming - bestClaim.value' is the amount that our peer can
+    // default on, so it's important we limit it.
     const exceeds = new BigNumber(incoming)
-      .sub(bestClaim.value)
-      .gt(ctx.state.maxInFlight)
+      .subtract(bestClaim.value)
+      .greaterThan(ctx.state.maxUnsecured)
 
     if (exceeds) {
-      throw new NotAcceptedError(transfer.id + ' exceeds max in flight balance')
+      throw new NotAcceptedError(transfer.id + ' exceeds max unsecured balance')
     }
   },
 
+  // this function is called whenever the outgoingBalance changes by a
+  // significant amount.  It may or may not be called on every transfer's
+  // fulfill, so it should not rely on being part of a payment flow.
   createOutgoingClaim: async function (ctx, outgoingBalance) {
+    // create a claim for the total outgoing balance. This call is idempotent,
+    // because it's relating to the absolute amount owed, and doesn't modify
+    // anything.
     const claim = Network.createClaim(outgoingBalance)
 
+    // return an object with the claim and the amount that the claim is for.
+    // this will be passed into your peer's handleIncomingClaim function.
     return {
       balance: outgoingBalance,
       claim: claim
     }
   },
 
+  // this function is called right after the peer calls createOutgoingClaim.
   handleIncomingClaim: async function (ctx, claim) {
     const { balance, claim } = claim
 
     if (Network.verify(claim, balance)) {
+      // if the incoming claim is valid and it's better than your previous best
+      // claim, set the bestClaim to the new one. If you already have a better
+      // claim this will leave it intact. It's important to use the backend's
+      // maxValueTracker here, because it will be safe across many processes.
       await ctx.state.bestClaim.setIfMax({ value: balance, data: claim })
     }
   },
 
+  // called on plugin disconnect
   disconnect: async function (ctx) {
     const claim = ctx.state.bestClaim.getMax()
     if (!claim) {
       return
     }
 
+    // submit the best claim before disconnecting. This is the only time we
+    // have to wait on the underlying ledger.
     await Network.submitClaim(claim)
   }
 })
@@ -86,6 +141,15 @@ return MakePluginVirtual({
 
 ## Example Code with Unconditional Payment-Based Settlement
 
+Unconditional payment settlement secures a trustline balance by sending payments
+on a system that doesn't support conditional transfers. Hashed timelock transfers
+go through plugin virtual like a clearing layer, and every so often a settlement
+is sent to make sure the amount secured on the ledger doesn't get too far from
+the finalized amount owed.
+
+Unlike creating a claim, sending a payment has side-effects (it alters an
+external system). Therefore, the code is slightly more complicated.
+
 ```js
 const { MakePluginVirtual } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
@@ -96,26 +160,52 @@ return MakePluginVirtual({
   connect: async function (ctx, opts) {
     await Network.connectToNetwork()
 
+    // In this type of payment channel backend, we create a log of incoming
+    // settlements to track all the transfers sent to us on the ledger we're
+    // using for settlement.  We use a transferLog in order to make sure a
+    // single transfer can't be added twice.
     ctx.state.incomingSettlements = ctx.backend.getTransferLog('incoming_settlements')
+
+    // The amount settled is used to track how much we've paid out in total.
+    // We'll go deeper into how it's used in the `createOutgoingClaim`
+    // function.
     ctx.state.amountSettled = ctx.backend.getMaxValueTracker('amount_settled')
 
-    ctx.state.maxInFlight = opts.maxInFlight
+    // In this type of payment channel backend, the unsecured balance we want
+    // to limit is the total amount of incoming transfers minus the sum of all
+    // the settlement transfers we've received.
+    ctx.state.maxUnsecured = opts.maxUnsecured
   },
 
   handleIncomingPrepare: async function (ctx, transfer) {
     const incoming = await ctx.transferLog.getIncomingFulfilledAndPrepared() 
+
+    // Instead of getting the best claim, we're getting the sum of all our
+    // incoming settlement transfers. This tells us how much incoming money has
+    // been secured.
     const amountReceived = await ctx.state.incomingSettlements.getIncomingFulfilledAndPrepared()
 
+    // The peer can default on 'incoming - amountReceived', so we want to limit
+    // that amount.
     const exceeds = new BigNumber(incoming)
-      .sub(amountReceived)
-      .gt(ctx.state.maxInFlight)
+      .subtract(amountReceived)
+      .greaterThan(ctx.state.maxUnsecured)
 
     if (exceeds) {
-      throw new NotAcceptedError(transfer.id + ' exceeds max in flight balance')
+      throw new NotAcceptedError(transfer.id + ' exceeds max unsecured balance')
     }
   },
 
+  // Even though this function is designed for creating a claim, we can
+  // very easily repurpose it to make a payment for settlement.
   createOutgoingClaim: async function (ctx, outgoingBalance) {
+    // If a new max value is set, the maxValueTracker returns the previous max
+    // value. We tell the maxValueTracker that we're gonna pay the entire
+    // outgoingBalance we owe, and then look at the difference between the last
+    // balance and the outgoingBalance to determine how much to pay.
+    // If we've already paid out more than outgoingBalance, then it won't be the
+    // max value. The maxValueTracker will return outgoingBalance as the result,
+    // and outgoingBalance - outgoingBalance is 0. Therefore, we send no payment.
     const lastPaid = ctx.state.amountSettled.setIfMax({ value: outgoingBalance, data: null })
     const diff = outgoingBalance - lastPaid.value
 
@@ -123,6 +213,11 @@ return MakePluginVirtual({
       return
     }
 
+    // We take the transaction ID from the payment we send, and give it as an
+    // identifier so out peer can look it up on the network and verify that we
+    // paid them. Another approach could be to return nothing from this
+    // function, and have the peer automatically track all incoming payments
+    // they're notified of on the settlement ledger.
     const txid = Network.makePaymentToPeer(diff)
 
     return { txid }
@@ -136,10 +231,10 @@ return MakePluginVirtual({
       return
     }
 
-    // it doesn't really matter whether this is fulfilled or not,
-    // we just need it to affect the incoming balance so we know
-    // how much has been received. A transferlog is used here so
-    // the same txid cannot be applied twice.
+    // It doesn't really matter whether this is fulfilled or not, we just need
+    // it to affect the incoming balance so we know how much has been received.
+    // We use the txid as the ID of the incoming payment, so it's impossible to
+    // apply the same incoming settlement transfer twice.
     await ctx.state.incomingSettlements.prepare({
       id: txid,
       amount: payment.amount

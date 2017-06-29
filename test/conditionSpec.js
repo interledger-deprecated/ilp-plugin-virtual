@@ -10,7 +10,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 const expect = chai.expect
 
-const ObjBackend = require('../src/util/backend')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
@@ -28,11 +28,11 @@ const options = {
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   info: info,
-  _backend: ObjBackend
 }
 
 describe('Conditional Transfers', () => {
   beforeEach(function * () {
+    options._store = new ObjStore()
     this.plugin = new PluginVirtual(options)
 
     this.fulfillment = 'gHJ2QeIZpstXaGZVCSq4d3vkrMSChNYKriefys3KMtI'

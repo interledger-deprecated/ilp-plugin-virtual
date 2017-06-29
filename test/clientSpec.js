@@ -8,7 +8,7 @@ const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const assert = chai.assert
 
-const ObjBackend = require('../src/util/backend')
+const getObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
 
 const conditionPair = () => {
@@ -157,7 +157,7 @@ describe('Asymmetric plugin virtual', () => {
       const _options = Object.assign({}, options)
 
       delete _options.rpcUri
-      _options._backend = ObjBackend
+      _options._backend = getObjBackend(null)
       _options.tolerateFailure = true
       _options.rpcUris = [
         'https://example.com/1/rpc',

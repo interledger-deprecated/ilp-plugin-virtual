@@ -36,6 +36,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       assertOptionType(opts, 'currencyCode', 'string')
       assertOptionType(opts, 'currencyScale', 'number')
       assertOptionType(opts, 'maxBalance', 'string')
+      if (opts.minBalance) assertOptionType(opts, 'minBalance', 'string')
 
       this._backend = opts._backend || Backend
       this._maxBalance = opts.maxBalance

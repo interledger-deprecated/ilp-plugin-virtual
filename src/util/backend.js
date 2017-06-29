@@ -18,43 +18,86 @@ class ObjTransferLog {
     this.balance_of = 0
   }
 
+  async connect () {
+    if (this.connected) return
+
+    if (this.store) {
+      this.maximum = await this.store.get(this.key + 'maximum')
+      this.minimum = await this.store.get(this.key + 'minimum')
+      this.balance_if = await this.store.get(this.key + 'balance_if')
+      this.balance_of = await this.store.get(this.key + 'balance_of')
+      this.balance_i = this.balance_if
+      this.balance_o = this.balance_of
+    }
+
+    this.connected = true
+  }
+
   async setMaximum (n) {
+    await this.connect()
     this.maximum = +n
+
+    if (this.store) {
+      this.writeQueue = this.writeQueue
+        .then(() => {
+          return this.store.put(this.key + 'maximum', this.maximum)
+        })
+
+      await this.writeQueue
+    }
   }
 
   async setMinimum (n) {
+    await this.connect()
     this.minimum = +n
+
+    if (this.store) {
+      this.writeQueue = this.writeQueue
+        .then(() => {
+          return this.store.put(this.key + 'minimum', this.maximum)
+        })
+
+      await this.writeQueue
+    }
   }
 
   async getMaximum () {
+    await this.connect()
     return String(this.maximum)
   }
 
   async getMinimum () {
+    await this.connect()
     return String(this.minimum)
   }
 
   async getBalance () {
+    await this.connect()
     return String(this.balance_if - this.balance_of)
   }
 
   async getIncomingFulfilled () {
+    await this.connect()
     return String(this.balance_if)
   }
 
   async getOutgoingFulfilled () {
+    await this.connect()
     return String(this.balance_of)
   }
 
   async getIncomingFulfilledAndPrepared () {
+    await this.connect()
     return String(this.balance_i)
   }
 
   async getOutgoingFulfilledAndPrepared () {
+    await this.connect()
     return String(this.balance_o)
   }
 
   async get (id) {
+    await this.connect()
     // TODO: errors
     // - what if the transfer doesn't exist?
     return this.cache[id] ||
@@ -62,6 +105,7 @@ class ObjTransferLog {
   }
 
   async prepare (transfer, isIncoming) {
+    await this.connect()
     // TODO: should direction be a boolean isIncoming?
     // TODO: errors
     // - what if goes over balance?
@@ -82,6 +126,7 @@ class ObjTransferLog {
       existing = (this.store && (await this.store.get(this.key + 'transfer_' + transfer.id)))
       if (existing) {
         delete this.cache[transferWithInfo.transfer.id]
+        return
       }
     }
 
@@ -115,8 +160,6 @@ class ObjTransferLog {
         .then(() => {
           return this.store.put(this.key + 'transfer_' + transfer.id,
             JSON.stringify(transferWithInfo))
-        }).then(() => {
-          return this.store.put(this.key + balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -124,6 +167,7 @@ class ObjTransferLog {
   }
 
   async fulfill (transferId, fulfillment) {
+    await this.connect()
     // TODO: errors
     // - what if a transfer is already fulfilled?
     // - what if transfer doesn't exist?
@@ -160,6 +204,7 @@ class ObjTransferLog {
 
   // TODO: should there be some kind of rejectionReason field? it's useful in FBL.
   async cancel (transferId) {
+    await this.connect()
     // TODO: errors
     // - what if a transfer is already cancelled?
     // - what if transfer doesn't exist?
@@ -185,8 +230,6 @@ class ObjTransferLog {
         .then(() => {
           return this.store.put(this.key + 'transfer_' + transferId,
             JSON.stringify(transferWithInfo))
-        }).then(() => {
-          return this.store.put(this.key + balance, String(this[balance]))
         })
 
       await this.writeQueue
@@ -197,16 +240,38 @@ class ObjTransferLog {
 class getMaxValueTracker {
   constructor (opts) {
     this.highest = { value: '0', data: null }
+    this.writeQueue = Promise.resolve()
 
     // TODO: load from store
     this.store = opts.store
     this.key = opts.key
   }
 
+  async connect () {
+    if (this.connected) return
+    if (this.store) {
+      this.highest = await this.store.get(this.key + 'mvt_maximum')
+    }
+
+    this.connected = true
+  }
+
   async setIfMax (entry) {
+    await this.connect()
+
     const last = this.highest
     if (+entry.value > +last.value) {
       this.highest = entry
+
+      if (this.store) {
+        this.writeQueue = this.writeQueue
+          .then(() => {
+            return this.store.put(this.key + 'mvt_maximum', JSON.stringify(entry))
+          })
+
+        await this.writeQueue
+      }
+
       return last
     }
 
@@ -214,6 +279,8 @@ class getMaxValueTracker {
   }
 
   async getMax () {
+    await this.connect()
+
     return this.highest
   }
 }

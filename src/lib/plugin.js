@@ -295,8 +295,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     await this._transfers.prepare(transfer, true)
 
     if (this._paychanBackend.handleIncomingPrepare) {
-      // TODO: expire the transfer if this encounters an error
-      await this._paychanBackend.handleIncomingPrepare(this._paychanContext, transfer)
+      try {
+        await this._paychanBackend.handleIncomingPrepare(this._paychanContext, transfer)
+      } catch (e) {
+        debug('plugin backend rejected incoming prepare:', e.message)
+        await this._transfers.cancel(transfer.id)
+        throw e
+      }
     }
 
     // set up expiry here too, so both sides can send the expiration message
@@ -334,7 +339,11 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     const result = await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
 
     if (this._paychanBackend.handleIncomingClaim) {
-      await this._paychanBackend.handleIncomingClaim(this._paychanContext, result)
+      try {
+        await this._paychanBackend.handleIncomingClaim(this._paychanContext, result)
+      } catch (e) {
+        debug('error handling incoming claim:', e)
+      }
     }
   }
 
@@ -363,9 +372,13 @@ module.exports = class PluginVirtual extends EventEmitter2 {
 
     let result = true
     if (this._paychanBackend.createOutgoingClaim) {
-      result = await this._paychanBackend.createOutgoingClaim(
-        this._paychanContext,
-        await this._transfers.getOutgoingFulfilled())
+      try {
+        result = await this._paychanBackend.createOutgoingClaim(
+          this._paychanContext,
+          await this._transfers.getOutgoingFulfilled())
+      } catch (e) {
+        debug('error creating outgoing claim:', e)
+      }
     }
 
     return result

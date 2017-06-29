@@ -3,7 +3,6 @@
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const assert = chai.assert
-const nock = require('nock')
 
 const getObjBackend = require('../src/util/backend')
 const ObjStore = require('./helpers/objStore')
@@ -17,7 +16,7 @@ describe('ObjStore and ObjBackend', function () {
   describe('maxValueTracker', function () {
     beforeEach(function () {
       this.opts = {
-        key: 'foo' 
+        key: 'foo'
       }
 
       this.tracker = this.backend.getMaxValueTracker(this.opts)
@@ -72,7 +71,7 @@ describe('ObjStore and ObjBackend', function () {
       assert.deepEqual(
         await this.tracker.getMax(),
         { value: '1', data: 'foo' })
-      
+
       assert.deepEqual(
         await newTracker.getMax(),
         { value: '0', data: null })
@@ -237,7 +236,7 @@ describe('ObjStore and ObjBackend', function () {
 
       await this.log.prepare(this.transfer, true)
       await this.log.fulfill(this.transfer.id, 'fulfillment')
-      
+
       assert.equal(await log2.getBalance(), '0')
       assert.equal(await log2.getIncomingFulfilled(), '0')
       assert.equal(await log2.getOutgoingFulfilled(), '0')

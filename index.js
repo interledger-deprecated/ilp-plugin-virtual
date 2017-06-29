@@ -5,6 +5,6 @@ const Token = require('./src/util/token')
 
 module.exports = PluginVirtual.bind(null, {})
 
-module.exports.MakePluginVirtual = PluginVirtual
+module.exports.MakePluginVirtual = (channel) => (PluginVirtual.bind(null, channel))
 module.exports.generatePrefix = Token.prefix
 module.exports.generatePublicKey = Token.publicKey

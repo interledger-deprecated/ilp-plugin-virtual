@@ -27,7 +27,7 @@ const options = {
   maxBalance: '10',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  info: info,
+  info: info
 }
 
 describe('Conditional Transfers', () => {

@@ -7,7 +7,7 @@ const IlpPacket = require('ilp-packet')
 
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
-const Backend = require('../util/backend')
+const getBackend = require('../util/backend')
 const debug = require('debug')('ilp-plugin-virtual')
 const Token = require('../util/token')
 
@@ -28,6 +28,7 @@ const assertOptionType = (opts, field, type) => {
 module.exports = class PluginVirtual extends EventEmitter2 {
   constructor (PaymentChannelBackend, opts) {
     super()
+    const Backend = getBackend(opts._store)
 
     this._opts = opts
     this._stateful = !!(opts._backend || opts._store)
@@ -294,6 +295,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     await this._transfers.prepare(transfer, true)
 
     if (this._paychanBackend.handleIncomingPrepare) {
+      // TODO: expire the transfer if this encounters an error
       await this._paychanBackend.handleIncomingPrepare(this._paychanContext, transfer)
     }
 

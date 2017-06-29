@@ -3,7 +3,7 @@
 const assert = require('chai').assert
 const nock = require('nock')
 
-const ObjBackend = require('../src/util/backend')
+const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
@@ -20,13 +20,14 @@ const options = {
   maxBalance: '1000000',
   peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  _backend: ObjBackend,
   info: info
 }
 
 describe('Info', () => {
   beforeEach(function * () {
+    options._store = new ObjStore()
     this.plugin = new PluginVirtual(options)
+
     yield this.plugin.connect()
   })
 

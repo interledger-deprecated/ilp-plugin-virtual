@@ -26,7 +26,7 @@ const assertOptionType = (opts, field, type) => {
 }
 
 module.exports = class PluginVirtual extends EventEmitter2 {
-  constructor (PaymentChannelBackend, opts) {
+  constructor (paymentChannelBackend, opts) {
     super()
     const Backend = getBackend(opts._store)
 
@@ -147,7 +147,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this.getAccount = () => this._account
     this.isAuthorized = (authToken) => (authToken === this._authToken)
 
-    this._paychanBackend = PaymentChannelBackend || {}
+    this._paychanBackend = paymentChannelBackend || {}
     this._paychanContext = {
       state: {},
       rpc: this._rpc,
@@ -318,7 +318,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateFulfillment(fulfillment)
     const transferInfo = await this._transfers.get(transferId)
 
-    // TODO: 'cancelled' or 'rejected'?
     if (transferInfo.state === 'cancelled') {
       throw new AlreadyRejectedError(transferId + ' has already been cancelled: ' +
         JSON.stringify(transferInfo))
@@ -351,7 +350,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateFulfillment(fulfillment)
     const transferInfo = await this._transfers.get(transferId)
 
-    // TODO: 'cancelled' or 'rejected'?
     if (transferInfo.state === 'cancelled') {
       throw new AlreadyRejectedError(transferId + ' has already been cancelled: ' +
         JSON.stringify(transferInfo))

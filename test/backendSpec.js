@@ -62,7 +62,7 @@ describe('ObjStore and ObjBackend', function () {
         { value: '1', data: 'foo' })
     })
 
-    it('should not overlaod a separate key', async function () {
+    it('should not overload a separate key', async function () {
       await this.tracker.setIfMax({ value: '1', data: 'foo' })
       const newTracker = this.backend.getMaxValueTracker({
         key: 'bar'
@@ -123,6 +123,26 @@ describe('ObjStore and ObjBackend', function () {
 
       assert.equal(await this.log.getMinimum(), '-5')
       assert.equal(await this.store.get('foo:tl:minimum'), '-5')
+    })
+
+    it('should apply the same transfer only once', async function () {
+      // isIncoming true
+      await this.log.prepare(this.transfer, true)
+      await this.log.prepare(this.transfer, true)
+
+      assert.equal(await this.log.getBalance(), '0')
+      assert.equal(await this.log.getIncomingFulfilled(), '0')
+      assert.equal(await this.log.getIncomingFulfilledAndPrepared(), '10')
+      assert.equal(await this.log.getOutgoingFulfilled(), '0')
+      assert.equal(await this.log.getOutgoingFulfilledAndPrepared(), '0')
+    })
+
+    it('should throw if transfer with same ID is added with different contents', async function () {
+      await this.log.prepare(this.transfer, true)
+
+      const transfer2 = Object.assign({}, this.transfer, { executionCondition: 'bogus' })
+      await assert.isRejected(this.log.prepare(transfer2, true),
+        /transfer .* matches the id of .* but not the contents/)
     })
 
     it('should process fulfilled payment', async function () {

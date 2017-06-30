@@ -32,8 +32,7 @@ LedgerPlugin class.
 
 - [Example Code (w/ Claims)](#example-code-with-claim-based-settlement)
 - [Example Code (w/ Payments)](#example-code-with-unconditional-payment-based-settlement)
-- [Extended Plugin Backend API](#backend-api-with-extensions-for-payment-channels)
-- [Payment Channel Backend API](#payment-channel-backend-api)
+- [Extended Payment Channel Backend API](#payment-channel-backend-api)
 - [Plugin Context API](#plugin-context-api)
 
 ## Example Code with Claim-Based Settlement
@@ -45,8 +44,10 @@ for more and more of the funds. These signed claims are passed off-ledger, and
 your peer submits the highest claim when they want to get their funds.
 
 Claim based settlement has been implemented on ripple with the PayChan
-functionality, or on bitcoin (and many other blockchains) by signing
-transactions that pay out of some script output.
+functionality, or on
+[bitcoin](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) (and
+many other blockchains) by signing transactions that pay out of some script
+output.
 
 ```js
 const { MakePluginVirtual } = require('ilp-plugin-virtual')
@@ -96,8 +97,9 @@ return MakePluginVirtual({
   },
 
   // this function is called whenever the outgoingBalance changes by a
-  // significant amount.  It may or may not be called on every transfer's
-  // fulfill, so it should not rely on being part of a payment flow.
+  // significant amount. Exactly when and how often it will be called may
+  // become configurable or change in the future, so your code should not rely
+  // on it being called after every transfer.
   createOutgoingClaim: async function (ctx, outgoingBalance) {
     // create a claim for the total outgoing balance. This call is idempotent,
     // because it's relating to the absolute amount owed, and doesn't modify
@@ -113,8 +115,8 @@ return MakePluginVirtual({
   },
 
   // this function is called right after the peer calls createOutgoingClaim.
-  handleIncomingClaim: async function (ctx, claim) {
-    const { balance, claim } = claim
+  handleIncomingClaim: async function (ctx, claimObject) {
+    const { balance, claim } = claimObject
 
     if (Network.verify(claim, balance)) {
       // if the incoming claim is valid and it's better than your previous best
@@ -218,7 +220,7 @@ return MakePluginVirtual({
     // paid them. Another approach could be to return nothing from this
     // function, and have the peer automatically track all incoming payments
     // they're notified of on the settlement ledger.
-    const txid = Network.makePaymentToPeer(diff)
+    const txid = await Network.makePaymentToPeer(diff)
 
     return { txid }
   },
@@ -334,6 +336,21 @@ Returns the max value tracker's maximum entry.
 - `return.value` (Integer String) value of returned entry.
 - `return.data` (Object) data attached to returned entry.
 
+-------
+
+## Plugin Context API
+
+The PluginContext is a bundle of objects passed into the Payment Channel
+Backend methods, in order to access useful plugin state.
+
+| Field | Type | Description |
+|:--|:--|:--|
+| `state` | Object | Object to keep Payment Channel Backend state. Persists between function calls, but not if the plugin is restarted. |
+| `rpc` | RPC | RPC object for this plugin. Can be used to call methods on peer. |
+| `backend` | ExtendedPluginBackend | Plugin backend, for creating TransferLogs and MaxValueTrackers. |
+| `transferLog` | TransferLog | Plugin's TransferLog, containing all its ILP transfers. |
+| `plugin` | LedgerPlugin | Plugin object. Only LedgerPlugin Interface functions should be accessed. |
+
 ## Payment Channel Backend API
 
 Calling `MakePluginVirtual` with an object containing some or all of the
@@ -342,8 +359,10 @@ functionality of ILP Plugin Virtual, and additionally use the supplied callbacks
 to handle settlement.
 
 Aside from `connect` and `disconnect`, the functions below might be called
-during the flow of an RPC request. They should not take enough time to time out
-an HTTP request.
+during the flow of an RPC request, so they should run fast. Any of these calls
+SHOULD NOT take longer than 500 ms if `await`-ed. If a slower operation
+is required, it should be run in the background so it doesn't block the flow of
+the function.
 
 -------
 
@@ -403,15 +422,3 @@ Called after peer's `createOutgoingClaim()` function is called.
 
 - `ctx` (PluginContext) current plugin context.
 - `claim` (Object) return value of peer's `createOutgoingClaim()` function.
-
-## Plugin Context API
-
--------
-
-| Field | Type | Description |
-|:--|:--|:--|
-| `state` | Object | Object to keep Payment Channel Backend state. Persists between function calls, but not if the plugin is restarted. |
-| `rpc` | RPC | RPC object for this plugin. Can be used to call methods on peer. |
-| `backend` | ExtendedPluginBackend | Plugin backend, for creating TransferLogs and MaxValueTrackers. |
-| `transferLog` | TransferLog | Plugin's TransferLog, containing all its ILP transfers. |
-| `plugin` | LedgerPlugin | Plugin object. Only LedgerPlugin Interface functions should be accessed. |

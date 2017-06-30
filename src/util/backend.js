@@ -1,10 +1,11 @@
 const deepEqual = require('deep-equal')
+const BigNumber = require('bignumber.js')
 const KEY_REGEX = /^[A-Za-z0-9\-_]*$/
 
 class ObjTransferLog {
   constructor (store, opts) {
-    this.maximum = +opts.maximum
-    this.minimum = +opts.minimum
+    this.maximum = new BigNumber(opts.maximum)
+    this.minimum = new BigNumber(opts.minimum)
     this.cache = {}
     this.key = opts.key || ''
     if (!this.key.match(KEY_REGEX)) {
@@ -16,22 +17,22 @@ class ObjTransferLog {
     this.writeQueue = Promise.resolve()
 
     // TODO: disable balance? (not needed for client plugin)
-    this.balance_if = 0
-    this.balance_i = 0
-    this.balance_o = 0
-    this.balance_of = 0
+    this.balance_if = new BigNumber(0)
+    this.balance_i = new BigNumber(0)
+    this.balance_o = new BigNumber(0)
+    this.balance_of = new BigNumber(0)
   }
 
   async connect () {
     if (this.connected) return
 
     if (this.store) {
-      this.maximum = +(await this.store.get(this.key + ':tl:maximum')) || this.maximum
-      this.minimum = +(await this.store.get(this.key + ':tl:minimum')) || this.minimum
-      this.balance_if = +(await this.store.get(this.key + ':tl:balance:if')) || 0
-      this.balance_of = +(await this.store.get(this.key + ':tl:balance:of')) || 0
-      this.balance_i = this.balance_if
-      this.balance_o = this.balance_of
+      this.maximum = new BigNumber(await this.store.get(this.key + ':tl:maximum') || this.maximum)
+      this.minimum = new BigNumber(await this.store.get(this.key + ':tl:minimum') || this.minimum)
+      this.balance_if = new BigNumber(await this.store.get(this.key + ':tl:balance:if') || 0)
+      this.balance_of = new BigNumber(await this.store.get(this.key + ':tl:balance:of') || 0)
+      this.balance_i = new BigNumber(this.balance_if)
+      this.balance_o = new BigNumber(this.balance_of)
     }
 
     this.connected = true
@@ -39,12 +40,12 @@ class ObjTransferLog {
 
   async setMaximum (n) {
     await this.connect()
-    this.maximum = +n
+    this.maximum = new BigNumber(n)
 
     if (this.store) {
       this.writeQueue = this.writeQueue
         .then(() => {
-          return this.store.put(this.key + ':tl:maximum', this.maximum)
+          return this.store.put(this.key + ':tl:maximum', this.maximum.toString())
         })
 
       await this.writeQueue
@@ -53,12 +54,12 @@ class ObjTransferLog {
 
   async setMinimum (n) {
     await this.connect()
-    this.minimum = +n
+    this.minimum = new BigNumber(n)
 
     if (this.store) {
       this.writeQueue = this.writeQueue
         .then(() => {
-          return this.store.put(this.key + ':tl:minimum', this.minimum)
+          return this.store.put(this.key + ':tl:minimum', this.minimum.toString())
         })
 
       await this.writeQueue
@@ -67,37 +68,37 @@ class ObjTransferLog {
 
   async getMaximum () {
     await this.connect()
-    return String(this.maximum)
+    return this.maximum.toString()
   }
 
   async getMinimum () {
     await this.connect()
-    return String(this.minimum)
+    return this.minimum.toString()
   }
 
   async getBalance () {
     await this.connect()
-    return String(this.balance_if - this.balance_of)
+    return this.balance_if.sub(this.balance_of).toString()
   }
 
   async getIncomingFulfilled () {
     await this.connect()
-    return String(this.balance_if)
+    return this.balance_if.toString()
   }
 
   async getOutgoingFulfilled () {
     await this.connect()
-    return String(this.balance_of)
+    return this.balance_of.toString()
   }
 
   async getIncomingFulfilledAndPrepared () {
     await this.connect()
-    return String(this.balance_i)
+    return this.balance_i.toString()
   }
 
   async getOutgoingFulfilledAndPrepared () {
     await this.connect()
-    return String(this.balance_o)
+    return this.balance_o.toString()
   }
 
   async get (id) {
@@ -148,15 +149,15 @@ class ObjTransferLog {
 
     const amount = transferWithInfo.transfer.amount
     const isOver = isIncoming
-      ? (n) => n - otherBalance > this.maximum
-      : (n) => n - otherBalance > -this.minimum
+      ? (n) => n.sub(otherBalance).gt(this.maximum)
+      : (n) => n.sub(otherBalance).gt(this.minimum.neg())
 
-    if (isOver(Number(amount) + Number(this[balance]))) {
+    if (isOver(this[balance].add(amount))) {
       throw new Error(balance + ' exceeds greatest allowed value after: ' +
         JSON.stringify(transferWithInfo))
     }
 
-    this[balance] += +transferWithInfo.transfer.amount
+    this[balance] = this[balance].add(amount)
     this.cache[transferWithInfo.transfer.id] = transferWithInfo
 
     if (this.store) {
@@ -182,7 +183,7 @@ class ObjTransferLog {
     const balance = isIncoming ? 'balance_if' : 'balance_of'
 
     if (transferWithInfo.state === 'prepared') {
-      this[balance] += +transferWithInfo.transfer.amount
+      this[balance] = this[balance].add(transferWithInfo.transfer.amount)
     }
 
     // TODO: should the failure state be rejected, like FBL API?
@@ -202,7 +203,7 @@ class ObjTransferLog {
             JSON.stringify(transferWithInfo))
         }).then(() => {
           const balanceKey = isIncoming ? ':tl:balance:if' : ':tl:balance:of'
-          return this.store.put(this.key + balanceKey, String(this[balance]))
+          return this.store.put(this.key + balanceKey, this[balance].toString())
         })
 
       await this.writeQueue
@@ -221,7 +222,7 @@ class ObjTransferLog {
     const balance = isIncoming ? 'balance_i' : 'balance_o'
 
     if (transferWithInfo.state === 'prepared') {
-      this[balance] -= +transferWithInfo.transfer.amount
+      this[balance] = this[balance].sub(transferWithInfo.transfer.amount)
     }
 
     // TODO: should the success state be executed, like FBL API?
@@ -276,7 +277,9 @@ class MaxValueTracker {
     }
 
     const last = this.highest
-    if (+entry.value > +last.value) {
+    const lastValue = new BigNumber(last.value)
+
+    if (lastValue.lt(entry.value)) {
       this.highest = entry
 
       if (this.store) {

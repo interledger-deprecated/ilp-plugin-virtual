@@ -17,10 +17,10 @@ class ObjTransferLog {
     this.writeQueue = Promise.resolve()
 
     // TODO: disable balance? (not needed for client plugin)
-    this.balance_if = new BigNumber(0)
-    this.balance_i = new BigNumber(0)
-    this.balance_o = new BigNumber(0)
-    this.balance_of = new BigNumber(0)
+    this.balanceIncomingFulfilled = new BigNumber(0)
+    this.balanceIncomingFulfilledAndPrepared = new BigNumber(0)
+    this.balanceOutgoingFulfilledAndPrepared = new BigNumber(0)
+    this.balanceOutgoingFulfilled = new BigNumber(0)
   }
 
   async connect () {
@@ -29,10 +29,10 @@ class ObjTransferLog {
     if (this.store) {
       this.maximum = new BigNumber(await this.store.get(this.key + ':tl:maximum') || this.maximum)
       this.minimum = new BigNumber(await this.store.get(this.key + ':tl:minimum') || this.minimum)
-      this.balance_if = new BigNumber(await this.store.get(this.key + ':tl:balance:if') || 0)
-      this.balance_of = new BigNumber(await this.store.get(this.key + ':tl:balance:of') || 0)
-      this.balance_i = new BigNumber(this.balance_if)
-      this.balance_o = new BigNumber(this.balance_of)
+      this.balanceIncomingFulfilled = new BigNumber(await this.store.get(this.key + ':tl:balance:if') || 0)
+      this.balanceOutgoingFulfilled = new BigNumber(await this.store.get(this.key + ':tl:balance:of') || 0)
+      this.balanceIncomingFulfilledAndPrepared = new BigNumber(this.balanceIncomingFulfilled)
+      this.balanceOutgoingFulfilledAndPrepared = new BigNumber(this.balanceOutgoingFulfilled)
     }
 
     this.connected = true
@@ -78,27 +78,27 @@ class ObjTransferLog {
 
   async getBalance () {
     await this.connect()
-    return this.balance_if.sub(this.balance_of).toString()
+    return this.balanceIncomingFulfilled.sub(this.balanceOutgoingFulfilled).toString()
   }
 
   async getIncomingFulfilled () {
     await this.connect()
-    return this.balance_if.toString()
+    return this.balanceIncomingFulfilled.toString()
   }
 
   async getOutgoingFulfilled () {
     await this.connect()
-    return this.balance_of.toString()
+    return this.balanceOutgoingFulfilled.toString()
   }
 
   async getIncomingFulfilledAndPrepared () {
     await this.connect()
-    return this.balance_i.toString()
+    return this.balanceIncomingFulfilledAndPrepared.toString()
   }
 
   async getOutgoingFulfilledAndPrepared () {
     await this.connect()
-    return this.balance_o.toString()
+    return this.balanceOutgoingFulfilledAndPrepared.toString()
   }
 
   async get (id) {
@@ -144,8 +144,8 @@ class ObjTransferLog {
       return
     }
 
-    const balance = isIncoming ? 'balance_i' : 'balance_o'
-    const otherBalance = this[isIncoming ? 'balance_of' : 'balance_if']
+    const balance = isIncoming ? 'balanceIncomingFulfilledAndPrepared' : 'balanceOutgoingFulfilledAndPrepared'
+    const otherBalance = this[isIncoming ? 'balanceOutgoingFulfilled' : 'balanceIncomingFulfilled']
 
     const amount = transferWithInfo.transfer.amount
     const isOver = isIncoming
@@ -180,7 +180,7 @@ class ObjTransferLog {
     // - what if the transfer is rejected?
     const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
-    const balance = isIncoming ? 'balance_if' : 'balance_of'
+    const balance = isIncoming ? 'balanceIncomingFulfilled' : 'balanceOutgoingFulfilled'
 
     if (transferWithInfo.state === 'prepared') {
       this[balance] = this[balance].add(transferWithInfo.transfer.amount)
@@ -219,7 +219,9 @@ class ObjTransferLog {
     // - what if the transfer is fulfilled?
     const transferWithInfo = this.cache[transferId]
     const isIncoming = transferWithInfo.isIncoming
-    const balance = isIncoming ? 'balance_i' : 'balance_o'
+    const balance = isIncoming
+      ? 'balanceIncomingFulfilledAndPrepared'
+      : 'balanceOutgoingFulfilledAndPrepared'
 
     if (transferWithInfo.state === 'prepared') {
       this[balance] = this[balance].sub(transferWithInfo.transfer.amount)
@@ -251,7 +253,6 @@ class MaxValueTracker {
     this.highest = { value: '0', data: null }
     this.writeQueue = Promise.resolve()
 
-    // TODO: load from store
     this.store = store
     this.key = opts.key || ''
     if (!this.key.match(KEY_REGEX)) {

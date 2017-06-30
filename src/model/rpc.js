@@ -33,8 +33,10 @@ module.exports = class HttpRpc extends EventEmitter {
         })
     }))
 
-    // TODO: another way of choosing result?
-    return results.reduce((a, r) => a || r)
+    return results.reduce((a, r) => {
+      if (a) debug('got RPC result:', a)
+      return a || r
+    })
   }
 
   async _callUri (rpcUri, method, prefix, params) {

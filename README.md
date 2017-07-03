@@ -26,7 +26,7 @@ by periodically sending unconditional payments. The common functionality, such
 as implementing the ledger plugin interface, logging transfers, keeping
 balances, etc. are handled by the payment channel framework itself.
 
-ILP Plugin virtual exposes a field called `MakePluginVirtual`.  This function
+ILP Plugin virtual exposes a field called `MakePaymentChannelPlugin`.  This function
 takes a [Payment Channel Backend](#payment-channel-backend-api), and returns a
 LedgerPlugin class.
 
@@ -50,12 +50,12 @@ many other blockchains) by signing transactions that pay out of some script
 output.
 
 ```js
-const { MakePluginVirtual } = require('ilp-plugin-virtual')
+const { MakePaymentChannelPlugin } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
 const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
-return MakePluginVirtual({
+return MakePaymentChannelPlugin({
   // the connect function runs when the plugin is connected.
   connect: async function (ctx, opts) {
     // network initiation should happen here. In a claim-based plugin, this
@@ -153,12 +153,12 @@ Unlike creating a claim, sending a payment has side-effects (it alters an
 external system). Therefore, the code is slightly more complicated.
 
 ```js
-const { MakePluginVirtual } = require('ilp-plugin-virtual')
+const { MakePaymentChannelPlugin } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
 const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
-return MakePluginVirtual({
+return MakePaymentChannelPlugin({
   connect: async function (ctx, opts) {
     await Network.connectToNetwork()
 
@@ -353,7 +353,7 @@ Backend methods, in order to access useful plugin state.
 
 ## Payment Channel Backend API
 
-Calling `MakePluginVirtual` with an object containing some or all of the
+Calling `MakePaymentChannelPlugin` with an object containing some or all of the
 functions defined below will return a class. This new class will perform all the
 functionality of ILP Plugin Virtual, and additionally use the supplied callbacks
 to handle settlement.

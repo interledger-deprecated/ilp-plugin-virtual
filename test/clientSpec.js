@@ -9,7 +9,7 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 
 const getObjBackend = require('../src/util/backend')
-const PluginVirtual = require('..')
+const PluginPaymentChannel = require('..')
 
 const conditionPair = () => {
   const preimage = crypto.randomBytes(32)
@@ -45,7 +45,7 @@ describe('Asymmetric plugin virtual', () => {
       .post('/rpc?method=get_info&prefix=example.red.')
       .reply(200, info)
 
-    this.plugin = new PluginVirtual(Object.assign({},
+    this.plugin = new PluginPaymentChannel(Object.assign({},
       options))
 
     yield this.plugin.connect()
@@ -175,7 +175,7 @@ describe('Asymmetric plugin virtual', () => {
         .post('/3/rpc?method=send_transfer&prefix=example.red.')
         .reply(500) // should tolerate an error from one
 
-      this.plugin = new PluginVirtual(_options)
+      this.plugin = new PluginPaymentChannel(_options)
       await this.plugin.connect()
 
       await this.plugin.sendTransfer({

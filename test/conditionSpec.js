@@ -11,7 +11,7 @@ const assert = chai.assert
 const expect = chai.expect
 
 const ObjStore = require('./helpers/objStore')
-const PluginVirtual = require('..')
+const PluginPaymentChannel = require('..')
 
 const info = {
   prefix: 'example.red.',
@@ -34,7 +34,7 @@ const options = {
 describe('Conditional Transfers', () => {
   beforeEach(function * () {
     options._store = new ObjStore()
-    this.plugin = new PluginVirtual(options)
+    this.plugin = new PluginPaymentChannel(options)
 
     this.fulfillment = 'gHJ2QeIZpstXaGZVCSq4d3vkrMSChNYKriefys3KMtI'
     const hash = crypto.createHash('sha256')

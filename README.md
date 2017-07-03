@@ -20,19 +20,19 @@ npm install --save ilp-plugin-virtual
 
 The plugin payment channel framework includes all the functionality of
 `ilp-plugin-virtual`, but wrapped around a [Payment Channel
-Backend](#payment-channel-backend-api). A payment channel backend includes
+Module](#payment-channel-module-api). A payment channel module includes
 methods for securing a trustline balance, whether by payment channel claims or
 by periodically sending unconditional payments. The common functionality, such
 as implementing the ledger plugin interface, logging transfers, keeping
 balances, etc. are handled by the payment channel framework itself.
 
 ILP Plugin virtual exposes a field called `MakePaymentChannelPlugin`.  This function
-takes a [Payment Channel Backend](#payment-channel-backend-api), and returns a
+takes a [Payment Channel Module](#payment-channel-module-api), and returns a
 LedgerPlugin class.
 
 - [Example Code (w/ Claims)](#example-code-with-claim-based-settlement)
 - [Example Code (w/ Payments)](#example-code-with-unconditional-payment-based-settlement)
-- [Extended Payment Channel Backend API](#payment-channel-backend-api)
+- [Extended Payment Channel Module API](#payment-channel-module-api)
 - [Plugin Context API](#plugin-context-api)
 
 ## Example Code with Claim-Based Settlement
@@ -56,13 +56,8 @@ const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
 return MakePaymentChannelPlugin({
-  // the connect function runs when the plugin is connected.
-  connect: async function (ctx, opts) {
-    // network initiation should happen here. In a claim-based plugin, this
-    // would be the place to connect to the network and initiate payment
-    // channels if they don't exist already.
-    await Network.connectToNetwork()
-
+  // initialize fields and validate options in the constructor
+  constructor: function (ctx, opts) {
     // we have one maxValueTracker to track the best incoming claim we've
     // gotten so far. it starts with a value of '0', and contains no data.
     ctx.state.bestClaim = ctx.backend.getMaxValueTracker('incoming_claim')
@@ -71,7 +66,41 @@ return MakePaymentChannelPlugin({
     // it defines how much the best incoming claim can differs from the amount
     // of incoming transfers.
     ctx.state.maxUnsecured = opts.maxUnsecured
+
+    // use some preconfigured secret for authentication
+    ctx.state.authToken = opts.authToken
   },
+
+  // This token will be sent as a bearer token with outgoing requests, and used
+  // to authenticate the incoming requests. If the network you're using has a
+  // way to construct a shared secret, the authToken can be created
+  // automatically instead of being pre-shared and configured.
+  getAuthToken: (ctx) => (ctx.state.authToken),
+
+  // the connect function runs when the plugin is connected.
+  connect: async function (ctx) {
+    // network initiation should happen here. In a claim-based plugin, this
+    // would be the place to connect to the network and initiate payment
+    // channels if they don't exist already.
+    await Network.connectToNetwork()
+
+    // establish metadata during the connection phase
+    ctx.state.prefix = 'peer.network.' + (await Network.getChannelId())
+    ctx.state.account = await Network.getChannelSource()
+    ctx.state.peer = await Network.getChannelDestination()
+    ctx.state.info = {
+      prefix: ctx.state.prefix,
+      currencyScale: 6,
+      currencyCode: 'X??',
+      connectors: []
+    }
+  },
+
+  // Synchronous functions in order to get metadata. They won't be called until
+  // after the plugin is connected.
+  getAccount: (ctx) => (ctx.state.prefix + ctx.state.account),
+  getPeerAccount: (ctx) => (ctx.state.prefix + ctx.state.peer),
+  getInfo: (ctx) => (ctx.state.info),
 
   // this function is called every time an incoming transfer has been prepared.
   // throwing an error will stop the incoming transfer from being emitted as an
@@ -159,10 +188,9 @@ const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
 return MakePaymentChannelPlugin({
-  connect: async function (ctx, opts) {
-    await Network.connectToNetwork()
-
-    // In this type of payment channel backend, we create a log of incoming
+  // initialize fields and validate options in the constructor
+  constructor: function (ctx, opts) {
+    // In this type of payment channel module, we create a log of incoming
     // settlements to track all the transfers sent to us on the ledger we're
     // using for settlement.  We use a transferLog in order to make sure a
     // single transfer can't be added twice.
@@ -177,7 +205,33 @@ return MakePaymentChannelPlugin({
     // to limit is the total amount of incoming transfers minus the sum of all
     // the settlement transfers we've received.
     ctx.state.maxUnsecured = opts.maxUnsecured
+
+    // use some preconfigured secret for authentication
+    ctx.state.authToken = opts.authToken
   },
+
+  getAuthToken: (ctx) => (ctx.state.authToken),
+
+  connect: async function (ctx, opts) {
+    await Network.connectToNetwork()
+
+    // establish metadata during the connection phase
+    ctx.state.prefix = 'peer.network.' + (await Network.getChannelId())
+    ctx.state.account = await Network.getChannelSource()
+    ctx.state.peer = await Network.getChannelDestination()
+    ctx.state.info = {
+      prefix: ctx.state.prefix,
+      currencyScale: 6,
+      currencyCode: 'X??',
+      connectors: []
+    }
+  },
+
+  // Synchronous functions in order to get metadata. They won't be called until
+  // after the plugin is connected.
+  getAccount: (ctx) => (ctx.state.prefix + ctx.state.account),
+  getPeerAccount: (ctx) => (ctx.state.prefix + ctx.state.peer),
+  getInfo: (ctx) => (ctx.state.info),
 
   handleIncomingPrepare: async function (ctx, transfer) {
     const incoming = await ctx.transferLog.getIncomingFulfilledAndPrepared() 
@@ -345,24 +399,35 @@ Backend methods, in order to access useful plugin state.
 
 | Field | Type | Description |
 |:--|:--|:--|
-| `state` | Object | Object to keep Payment Channel Backend state. Persists between function calls, but not if the plugin is restarted. |
+| `state` | Object | Object to keep Payment Channel Module state. Persists between function calls, but not if the plugin is restarted. |
 | `rpc` | RPC | RPC object for this plugin. Can be used to call methods on peer. |
 | `backend` | ExtendedPluginBackend | Plugin backend, for creating TransferLogs and MaxValueTrackers. |
 | `transferLog` | TransferLog | Plugin's TransferLog, containing all its ILP transfers. |
 | `plugin` | LedgerPlugin | Plugin object. Only LedgerPlugin Interface functions should be accessed. |
 
-## Payment Channel Backend API
+## Payment Channel Module API
 
-Calling `MakePaymentChannelPlugin` with an object containing some or all of the
-functions defined below will return a class. This new class will perform all the
-functionality of ILP Plugin Virtual, and additionally use the supplied callbacks
-to handle settlement.
+Calling `MakePaymentChannelPlugin` with an object containing all of the
+functions defined below will return a class. This new class will perform all
+the functionality of ILP Plugin Virtual, and additionally use the supplied
+callbacks to handle settlement.
 
 Aside from `connect` and `disconnect`, the functions below might be called
 during the flow of an RPC request, so they should run fast. Any of these calls
 SHOULD NOT take longer than 500 ms if `await`-ed. If a slower operation
 is required, it should be run in the background so it doesn't block the flow of
 the function.
+
+-------
+
+### `constructor (ctx, opts)`
+
+Called when the plugin is constructed.
+
+#### Parameters
+
+- `ctx` (PluginContext) current plugin context.
+- `opts` (Object) options passed into plugin constructor.
 
 -------
 
@@ -373,7 +438,45 @@ Called when `plugin.connect()` is called.
 #### Parameters
 
 - `ctx` (PluginContext) current plugin context.
-- `opts` (Object) options passed into plugin constructor.
+
+-------
+
+### `getInfo (ctx)`
+
+Return the
+[LedgerInfo](https://github.com/interledger/rfcs/blob/master/0004-ledger-plugin-interface/0004-ledger-plugin-interface.md#class-ledgerinfo)
+of this payment channel. This function will not be called until after the
+plugin is connected. The prefix must be deterministic, as the connector
+requires plugin prefixes to be preconfigured.
+
+#### Parameters
+
+- `ctx` (PluginContext) current plugin context.
+
+-------
+
+### `getAccount (ctx)`
+
+Return the ILP address of this account on the payment channel. The ILP prefix
+must match `getInfo().prefix`. This function will not be called until
+after the plugin is connected.
+
+
+#### Parameters
+
+- `ctx` (PluginContext) current plugin context.
+
+-------
+
+### `getPeerAccount (ctx)`
+
+Return the ILP address of the peer's account on the payment channel. The ILP
+prefix must match `getInfo().prefix`. This function will not be called until
+after the plugin is connected.
+
+#### Parameters
+
+- `ctx` (PluginContext) current plugin context.
 
 -------
 

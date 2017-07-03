@@ -22,10 +22,6 @@ describe('constructor', () => {
     assert.isObject(new PluginVirtual(options))
   })
 
-  it('should export the generatePrefix method from the module', () => {
-    assert.isFunction(PluginVirtual.generatePrefix)
-  })
-
   const omitField = (field) => {
     it('should give an error without ' + field, () => {
       expect(() => new PluginVirtual(Object.assign(options, { [field]: undefined })))

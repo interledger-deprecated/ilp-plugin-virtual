@@ -9,7 +9,6 @@ const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
 const getBackend = require('../util/backend')
 const debug = require('debug')('ilp-plugin-virtual')
-const Token = require('../util/token')
 
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError

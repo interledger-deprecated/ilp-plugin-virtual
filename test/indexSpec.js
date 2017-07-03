@@ -6,12 +6,10 @@ const expect = require('chai').expect
 const getObjBackend = require('../src/util/backend')
 const PluginVirtual = require('..')
 const options = {
-  currencyScale: 2,
-  currencyCode: 'USD',
-  secret: 'seeecret',
+  prefix: 'example.red.',
+  token: 'placeholder',
   maxBalance: '1000',
   rpcUri: 'https://example.com/rpc',
-  peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   _backend: getObjBackend(null)
 }
 
@@ -36,8 +34,6 @@ describe('constructor', () => {
   }
 
   omitField('maxBalance')
-  omitField('currencyScale')
-  omitField('currencyCode')
   omitField('secret')
   omitField('peerPublicKey')
   omitField('_store')

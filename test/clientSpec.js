@@ -22,26 +22,27 @@ const conditionPair = () => {
 }
 
 const info = {
+  prefix: 'example.red.',
   currencyCode: 'USD',
   currencyScale: 2,
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
-const peerAddress = 'peer.NavKx.usd.2.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
+const peerAddress = 'example.red.server'
 const options = {
+  prefix: 'example.red.',
+  token: 'placeholder',
   currencyCode: 'USD',
   currencyScale: 2,
-  secret: 'seeecret',
   maxBalance: '1000000',
   minBalance: '-40',
-  peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc'
 }
 
 describe('Asymmetric plugin virtual', () => {
   beforeEach(function * () {
     nock('https://example.com')
-      .post('/rpc?method=get_info&prefix=peer.NavKx.usd.2.')
+      .post('/rpc?method=get_info&prefix=example.red.')
       .reply(200, info)
 
     this.plugin = new PluginVirtual(Object.assign({},
@@ -57,7 +58,7 @@ describe('Asymmetric plugin virtual', () => {
 
     it('should get balance from peer', async function () {
       nock('https://example.com')
-        .post('/rpc?method=get_balance&prefix=peer.NavKx.usd.2.')
+        .post('/rpc?method=get_balance&prefix=example.red.')
         .reply(200, '-5')
 
       assert.equal(await this.plugin.getBalance(), '5')
@@ -86,7 +87,7 @@ describe('Asymmetric plugin virtual', () => {
       }
 
       nock('https://example.com')
-        .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.')
+        .post('/rpc?method=send_request&prefix=example.red.')
         .reply(200, response)
 
       const result = await this.plugin.sendRequest({
@@ -99,7 +100,7 @@ describe('Asymmetric plugin virtual', () => {
 
     it('should prepare and execute a transfer', async function () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [ this.transfer ])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [ this.transfer ])
         .reply(200, true)
 
       const prepared = new Promise((resolve) =>
@@ -125,7 +126,7 @@ describe('Asymmetric plugin virtual', () => {
       await prepared
 
       nock('https://example.com')
-        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.',
+        .post('/rpc?method=fulfill_condition&prefix=example.red.',
           [ this.transfer.id, this.fulfillment ])
         .reply(200, true)
 
@@ -138,7 +139,7 @@ describe('Asymmetric plugin virtual', () => {
 
     it('should not send a transfer if peer gives error', async function () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [ this.transfer ])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [ this.transfer ])
         .reply(500)
 
       const prepared = new Promise((resolve, reject) => {
@@ -157,6 +158,7 @@ describe('Asymmetric plugin virtual', () => {
       const _options = Object.assign({}, options)
 
       delete _options.rpcUri
+      _options.info = info
       _options._backend = getObjBackend(null)
       _options.tolerateFailure = true
       _options.rpcUris = [
@@ -166,11 +168,11 @@ describe('Asymmetric plugin virtual', () => {
       ]
 
       nock('https://example.com')
-        .post('/1/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.')
+        .post('/1/rpc?method=send_transfer&prefix=example.red.')
         .reply(200, true)
-        .post('/2/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.')
+        .post('/2/rpc?method=send_transfer&prefix=example.red.')
         .reply(200, true)
-        .post('/3/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.')
+        .post('/3/rpc?method=send_transfer&prefix=example.red.')
         .reply(500) // should tolerate an error from one
 
       this.plugin = new PluginVirtual(_options)
@@ -178,7 +180,7 @@ describe('Asymmetric plugin virtual', () => {
 
       await this.plugin.sendTransfer({
         id: '0aad44fd-a64e-537a-14b0-aec8a4e80b9c',
-        to: peerAddress,
+        to: this.plugin.getPeerAccount(),
         amount: '10',
         executionCondition: '8EhfVB4NBL3Bpa7PPqA0-LbJPg_xGyNnnRkBJ1oYLSU',
         expiresAt: new Date(Date.now() + 1000).toISOString()

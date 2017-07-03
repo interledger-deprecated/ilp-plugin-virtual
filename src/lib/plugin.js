@@ -34,8 +34,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._stateful = !!(opts._backend || opts._store)
 
     if (this._stateful) {
-      assertOptionType(opts, 'currencyCode', 'string')
-      assertOptionType(opts, 'currencyScale', 'number')
       assertOptionType(opts, 'maxBalance', 'string')
       if (opts.minBalance) assertOptionType(opts, 'minBalance', 'string')
 
@@ -63,58 +61,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       this._rpcUris = [ opts.rpcUri ]
     }
 
-    this._currencyCode = opts.currencyCode.toUpperCase()
-    this._currencyScale = opts.currencyScale
-
-    if (opts.token && opts.prefix) {
-      assertOptionType(opts, 'token', 'string')
-      assertOptionType(opts, 'prefix', 'string')
-
-      this._peerAccountName = this._stateful ? 'client' : 'server'
-      this._accountName = this._stateful ? 'server' : 'client'
-      this._authToken = opts.token
-      this._prefix = opts.prefix
-    } else {
-      // deprecate this version?
-      assertOptionType(opts, 'secret', 'string')
-      assertOptionType(opts, 'peerPublicKey', 'string')
-
-      this._secret = opts.secret
-      this._peerAccountName = opts.peerPublicKey
-      this._accountName = Token.publicKey(this._secret)
-      this._prefix = Token.prefix({
-        secretKey: this._secret,
-        peerPublicKey: this._peerAccountName,
-        currencyCode: this._currencyCode,
-        currencyScale: this._currencyScale
-      })
-
-      // Token uses ECDH to get the ledger prefix from secret and public key
-      this._authToken = Token.authToken({
-        secretKey: this._secret,
-        peerPublicKey: this._peerAccountName
-      })
-
-      if (opts.prefix && opts.prefix !== this._prefix) {
-        throw new InvalidFieldsError('invalid prefix. got "' +
-          opts.prefix + '", expected "' + this._prefix + '"')
-      }
-    }
-
-    this._info = Object.assign({}, (opts.info || {}), {
-      currencyCode: this._currencyCode,
-      currencyScale: this._currencyScale,
-      maxBalance: this._maxBalance,
-      prefix: this._prefix
-    })
-    this._account = this._prefix + this._accountName
-
-    this._validator = new Validator({
-      account: this._account,
-      peer: this._prefix + this._peerAccountName,
-      prefix: this._prefix
-    })
-
     this._connected = false
     this._requestHandler = null
 
@@ -122,7 +68,6 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._rpc = new HttpRpc({
       rpcUris: this._rpcUris,
       plugin: this,
-      authToken: this._authToken,
       tolerateFailure: opts.tolerateRpcFailure
     })
 
@@ -133,28 +78,53 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
 
-    if (this._stateful) {
+    if (this._stateful && paymentChannelBackend) {
       this._rpc.addMethod('get_limit', this._handleGetLimit)
       this._rpc.addMethod('get_balance', this._getLowestBalance)
       this._rpc.addMethod('get_info', () => Promise.resolve(this.getInfo))
+
+      this._paychan = paymentChannelBackend || {}
+      this._paychanContext = {
+        state: {},
+        rpc: this._rpc,
+        backend: this._backend,
+        transferLog: this._transfers,
+        plugin: this
+      }
+
+      this._paychan.constructor(this._paychanContext, opts)
+      this.getInfo = () => this._paychan.getInfo(this._paychanContext)
+      this.getAccount = () => this._paychan.getAccount(this._paychanContext)
+      this.getPeerAccount = () => this._paychan.getPeerAccount(this._paychanContext)
+      this._getAuthToken = () => this._paychan.getAuthToken(this._paychanContext)
+    } else {
+      assertOptionType(opts, 'token', 'string')
+      assertOptionType(opts, 'prefix', 'string')
+
+      this._info = opts.info
+      this._peerAccountName = this._stateful ? 'client' : 'server'
+      this._accountName = this._stateful ? 'server' : 'client'
+      this._prefix = opts.prefix
+
+      // payment channels aren't used in the asymmetric case so it's stubbed out
+      this._paychanContext = {}
+      this._paychan = {
+        connect: () => Promise.resolve(),
+        disconnect: () => Promise.resolve(),
+        handleIncomingPrepare: () => Promise.resolve(),
+        createOutgoingClaim: () => Promise.resolve(),
+        handleIncomingClaim: () => Promise.resolve()
+      }
+
+      this.getInfo = () => JSON.parse(JSON.stringify(this._info))
+      this.getAccount = () => (this._prefix + this._accountName)
+      this.getPeerAccount = () => (this._prefix + this._peerAccountName)
+      this._getAuthToken = () => opts.token
     }
 
     this.receive = this._rpc.receive.bind(this._rpc)
-
-    // simple getters
-    this.getInfo = () => JSON.parse(JSON.stringify(this._info))
     this.isConnected = () => this._connected
-    this.getAccount = () => this._account
-    this.isAuthorized = (authToken) => (authToken === this._authToken)
-
-    this._paychanBackend = paymentChannelBackend || {}
-    this._paychanContext = {
-      state: {},
-      rpc: this._rpc,
-      backend: this._backend,
-      transferLog: this._transfers,
-      plugin: this
-    }
+    this.isAuthorized = (authToken) => (authToken === this._getAuthToken())
   }
 
   // don't throw errors even if the event handler throws
@@ -189,18 +159,21 @@ module.exports = class PluginVirtual extends EventEmitter2 {
       this._info = await this._rpc.call('get_info', this._prefix, [])
     }
 
-    if (this._paychanBackend.connect) {
-      await this._paychanBackend.connect(this._paychanContext, this._opts)
-    }
+    await this._paychan.connect(this._paychanContext)
+
+    this._prefix = this.getInfo().prefix
+    this._validator = new Validator({
+      account: this.getAccount(),
+      peer: this.getPeerAccount(),
+      prefix: this.getInfo().prefix
+    })
 
     this._connected = true
     this._safeEmit('connect')
   }
 
   async disconnect () {
-    if (this._paychanBackend.disconnect) {
-      await this._paychanBackend.disconnect(this._paychanContext)
-    }
+    await this._paychan.disconnect(this._paychanContext)
 
     this._connected = false
     this._safeEmit('disconnect')
@@ -294,14 +267,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._validator.validateIncomingTransfer(transfer)
     await this._transfers.prepare(transfer, true)
 
-    if (this._paychanBackend.handleIncomingPrepare) {
-      try {
-        await this._paychanBackend.handleIncomingPrepare(this._paychanContext, transfer)
-      } catch (e) {
-        debug('plugin backend rejected incoming prepare:', e.message)
-        await this._transfers.cancel(transfer.id)
-        throw e
-      }
+    try {
+      await this._paychan.handleIncomingPrepare(this._paychanContext, transfer)
+    } catch (e) {
+      debug('plugin backend rejected incoming prepare:', e.message)
+      await this._transfers.cancel(transfer.id)
+      throw e
     }
 
     // set up expiry here too, so both sides can send the expiration message
@@ -337,12 +308,10 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._safeEmit('incoming_fulfill', transferInfo.transfer, fulfillment)
     const result = await this._rpc.call('fulfill_condition', this._prefix, [transferId, fulfillment])
 
-    if (this._paychanBackend.handleIncomingClaim) {
-      try {
-        await this._paychanBackend.handleIncomingClaim(this._paychanContext, result)
-      } catch (e) {
-        debug('error handling incoming claim:', e)
-      }
+    try {
+      await this._paychan.handleIncomingClaim(this._paychanContext, result)
+    } catch (e) {
+      debug('error handling incoming claim:', e)
     }
   }
 
@@ -369,14 +338,12 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._safeEmit('outgoing_fulfill', transferInfo.transfer, fulfillment)
 
     let result = true
-    if (this._paychanBackend.createOutgoingClaim) {
-      try {
-        result = await this._paychanBackend.createOutgoingClaim(
-          this._paychanContext,
-          await this._transfers.getOutgoingFulfilled())
-      } catch (e) {
-        debug('error creating outgoing claim:', e)
-      }
+    try {
+      result = await this._paychan.createOutgoingClaim(
+        this._paychanContext,
+        await this._transfers.getOutgoingFulfilled())
+    } catch (e) {
+      debug('error creating outgoing claim:', e)
     }
 
     return result

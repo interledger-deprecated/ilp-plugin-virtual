@@ -4,7 +4,7 @@ const assert = require('chai').assert
 const nock = require('nock')
 
 const ObjStore = require('./helpers/objStore')
-const PluginVirtual = require('..')
+const PluginPaymentChannel = require('..')
 
 const info = {
   prefix: 'example.red.',
@@ -25,7 +25,7 @@ const options = {
 describe('Info', () => {
   beforeEach(function * () {
     options._store = new ObjStore()
-    this.plugin = new PluginVirtual(options)
+    this.plugin = new PluginPaymentChannel(options)
 
     yield this.plugin.connect()
   })

@@ -1,6 +1,6 @@
 'use strict'
 
-const PluginVirtual = require('../..')
+const PluginPaymentChannel = require('../..')
 const ObjStore = require('../helpers/objStore')
 const Token = require('../../src/util/token')
 const crypto = require('crypto')
@@ -30,7 +30,7 @@ app
   .use(router.allowedMethods())
   .listen(port)
 
-exports.plugin = PluginVirtual
+exports.plugin = PluginPaymentChannel
 exports.timeout = 1000
 exports.getPlugins = async function () {
   if (plugins[0]) return plugins
@@ -38,7 +38,7 @@ exports.getPlugins = async function () {
   const secretA = base64url(crypto.randomBytes(32))
   const secretB = base64url(crypto.randomBytes(32))
 
-  plugins[0] = new PluginVirtual({
+  plugins[0] = new PluginPaymentChannel({
     currencyCode: 'USD',
     currencyScale: 6,
     maxBalance: '1000',
@@ -48,7 +48,7 @@ exports.getPlugins = async function () {
     _store: new ObjStore()
   })
 
-  plugins[1] = new PluginVirtual({
+  plugins[1] = new PluginPaymentChannel({
     currencyCode: 'USD',
     currencyScale: 6,
     maxBalance: '1000',

@@ -24,7 +24,7 @@ const assertOptionType = (opts, field, type) => {
   }
 }
 
-module.exports = class PluginVirtual extends EventEmitter2 {
+module.exports = class PluginPaymentChannel extends EventEmitter2 {
   constructor (paymentChannelBackend, opts) {
     super()
     const Backend = getBackend(opts._store)

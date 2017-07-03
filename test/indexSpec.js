@@ -4,7 +4,7 @@ const assert = require('chai').assert
 const expect = require('chai').expect
 
 const getObjBackend = require('../src/util/backend')
-const PluginVirtual = require('..')
+const PluginPaymentChannel = require('..')
 const options = {
   prefix: 'example.red.',
   token: 'placeholder',
@@ -15,16 +15,16 @@ const options = {
 
 describe('constructor', () => {
   it('should be a function', () => {
-    assert.isFunction(PluginVirtual)
+    assert.isFunction(PluginPaymentChannel)
   })
 
   it('should return an object', () => {
-    assert.isObject(new PluginVirtual(options))
+    assert.isObject(new PluginPaymentChannel(options))
   })
 
   const omitField = (field) => {
     it('should give an error without ' + field, () => {
-      expect(() => new PluginVirtual(Object.assign(options, { [field]: undefined })))
+      expect(() => new PluginPaymentChannel(Object.assign(options, { [field]: undefined })))
         .to.throw(Error)
     })
   }
@@ -36,7 +36,7 @@ describe('constructor', () => {
   omitField('rpcUri')
 
   it('should give an error with incorrect prefix passed in', () => {
-    expect(() => new PluginVirtual(Object.assign({}, options, {prefix: 'trash.'})))
+    expect(() => new PluginPaymentChannel(Object.assign({}, options, {prefix: 'trash.'})))
       .to.throw(Error)
   })
 })

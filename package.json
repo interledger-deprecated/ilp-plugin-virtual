@@ -56,7 +56,6 @@
     "deep-equal": "^1.0.1",
     "eventemitter2": "^2.2.0",
     "ilp-packet": "^1.2.0",
-    "tweetnacl": "^0.14.5",
     "uuid4": "^1.0.0"
   },
   "config": {

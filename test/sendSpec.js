@@ -16,19 +16,20 @@ const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
 
 const info = {
+  prefix: 'example.red.',
   currencyCode: 'USD',
   currencyScale: 2,
   connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
 }
 
-const peerAddress = 'peer.NavKx.usd.2.Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
+const peerAddress = 'example.red.client'
 const options = {
+  prefix: 'example.red.',
+  token: 'placeholder',
   currencyCode: 'USD',
   currencyScale: 2,
-  secret: 'seeecret',
   maxBalance: '1000000',
   minBalance: '-40',
-  peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
   info: info
 }
@@ -48,36 +49,36 @@ describe('Send', () => {
   describe('RPC', () => {
     it('should throw an error on an error code', function () {
       nock('https://example.com')
-        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
+        .post('/rpc?method=method&prefix=example.red.', [])
         .reply(500)
 
-      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
+      return expect(this.plugin._rpc.call('method', 'example.red.', []))
         .to.eventually.be.rejected
     })
 
     it('should send authorization bearer token', function () {
       nock('https://example.com', {
         reqheaders: {
-          'Authorization': 'Bearer ' + this.plugin._authToken
+          'Authorization': 'Bearer ' + this.plugin._getAuthToken()
         }
       })
-        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
+        .post('/rpc?method=method&prefix=example.red.', [])
         .reply(200, { a: 'b' })
 
-      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
+      return expect(this.plugin._rpc.call('method', 'example.red.', []))
         .to.eventually.deep.equal({ a: 'b' })
     })
 
     it('should accept an object as a response', function () {
       nock('https://example.com')
-        .post('/rpc?method=method&prefix=peer.NavKx.usd.2.', [])
+        .post('/rpc?method=method&prefix=example.red.', [])
         .reply(200, {
           a: {
             b: 'c'
           }
         })
 
-      return expect(this.plugin._rpc.call('method', 'peer.NavKx.usd.2.', []))
+      return expect(this.plugin._rpc.call('method', 'example.red.', []))
         .to.eventually.deep.equal({
           a: {
             b: 'c'
@@ -111,7 +112,7 @@ describe('Send', () => {
 
     it('should send a request', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_request&prefix=peer.NavKx.usd.2.', [this.message])
+        .post('/rpc?method=send_request&prefix=example.red.', [this.message])
         .reply(200, this.response)
 
       const outgoing = new Promise((resolve) => this.plugin.on('outgoing_request', resolve))
@@ -231,7 +232,7 @@ describe('Send', () => {
 
     it('should send a transfer', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200, true)
 
       const sent = new Promise((resolve) => this.plugin.on('outgoing_prepare', resolve))
@@ -241,7 +242,7 @@ describe('Send', () => {
 
     it('should roll back a transfer if the RPC call fails', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(500)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -271,12 +272,12 @@ describe('Send', () => {
 
     it('should not race when reading the balance', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200, true)
 
       const transfer2 = Object.assign({}, this.transfer, { id: uuid() })
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [transfer2])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [transfer2])
         .reply(200, true)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -295,11 +296,11 @@ describe('Send', () => {
 
     it('should not apply twice when two identical transfers come in with the same id', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200, true)
 
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200, true)
 
       yield this.plugin.sendTransfer(this.transfer)
@@ -319,12 +320,12 @@ describe('Send', () => {
 
     it('should not race when two different transfers come in with the same id', function * () {
       const transfer1nock = nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200, true)
 
       const transfer2 = Object.assign({}, this.transfer, { amount: '10' })
       const transfer2nock = nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [transfer2])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [transfer2])
         .reply(200, true)
 
       const send1 = this.plugin.sendTransfer(this.transfer)
@@ -340,7 +341,7 @@ describe('Send', () => {
 
       // this is the only way to clean up a nock
       yield request({
-        uri: 'https://example.com/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.',
+        uri: 'https://example.com/rpc?method=send_transfer&prefix=example.red.',
         body: [transfer2],
         json: true,
         method: 'POST'
@@ -412,7 +413,7 @@ describe('Send', () => {
 
     it('should send a message', function * () {
       nock('https://example.com')
-        .post('/rpc?method=send_message&prefix=peer.NavKx.usd.2.', [this.message])
+        .post('/rpc?method=send_message&prefix=example.red.', [this.message])
         .reply(200, true)
 
       const outgoing = new Promise((resolve) => this.plugin.on('outgoing_message', resolve))

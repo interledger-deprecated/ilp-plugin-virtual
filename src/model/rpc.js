@@ -4,12 +4,11 @@ const request = require('co-request')
 
 // TODO: really call it HTTP RPC?
 module.exports = class HttpRpc extends EventEmitter {
-  constructor ({ rpcUris, plugin, authToken, tolerateFailure }) {
+  constructor ({ rpcUris, plugin, tolerateFailure }) {
     super()
     this._methods = {}
     this._plugin = plugin
     this.rpcUris = rpcUris
-    this.authToken = authToken
     this.tolerateFailure = tolerateFailure
   }
 
@@ -42,13 +41,14 @@ module.exports = class HttpRpc extends EventEmitter {
   async _callUri (rpcUri, method, prefix, params) {
     debug('calling', method, 'with', params)
 
+    const authToken = this._plugin._getAuthToken()
     const uri = rpcUri + '?method=' + method + '&prefix=' + prefix
     const result = await Promise.race([
       request({
         method: 'POST',
         uri: uri,
         body: params,
-        auth: { bearer: this.authToken },
+        auth: { bearer: authToken },
         json: true
       }),
       new Promise((resolve, reject) => {

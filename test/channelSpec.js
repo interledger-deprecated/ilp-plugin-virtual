@@ -13,8 +13,13 @@ const ObjStore = require('./helpers/objStore')
 const MakePluginVirtual = require('..').MakePluginVirtual
 
 describe('MakePluginVirtual', function () {
-  beforeEach(function () {
+  beforeEach(async function () {
+    this.prefix = 'example.red.'
+    this.account = 'example.red.alice'
+    this.peerAccount = 'example.red.bob'
+
     this.info = {
+      prefix: 'example.red.',
       currencyCode: 'USD',
       currencyScale: 2,
       connectors: [ { id: 'other', name: 'other', connector: 'peer.usd.other' } ]
@@ -26,13 +31,23 @@ describe('MakePluginVirtual', function () {
       secret: 'seeecret',
       maxBalance: '1000000',
       minBalance: '-40',
-      peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
       rpcUri: 'https://example.com/rpc',
       info: this.info,
       _store: new ObjStore()
     }
 
-    this.channel = {}
+    this.channel = {
+      connect: () => Promise.resolve(),
+      disconnect: () => Promise.resolve(),
+      handleIncomingPrepare: () => Promise.resolve(),
+      createOutgoingClaim: () => Promise.resolve(),
+      handleIncomingClaim: () => Promise.resolve(),
+      getInfo: () => this.info,
+      getAccount: () => this.account,
+      getPeerAccount: () => this.peerAccount,
+      getAuthToken: () => 'placeholder'
+    }
+
     this.PluginClass = MakePluginVirtual(this.channel)
     this.plugin = new (this.PluginClass)(this.opts)
 
@@ -41,7 +56,7 @@ describe('MakePluginVirtual', function () {
       id: uuid(),
       ledger: this.plugin.getInfo().prefix,
       from: this.plugin.getAccount(),
-      to: this.plugin.getInfo().prefix + this.opts.peerPublicKey,
+      to: this.plugin.getPeerAccount(),
       expiresAt: new Date(Date.now() + 10000).toISOString(),
       amount: '5',
       custom: {
@@ -52,6 +67,23 @@ describe('MakePluginVirtual', function () {
         .update(this.fulfillment)
         .digest())
     }
+
+    await this.plugin.connect()
+  })
+
+  describe('constructor', function () {
+    it('should be called at construct time', function () {
+      let called = false
+      this.channel.constructor = (ctx, opts) => {
+        called = true
+        assert.deepEqual(ctx.state, {})
+        assert.equal(opts, this.opts)
+      }
+
+      const res = new (this.PluginClass)(this.opts)
+      assert.isObject(res)
+      assert.equal(called, true)
+    })
   })
 
   describe('connect', function () {
@@ -59,9 +91,6 @@ describe('MakePluginVirtual', function () {
       let called = false
       this.channel.connect = (ctx, opts) => {
         called = true
-        assert.deepEqual(ctx.state, {})
-        assert.equal(ctx.plugin, this.plugin)
-        assert.equal(opts, this.opts)
       }
 
       await this.plugin.connect()
@@ -160,7 +189,7 @@ describe('MakePluginVirtual', function () {
       })
 
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200)
 
       await this.plugin.sendTransfer(this.transfer)
@@ -178,7 +207,7 @@ describe('MakePluginVirtual', function () {
       }
 
       nock('https://example.com')
-        .post('/rpc?method=send_transfer&prefix=peer.NavKx.usd.2.', [this.transfer])
+        .post('/rpc?method=send_transfer&prefix=example.red.', [this.transfer])
         .reply(200)
 
       await this.plugin.sendTransfer(this.transfer)
@@ -206,7 +235,7 @@ describe('MakePluginVirtual', function () {
       })
 
       nock('https://example.com')
-        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.',
+        .post('/rpc?method=fulfill_condition&prefix=example.red.',
           [ this.transfer.id, base64url(this.fulfillment) ])
         .reply(200, { foo: 'bar' })
 
@@ -226,7 +255,7 @@ describe('MakePluginVirtual', function () {
       }
 
       nock('https://example.com')
-        .post('/rpc?method=fulfill_condition&prefix=peer.NavKx.usd.2.',
+        .post('/rpc?method=fulfill_condition&prefix=example.red.',
           [ this.transfer.id, base64url(this.fulfillment) ])
         .reply(200, { foo: 'bar' })
 

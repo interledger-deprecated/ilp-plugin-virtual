@@ -1,5 +1,5 @@
 {
-  "name": "ilp-plugin-virtual",
+  "name": "ilp-plugin-payment-channel-framework",
   "version": "16.0.0",
   "description": "ILP virtual ledger plugin for directly transacting connectors",
   "main": "index.js",

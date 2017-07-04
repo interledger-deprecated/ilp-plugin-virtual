@@ -304,6 +304,160 @@ return MakePaymentChannelPlugin({
 
 -------
 
+### `getMaxValueTracker (opts)`
+
+Get a MaxValueTracker.
+
+#### Parameters
+
+- `opts.key` (String) name of this value tracker. Creating a new value tracker with the same key will load the data from the store. Must use the base64url character set.
+
+#### Returns
+
+- `return` (MaxValueTracker) max value tracker.
+
+-------
+
+### `getTransferLog (opts)`
+
+Get a TransferLog.
+
+#### Parameters
+
+- `opts.key` (String) Name of this transfer log. Creating a new transfer log with the same key will load the data from the store. Must use the base64url character set.
+- `opts.maximum` (String) The maximum sum of all transfers (including all incoming prepared transfers, but not outgoing prepared transfers) allowed in this transfer log. Default `Infinity`.
+- `opts.minimum` (String) The maximum sum of all transfers (including all outgoing prepared transfers, but not incoming prepared transfers) allowed in this transfer log. Default `-Infinity`.
+
+#### Returns
+
+- `return` (MaxValueTracker) max value tracker.
+
+-------
+
+### `async TransferLog.setMaximum (max)`
+
+Set the TransferLog's maximum balance.
+
+#### Parameters
+
+- `max` (Integer String) new maximum balance.
+
+-------
+
+### `async TransferLog.setMinimum (min)`
+
+Set the TransferLog's minimum balance.
+
+#### Parameters
+
+- `max` (Integer String) new minimum balance.
+
+-------
+
+### `async TransferLog.getMaximum ()`
+
+Get the TransferLog's maximum balance. This is as high as the balance can go,
+including all fulfilled transfers and incoming prepared transfers but not
+including outgoing prepared transfers.
+
+#### Returns
+
+- `return` (Integer String) maximum balance.
+
+-------
+
+### `async TransferLog.getMinimum ()`
+
+Get the TransferLog's minimum balance. This is as low as the balance can go,
+including all fulfilled transfers and outgoing prepared transfers but not
+including incoming prepared transfers.
+
+#### Returns
+
+- `return` (Integer String) minimum balance.
+
+-------
+
+### `async TransferLog.getBalance ()`
+
+Get the TransferLog's balance, including only fulfilled transfers. This
+function is best used for display purposes only. Validation should be done
+using `getIncomingFulfilled`, `getIncomingFulfilledAndPrepared`,
+`getOutgoingFulfilled`, or `getOutgoingFulfilledAndPrepared`.
+
+#### Returns
+
+- `return` (Integer String) total fulfilled balance.
+
+-------
+
+### `async TransferLog.get (id)`
+
+Get a transfer with info from the transfer log.
+
+#### Parameters
+
+- `id` (UUID String) transfer ID.
+
+#### Returns
+
+- `return` (TransferWithInfo) transfer with additional info.
+- `return.transfer` ([Transfer](https://github.com/interledger/rfcs/blob/master/0004-ledger-plugin-interface/0004-ledger-plugin-interface.md#class-transfer)) transfer with ID of `id`.
+- `return.isIncoming` (Boolean) set to `true` if the transfer is incoming, and `false` if it's outgoing.
+- `return.state` (String) set to `prepared`, `fulfilled`, or `cancelled`.
+- `return.fulfillment` (String) transfer's fulfillment, present only if the state is `fulfilled`.
+
+-------
+
+### `async TransferLog.prepare (transfer, isIncoming)`
+
+Get a transfer from the transfer log. If the transfer would cause the balance to go over
+the transfer log's maximum or under its minimum, this function will throw an error. If the
+transfer cannot be applied for any other reason, an error will be thrown.
+
+If a transfer with the same ID and the same contents as a previous transfer is added, it
+will return successfully, without modifying the database. If a transfer with the same ID as
+a previous transfer is added with different contents, an error will be thrown.
+
+#### Parameters
+
+- `transfer` ([Transfer](https://github.com/interledger/rfcs/blob/master/0004-ledger-plugin-interface/0004-ledger-plugin-interface.md#class-transfer)) the transfer to be prepared.
+- `isIncoming` (Boolean) set to `true` if the transfer is incoming, and `false` if it's outgoing.
+
+-------
+
+### `async TransferLog.fulfill (transferId, fulfillment)`
+
+Fulfill a transfer currently in the prepared state. If the transfer's state is
+already `fullfilled`, the function will return without error. If the transfer's
+state is `cancelled`, the function will throw an error. If the transfer's state
+is `prepared`, it will be set to `fulfilled` and the fulfillment will be
+stored.
+
+The fulfillment is not compared against the executionCondition of the transfer,
+so any value can be stored in the fulfillment field. It is up to the plugin
+code to perform proper validation.
+
+#### Parameters
+
+- `transferId` (UUID String) ID of the transfer to fulfill.
+- `fulfillment` (String) Fulfillment to store with the transfer.
+
+-------
+
+### `async TransferLog.cancel (transferId)`
+
+Cancel a transfer currently in the prepared state. If the transfer's state is
+already `cancelled`, the function will return without error. If the transfer's
+state is `fulfilled`, an error will be thrown. If the transfer's state is
+`prepared`, it will be set to `cancelled`.
+
+#### Parameters
+
+- `transferId` (UUID String) ID of the transfer to cancel.
+
+-------
+
 ### `async TransferLog.getIncomingFulfilled ()`
 
 Get the sum of all incoming payments in the `fulfilled` state.
@@ -341,20 +495,6 @@ Get the sum of all outgoing payments, including those which are in the `prepared
 #### Returns
 
 - `return` (Integer String) highest outgoing balance.
-
--------
-
-### `getMaxValueTracker (key)`
-
-Get a MaxValueTracker.
-
-#### Parameters
-
-- `key` (String) name of this value tracker.
-
-#### Returns
-
-- `return` (MaxValueTracker) max value tracker.
 
 -------
 

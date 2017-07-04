@@ -6,29 +6,31 @@ module.exports = MakePaymentChannelPlugin({
   constructor: function (ctx, opts) {
     assert.equal(typeof opts.secret, 'string', 'opts.secret must be a string')
     assert.equal(typeof opts.peerPublicKey, 'string', 'opts.peerPublicKey must be a string')
+    assert.equal(typeof opts.currencyCode, 'string', 'opts.currencyCode must be a string')
+    assert.equal(typeof opts.currencyScale, 'number', 'opts.currencyScale must be a string')
 
-    ctx.state._secret = opts.secret
     ctx.state._peerAccountName = opts.peerPublicKey
-    ctx.state._accountName = Token.publicKey(ctx.state._secret)
+    ctx.state._accountName = Token.publicKey(opts.secret)
     ctx.state._prefix = Token.prefix({
-      secretKey: ctx.state._secret,
+      secretKey: opts.secret,
+      currencyCode: opts.currencyCode,
+      currencyScale: opts.currencyScale,
       peerPublicKey: ctx.state._peerAccountName,
-      currencyCode: ctx.state._currencyCode,
-      currencyScale: ctx.state._currencyScale
     })
 
     ctx.state._info = Object.assign({}, (opts.info || {}), {
-      currencyCode: ctx.state._currencyCode,
-      currencyScale: ctx.state._currencyScale,
-      maxBalance: ctx.state._maxBalance,
+      currencyCode: opts.currencyCode,
+      currencyScale: opts.currencyScale,
+      maxBalance: opts.maxBalance,
       prefix: ctx.state._prefix
     })
 
     ctx.state._account = ctx.state._prefix + ctx.state._accountName
+    ctx.state._peerAccount = ctx.state._prefix + ctx.state._peerAccountName
 
     // Token uses ECDH to get the ledger prefix from secret and public key
     ctx.state._authToken = Token.authToken({
-      secretKey: ctx.state._secret,
+      secretKey: opts.secret,
       peerPublicKey: ctx.state._peerAccountName
     })
 
@@ -39,6 +41,7 @@ module.exports = MakePaymentChannelPlugin({
   },
 
   getAccount: (ctx) => ctx.state._account,
+  getPeerAccount: (ctx) => ctx.state._peerAccount,
   getInfo: (ctx) => ctx.state._info,
   getAuthToken: (ctx) => ctx.state._authToken,
 

@@ -1,50 +1,51 @@
-'use strict'
-
-const assert = require('chai').assert
-const expect = require('chai').expect
-
-const ObjStore = require('./helpers/objStore')
 const PluginVirtual = require('..')
-const options = {
-  currencyScale: 2,
-  currencyCode: 'USD',
-  secret: 'seeecret',
-  maxBalance: '1000',
-  rpcUri: 'https://example.com/rpc',
-  peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
-  _store: new ObjStore()
-}
+const chai = require('chai')
+chai.use(require('chai-as-promised'))
+const assert = chai.assert
+const ObjStore = require('./helpers/objStore')
 
-describe('constructor', () => {
-  it('should be a function', () => {
-    assert.isFunction(PluginVirtual)
+describe('PluginVirtual', () => {
+  beforeEach(async function () {
+    this.peerPublicKey = 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk'
+    this.peerAddress = 'peer.NavKx.usd.2.' + this.peerPublicKey
+    this.info = { connectors: [ this.peerAddress ] }
+
+    this.opts = {
+      maxBalance: '100',
+      currencyCode: 'USD',
+      currencyScale: 2,
+      secret: 'seeecret',
+      peerPublicKey: this.peerPublicKey,
+      rpcUri: 'https://example.com/rpc',
+      _store: new ObjStore(),
+      info: this.info
+    }
+
+    this.plugin = new PluginVirtual(this.opts)
+    await this.plugin.connect()
   })
 
-  it('should return an object', () => {
-    assert.isObject(new PluginVirtual(options))
+  it('should create the correct account name', function () {
+    assert.equal(this.plugin.getAccount(),
+      'peer.NavKx.usd.2.dS9p1thT7z_7Thtshfy7eqsN-0B6s7b1wVv3lkZ4jU8')
   })
 
-  it('should export the generatePrefix method from the module', () => {
-    assert.isFunction(PluginVirtual.generatePrefix)
+  it('should create the correct peer account name', function () {
+    assert.equal(this.plugin.getPeerAccount(), this.peerAddress)
   })
 
-  const omitField = (field) => {
-    it('should give an error without ' + field, () => {
-      expect(() => new PluginVirtual(Object.assign(options, { [field]: undefined })))
-        .to.throw(Error)
+  it('should return the correct metadata', function () {
+    assert.deepEqual(this.plugin.getInfo(), {
+      prefix: 'peer.NavKx.usd.2.',
+      currencyCode: 'USD',
+      currencyScale: 2,
+      maxBalance: '100',
+      connectors: this.info.connectors
     })
-  }
+  })
 
-  omitField('maxBalance')
-  omitField('currencyScale')
-  omitField('currencyCode')
-  omitField('secret')
-  omitField('peerPublicKey')
-  omitField('_store')
-  omitField('rpcUri')
-
-  it('should give an error with incorrect prefix passed in', () => {
-    expect(() => new PluginVirtual(Object.assign({}, options, {prefix: 'trash.'})))
-      .to.throw(Error)
+  it('should return auth token from the shared secret', function () {
+    assert.equal(this.plugin._getAuthToken(),
+      'x2T03bBmMNhAT6XmRcj52wKEvlG83JIR8tmmV2hGMiY')
   })
 })

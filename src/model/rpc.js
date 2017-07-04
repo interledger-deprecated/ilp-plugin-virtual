@@ -48,7 +48,7 @@ module.exports = class HttpRpc extends EventEmitter {
         JSON.stringify(result.body) + ')')
     }
 
-    if (result.statusCode !== 200) {
+    if (result.statusCode !== 200 && result.statusCode !== 204) {
       throw new Error('Unexpected status code ' + result.statusCode + ', with body "' +
         JSON.stringify(result.body) + '"')
     }

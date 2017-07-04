@@ -32,6 +32,11 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     this._opts = opts
     this._stateful = !!(opts._backend || opts._store)
 
+    if (!this._stateful && paymentChannelBackend) {
+      throw new Error('if the plugin is stateless (no opts._store nor ' +
+        'opts._backend), then a payment channel backend cannot be specified.')
+    }
+
     if (this._stateful) {
       assertOptionType(opts, 'maxBalance', 'string')
       if (opts.minBalance) assertOptionType(opts, 'minBalance', 'string')

@@ -105,7 +105,7 @@ module.exports = class PluginVirtual extends EventEmitter2 {
     this._rpc.addMethod('reject_incoming_transfer', this._handleRejectIncomingTransfer)
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
     this._rpc.addMethod('get_limit', this._handleGetLimit)
-    this._rpc.addMethod('get_balance', this._getBalance)
+    this._rpc.addMethod('get_balance', this.getBalance)
     this.receive = this._rpc.receive.bind(this._rpc)
 
     // simple getters

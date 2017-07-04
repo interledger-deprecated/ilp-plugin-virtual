@@ -109,7 +109,7 @@ function assert (cond, msg) {
 
 function assertType (value, name, type) {
   assert(!value || typeof (value) === type,
-    name + ' (' + value + ') must be a non-empty ' + type)
+    'if defined, ' + name + ' (' + value + ') must be a ' + type)
 }
 
 function assertString (value, name) {

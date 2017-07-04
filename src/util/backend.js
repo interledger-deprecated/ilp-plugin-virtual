@@ -4,8 +4,8 @@ const KEY_REGEX = /^[A-Za-z0-9\-_]*$/
 
 class ObjTransferLog {
   constructor (store, opts) {
-    this.maximum = new BigNumber(opts.maximum)
-    this.minimum = new BigNumber(opts.minimum)
+    this.maximum = new BigNumber(opts.maximum || Infinity)
+    this.minimum = new BigNumber(opts.minimum || -Infinity)
     this.cache = {}
     this.key = opts.key || ''
     if (!this.key.match(KEY_REGEX)) {

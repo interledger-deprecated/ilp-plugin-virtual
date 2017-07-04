@@ -8,7 +8,7 @@ const IlpPacket = require('ilp-packet')
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
 const getBackend = require('../util/backend')
-const debug = require('debug')('ilp-plugin-virtual')
+const debug = require('debug')('ilp-plugin-payment-channel-framework')
 
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
@@ -443,7 +443,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     if (Date.now() < Date.parse(transferInfo.transfer.expiresAt)) {
       throw new Error(transferId + ' doesn\'t expire until ' +
         transferInfo.transfer.expiresAt + ' (current time is ' +
-        new Date(Date.now()).toISOString() + ')')
+        new Date().toISOString() + ')')
     }
 
     debug('timing out ' + transferId)

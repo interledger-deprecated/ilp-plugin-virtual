@@ -1,5 +1,5 @@
 const EventEmitter = require('events')
-const debug = require('debug')('ilp-plugin-virtual:rpc')
+const debug = require('debug')('ilp-plugin-payment-channel-framework:rpc')
 const request = require('co-request')
 
 // TODO: really call it HTTP RPC?

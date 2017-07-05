@@ -18,12 +18,12 @@ module.exports = class HttpRpc extends EventEmitter {
 
   async receive (method, params) {
     // TODO: 4XX when method doesn't exist
-    debug.log('incoming ' + method + ' call from peer ' + this.rpcUri)
+    debug('incoming', method, 'from', this.rpcUri, 'with', params)
     return await this._methods[method].apply(this._plugin, params)
   }
 
   async call (method, prefix, params) {
-    debug('calling', method, 'with', params)
+    debug('outgoing', method, 'to', this.rpcUri, 'with', params)
 
     const uri = this.rpcUri + '?method=' + method + '&prefix=' + prefix
     const result = await Promise.race([

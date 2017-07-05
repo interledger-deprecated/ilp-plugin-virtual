@@ -4,11 +4,11 @@ const EventEmitter2 = require('eventemitter2')
 const crypto = require('crypto')
 const base64url = require('base64url')
 const IlpPacket = require('ilp-packet')
+const debug = require('debug')
 
 const HttpRpc = require('../model/rpc')
 const Validator = require('../util/validator')
 const getBackend = require('../util/backend')
-const debug = require('debug')('ilp-plugin-payment-channel-framework')
 
 const errors = require('../util/errors')
 const NotAcceptedError = errors.NotAcceptedError
@@ -24,6 +24,11 @@ const assertOptionType = (opts, field, type) => {
   }
 }
 
+const moduleName = (paymentChannelBackend) => {
+  const pluginName = paymentChannelBackend.pluginName || 'payment-channel'
+  return 'ilp-plugin-' + pluginName.toLowerCase()
+}
+
 module.exports = class PluginPaymentChannel extends EventEmitter2 {
   constructor (paymentChannelBackend, opts) {
     super()
@@ -31,6 +36,9 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
 
     this._opts = opts
     this._stateful = !!(opts._backend || opts._store)
+    this.debug = paymentChannelBackend
+      ? debug(moduleName(paymentChannelBackend))
+      : debug('ilp-plugin-virtual')
 
     if (!this._stateful && paymentChannelBackend) {
       throw new Error('if the plugin is stateless (no opts._store nor ' +
@@ -72,6 +80,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     this._rpc = new HttpRpc({
       rpcUris: this._rpcUris,
       plugin: this,
+      debug: this.debug,
       tolerateFailure: opts.tolerateRpcFailure
     })
 
@@ -138,7 +147,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     try {
       this.emit.apply(this, arguments)
     } catch (err) {
-      debug('error in handler for event', arguments, err)
+      this.debug('error in handler for event', arguments, err)
     }
   }
 
@@ -253,9 +262,9 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
         // erase our note to self
         { noteToSelf: undefined })])
 
-      debug('transfer acknowledged ' + transfer.id)
+      this.debug('transfer acknowledged ' + transfer.id)
     } catch (e) {
-      debug(e.name + ' during transfer ' + transfer.id)
+      this.debug(e.name + ' during transfer ' + transfer.id)
       if (!this._stateful) {
         throw e
       }
@@ -274,7 +283,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     try {
       await this._paychan.handleIncomingPrepare(this._paychanContext, transfer)
     } catch (e) {
-      debug('plugin backend rejected incoming prepare:', e.message)
+      this.debug('plugin backend rejected incoming prepare:', e.message)
       await this._transfers.cancel(transfer.id)
       throw e
     }
@@ -285,7 +294,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
       this._setupTransferExpiry(transfer.id, transfer.expiresAt)
     }
 
-    debug('acknowledging transfer id ', transfer.id)
+    this.debug('acknowledging transfer id ', transfer.id)
     return true
   }
 
@@ -315,7 +324,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     try {
       await this._paychan.handleIncomingClaim(this._paychanContext, result)
     } catch (e) {
-      debug('error handling incoming claim:', e)
+      this.debug('error handling incoming claim:', e)
     }
   }
 
@@ -347,14 +356,14 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
         this._paychanContext,
         await this._transfers.getOutgoingFulfilled())
     } catch (e) {
-      debug('error creating outgoing claim:', e)
+      this.debug('error creating outgoing claim:', e)
     }
 
     return result
   }
 
   async rejectIncomingTransfer (transferId, reason) {
-    debug('going to reject ' + transferId)
+    this.debug('going to reject ' + transferId)
     const transferInfo = await this._transfers.get(transferId)
 
     if (transferInfo.state === 'fulfilled') {
@@ -368,14 +377,14 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
 
     // TODO: add rejectionReason to interface
     await this._transfers.cancel(transferId, reason)
-    debug('rejected ' + transferId)
+    this.debug('rejected ' + transferId)
 
     this._safeEmit('incoming_reject', transferInfo.transfer, reason)
     await this._rpc.call('reject_incoming_transfer', this._prefix, [transferId, reason])
   }
 
   async _handleRejectIncomingTransfer (transferId, reason) {
-    debug('handling rejection of ' + transferId)
+    this.debug('handling rejection of ' + transferId)
     const transferInfo = await this._transfers.get(transferId)
 
     if (transferInfo.state === 'fulfilled') {
@@ -389,7 +398,7 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
 
     // TODO: add rejectionReason to interface
     await this._transfers.cancel(transferId, reason)
-    debug('peer rejected ' + transferId)
+    this.debug('peer rejected ' + transferId)
 
     this._safeEmit('outgoing_reject', transferInfo.transfer, reason)
     return true
@@ -428,11 +437,11 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     const transferInfo = await this._transfers.get(transferId)
     if (!transferInfo || transferInfo.state !== 'prepared') return
 
-    debug('timing out ' + transferId)
+    this.debug('timing out ' + transferId)
     try {
       await this._transfers.cancel(transferId, 'expired')
     } catch (e) {
-      debug('error expiring ' + transferId + ': ' + e.message)
+      this.debug('error expiring ' + transferId + ': ' + e.message)
       return
     }
 
@@ -451,11 +460,11 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
         new Date().toISOString() + ')')
     }
 
-    debug('timing out ' + transferId)
+    this.debug('timing out ' + transferId)
     try {
       await this._transfers.cancel(transferId, 'expired')
     } catch (e) {
-      debug('error expiring ' + transferId + ': ' + e.message)
+      this.debug('error expiring ' + transferId + ': ' + e.message)
       return true
     }
 

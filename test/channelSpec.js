@@ -37,6 +37,7 @@ describe('MakePaymentChannelPlugin', function () {
     }
 
     this.channel = {
+      pluginName: 'dummy',
       connect: () => Promise.resolve(),
       disconnect: () => Promise.resolve(),
       handleIncomingPrepare: () => Promise.resolve(),
@@ -83,6 +84,10 @@ describe('MakePaymentChannelPlugin', function () {
       const res = new (this.PluginClass)(this.opts)
       assert.isObject(res)
       assert.equal(called, true)
+    })
+
+    it('should give the right name to the class', function () {
+      assert.equal(this.PluginClass.name, 'PluginDummy')
     })
   })
 

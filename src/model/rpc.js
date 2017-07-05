@@ -1,12 +1,12 @@
 const EventEmitter = require('events')
-const debug = require('debug')('ilp-plugin-payment-channel-framework:rpc')
 const request = require('co-request')
 
 // TODO: really call it HTTP RPC?
 module.exports = class HttpRpc extends EventEmitter {
-  constructor ({ rpcUris, plugin, tolerateFailure }) {
+  constructor ({ rpcUris, plugin, tolerateFailure, debug }) {
     super()
     this._methods = {}
+    this.debug = debug
     this._plugin = plugin
     this.rpcUris = rpcUris
     this.tolerateFailure = tolerateFailure
@@ -36,13 +36,13 @@ module.exports = class HttpRpc extends EventEmitter {
     }))
 
     return results.reduce((a, r) => {
-      if (a) debug('got RPC result:', a)
+      if (a) this.debug('got RPC result:', a)
       return a || r
     })
   }
 
   async _callUri (rpcUri, method, prefix, params) {
-    debug('calling', method, 'with', params)
+    this.debug('calling', method, 'with', params)
 
     const authToken = this._plugin._getAuthToken()
     const uri = rpcUri + '?method=' + method + '&prefix=' + prefix

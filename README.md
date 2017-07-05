@@ -558,6 +558,18 @@ SHOULD NOT take longer than 500 ms if `await`-ed. If a slower operation
 is required, it should be run in the background so it doesn't block the flow of
 the function.
 
+------
+
+### `pluginName`
+
+This optional field defines the type of this plugin. For instance, if it is set
+to `example`, the class name will become `PluginExample`, and debug statements
+will be printed as `ilp-plugin-example`.
+
+#### Type
+
+String
+
 -------
 
 ### `constructor (ctx, opts)`

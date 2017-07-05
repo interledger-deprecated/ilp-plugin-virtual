@@ -69,7 +69,7 @@ module.exports = class Validator {
 
   assertIncoming (o) {
     assertAccount(o.from, this._peer, 'from')
-    assertAccount(o.to, this._account, 'from')
+    assertAccount(o.to, this._account, 'to')
   }
 
   assertOutgoing (o) {

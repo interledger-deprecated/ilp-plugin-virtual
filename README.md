@@ -1,4 +1,4 @@
-# ilp-plugin-virtual [![npm][npm-image]][npm-url] [![circle][circle-image]][circle-url] [![codecov][codecov-image]][codecov-url]
+handler-plugin-virtual [![npm][npm-image]][npm-url] [![circle][circle-image]][circle-url] [![codecov][codecov-image]][codecov-url]
 
 [npm-image]: https://img.shields.io/npm/v/ilp-plugin-virtual.svg?style=flat
 [npm-url]: https://npmjs.org/package/ilp-plugin-virtual
@@ -26,7 +26,7 @@ by periodically sending unconditional payments. The common functionality, such
 as implementing the ledger plugin interface, logging transfers, keeping
 balances, etc. are handled by the payment channel framework itself.
 
-ILP Plugin virtual exposes a field called `MakePaymentChannelPlugin`.  This function
+ILP Plugin virtual exposes a field called `makePaymentChannelPlugin`.  This function
 takes a [Payment Channel Module](#payment-channel-module-api), and returns a
 LedgerPlugin class.
 
@@ -50,12 +50,12 @@ many other blockchains) by signing transactions that pay out of some script
 output.
 
 ```js
-const { MakePaymentChannelPlugin } = require('ilp-plugin-virtual')
+const { makePaymentChannelPlugin } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
 const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
-return MakePaymentChannelPlugin({
+return makePaymentChannelPlugin({
   // initialize fields and validate options in the constructor
   constructor: function (ctx, opts) {
     // we have one maxValueTracker to track the best incoming claim we've
@@ -85,9 +85,13 @@ return MakePaymentChannelPlugin({
     await Network.connectToNetwork()
 
     // establish metadata during the connection phase
-    ctx.state.prefix = 'peer.network.' + (await Network.getChannelId())
-    ctx.state.account = await Network.getChannelSource()
-    ctx.state.peer = await Network.getChannelDestination()
+    ctx.state.prefix = 'peer.network.' + (await Network.getChannelId()) + '.'
+    
+    // create ILP addresses for self and peer by appending identifiers from the
+    // network onto the prefix.
+    ctx.state.account = ctx.state.prefix + (await Network.getChannelSource())
+    ctx.state.peer = ctx.state.prefix + (await Network.getChannelDestination())
+
     ctx.state.info = {
       prefix: ctx.state.prefix,
       currencyScale: 6,
@@ -98,8 +102,8 @@ return MakePaymentChannelPlugin({
 
   // Synchronous functions in order to get metadata. They won't be called until
   // after the plugin is connected.
-  getAccount: (ctx) => (ctx.state.prefix + ctx.state.account),
-  getPeerAccount: (ctx) => (ctx.state.prefix + ctx.state.peer),
+  getAccount: (ctx) => (ctx.state.account),
+  getPeerAccount: (ctx) => (ctx.state.peer),
   getInfo: (ctx) => (ctx.state.info),
 
   // this function is called every time an incoming transfer has been prepared.
@@ -117,7 +121,7 @@ return MakePaymentChannelPlugin({
     // gotten.  'incoming - bestClaim.value' is the amount that our peer can
     // default on, so it's important we limit it.
     const exceeds = new BigNumber(incoming)
-      .subtract(bestClaim.value)
+      .minus(bestClaim.value)
       .greaterThan(ctx.state.maxUnsecured)
 
     if (exceeds) {
@@ -151,7 +155,7 @@ return MakePaymentChannelPlugin({
       // if the incoming claim is valid and it's better than your previous best
       // claim, set the bestClaim to the new one. If you already have a better
       // claim this will leave it intact. It's important to use the backend's
-      // maxValueTracker here, because it will be safe across many processes.
+      // maxValueTracker here, because it will be shared across many processes.
       await ctx.state.bestClaim.setIfMax({ value: balance, data: claim })
     }
   },
@@ -182,12 +186,12 @@ Unlike creating a claim, sending a payment has side-effects (it alters an
 external system). Therefore, the code is slightly more complicated.
 
 ```js
-const { MakePaymentChannelPlugin } = require('ilp-plugin-virtual')
+const { makePaymentChannelPlugin } = require('ilp-plugin-virtual')
 const { NotAcceptedError } = require('ilp-plugin-shared').Errors
 const Network = require('some-example-network')
 const BigNumber = require('bignumber.js')
 
-return MakePaymentChannelPlugin({
+return makePaymentChannelPlugin({
   // initialize fields and validate options in the constructor
   constructor: function (ctx, opts) {
     // In this type of payment channel module, we create a log of incoming
@@ -227,6 +231,9 @@ return MakePaymentChannelPlugin({
     }
   },
 
+  // we don't need to define a disconnect handler in this case
+  disconnect: function () => Promise.resolve(),
+
   // Synchronous functions in order to get metadata. They won't be called until
   // after the plugin is connected.
   getAccount: (ctx) => (ctx.state.prefix + ctx.state.account),
@@ -262,15 +269,16 @@ return MakePaymentChannelPlugin({
     // If we've already paid out more than outgoingBalance, then it won't be the
     // max value. The maxValueTracker will return outgoingBalance as the result,
     // and outgoingBalance - outgoingBalance is 0. Therefore, we send no payment.
-    const lastPaid = ctx.state.amountSettled.setIfMax({ value: outgoingBalance, data: null })
-    const diff = outgoingBalance - lastPaid.value
+    const lastPaid = await ctx.state.amountSettled.setIfMax({ value: outgoingBalance, data: null })
+    const diff = new BigNumber(outgoingBalance)
+      .sub(lastPaid.value)
 
-    if (!diff) {
+    if (diff.lessThanOrEqualTo('0')) {
       return
     }
 
     // We take the transaction ID from the payment we send, and give it as an
-    // identifier so out peer can look it up on the network and verify that we
+    // identifier so our peer can look it up on the network and verify that we
     // paid them. Another approach could be to return nothing from this
     // function, and have the peer automatically track all incoming payments
     // they're notified of on the settlement ledger.
@@ -547,7 +555,7 @@ Backend methods, in order to access useful plugin state.
 
 ## Payment Channel Module API
 
-Calling `MakePaymentChannelPlugin` with an object containing all of the
+Calling `makePaymentChannelPlugin` with an object containing all of the
 functions defined below will return a class. This new class will perform all
 the functionality of ILP Plugin Virtual, and additionally use the supplied
 callbacks to handle settlement.
@@ -600,6 +608,9 @@ Return the
 of this payment channel. This function will not be called until after the
 plugin is connected. The prefix must be deterministic, as the connector
 requires plugin prefixes to be preconfigured.
+
+The framework code will automatically create a deep clone of the return value
+before returning to the plugin user.
 
 #### Parameters
 

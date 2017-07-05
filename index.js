@@ -7,7 +7,7 @@ const capitalize = (word) => {
 }
 
 module.exports = Plugin.bind(null, null)
-module.exports.MakePaymentChannelPlugin = (channel) => {
+module.exports.makePaymentChannelPlugin = (channel) => {
   const channelPluginClass = Plugin.bind(null, channel)
 
   // set the class name

@@ -10,9 +10,9 @@ chai.use(require('chai-as-promised'))
 const assert = chai.assert
 
 const ObjStore = require('./helpers/objStore')
-const MakePaymentChannelPlugin = require('..').MakePaymentChannelPlugin
+const makePaymentChannelPlugin = require('..').makePaymentChannelPlugin
 
-describe('MakePaymentChannelPlugin', function () {
+describe('makePaymentChannelPlugin', function () {
   beforeEach(async function () {
     this.prefix = 'example.red.'
     this.account = 'example.red.alice'
@@ -49,7 +49,7 @@ describe('MakePaymentChannelPlugin', function () {
       getAuthToken: () => 'placeholder'
     }
 
-    this.PluginClass = MakePaymentChannelPlugin(this.channel)
+    this.PluginClass = makePaymentChannelPlugin(this.channel)
     this.plugin = new (this.PluginClass)(this.opts)
 
     this.fulfillment = require('crypto').randomBytes(32)

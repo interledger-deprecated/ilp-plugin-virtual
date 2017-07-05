@@ -18,6 +18,7 @@ module.exports = class HttpRpc extends EventEmitter {
 
   async receive (method, params) {
     // TODO: 4XX when method doesn't exist
+    debug.log('incoming ' + method + ' call from peer ' + this.rpcUri)
     return await this._methods[method].apply(this._plugin, params)
   }
 
@@ -49,7 +50,7 @@ module.exports = class HttpRpc extends EventEmitter {
     }
 
     if (result.statusCode !== 200) {
-      throw new Error('Unexpected status code ' + result.statusCode + ', with body "' +
+      throw new Error('Unexpected status code ' + result.statusCode + ' from ' + this.rpcUri + ', with body "' +
         JSON.stringify(result.body) + '"')
     }
 

@@ -4,9 +4,10 @@ const assert = require('chai').assert
 const nock = require('nock')
 
 const ObjStore = require('./helpers/objStore')
-const PluginVirtual = require('..')
+const PluginPaymentChannel = require('..')
 
 const info = {
+  prefix: 'example.red.',
   currencyScale: 2,
   currencyCode: 'USD',
   maxBalance: '1000000',
@@ -14,19 +15,18 @@ const info = {
 }
 
 const options = {
-  currencyScale: 2,
-  currencyCode: 'USD',
-  secret: 'seeecret',
+  prefix: 'example.red.',
+  token: 'placeholder',
   maxBalance: '1000000',
-  peerPublicKey: 'Ivsltficn6wCUiDAoo8gCR0CO5yWb3KBED1a9GrHGwk',
   rpcUri: 'https://example.com/rpc',
-  _store: new ObjStore(),
   info: info
 }
 
 describe('Info', () => {
   beforeEach(function * () {
-    this.plugin = new PluginVirtual(options)
+    options._store = new ObjStore()
+    this.plugin = new PluginPaymentChannel(options)
+
     yield this.plugin.connect()
   })
 
@@ -39,7 +39,7 @@ describe('Info', () => {
   describe('getLimit', () => {
     it('return the result of the RPC call', function * () {
       nock('https://example.com')
-        .post('/rpc?method=get_limit&prefix=peer.NavKx.usd.2.', [])
+        .post('/rpc?method=get_limit&prefix=example.red.', [])
         .reply(200, '5')
 
       // the value is reversed so it makes sense to our side
@@ -50,7 +50,7 @@ describe('Info', () => {
   describe('getPeerBalance', () => {
     it('return the result of the RPC call', function * () {
       nock('https://example.com')
-        .post('/rpc?method=get_balance&prefix=peer.NavKx.usd.2.', [])
+        .post('/rpc?method=get_balance&prefix=example.red.', [])
         .reply(200, '5')
 
       // the value is reversed so it makes sense to our side
@@ -68,7 +68,7 @@ describe('Info', () => {
 
   describe('isAuthorized', () => {
     it('should authorize its own auth token', function () {
-      assert.isTrue(this.plugin.isAuthorized(this.plugin._authToken))
+      assert.isTrue(this.plugin.isAuthorized(this.plugin._getAuthToken()))
     })
 
     it('should not authorize any other token', function () {

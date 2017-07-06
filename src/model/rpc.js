@@ -18,7 +18,7 @@ module.exports = class HttpRpc extends EventEmitter {
 
   async receive (method, params) {
     // TODO: 4XX when method doesn't exist
-    debug('incoming', method, 'from', this.rpcUri, 'with', params)
+    this.debug('incoming', method, 'from', this.rpcUri, 'with', params)
     if (!this._methods[method]) {
       throw new Error('no method "' + method + '" found.')
     }
@@ -27,7 +27,7 @@ module.exports = class HttpRpc extends EventEmitter {
   }
 
   async call (method, prefix, params) {
-    debug('outgoing', method, 'to', this.rpcUri, 'with', params)
+    this.debug('outgoing', method, 'to', this.rpcUri, 'with', params)
     const results = await Promise.all(this.rpcUris.map((uri) => {
       return this._callUri(uri, method, prefix, params)
         .catch((e) => {

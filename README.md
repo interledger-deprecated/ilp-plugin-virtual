@@ -1,4 +1,4 @@
-handler-plugin-virtual [![npm][npm-image]][npm-url] [![circle][circle-image]][circle-url] [![codecov][codecov-image]][codecov-url]
+ilp-plugin-payment-channel-framework [![npm][npm-image]][npm-url] [![circle][circle-image]][circle-url] [![codecov][codecov-image]][codecov-url]
 
 [npm-image]: https://img.shields.io/npm/v/ilp-plugin-virtual.svg?style=flat
 [npm-url]: https://npmjs.org/package/ilp-plugin-virtual
@@ -162,7 +162,7 @@ return makePaymentChannelPlugin({
 
   // called on plugin disconnect
   disconnect: async function (ctx) {
-    const claim = ctx.state.bestClaim.getMax()
+    const claim = await ctx.state.bestClaim.getMax()
     if (!claim) {
       return
     }

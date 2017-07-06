@@ -442,9 +442,13 @@ state is `cancelled`, the function will throw an error. If the transfer's state
 is `prepared`, it will be set to `fulfilled` and the fulfillment will be
 stored.
 
-The fulfillment is not compared against the executionCondition of the transfer,
-so any value can be stored in the fulfillment field. It is up to the plugin
-code to perform proper validation.
+**Important:** The TransferLog is concerned only with storage, and making sure
+that the sum of the transfers does not exceed its given limits. As such, the
+fulfillment is not compared against the executionCondition of the transfer.
+This allows more flexibility in how the TransferLog is used, but developers
+should be careful to perform proper fulfillment validation in their own code.
+Remember that `SHA256(fulfillment)` must equal `executionCondition`, and the
+fulfillment should always be exactly 32 bytes.
 
 #### Parameters
 

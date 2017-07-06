@@ -1,6 +1,7 @@
 'use strict'
 const BigNumber = require('bignumber.js')
 const InvalidFieldsError = require('./errors').InvalidFieldsError
+const _assert = require('assert')
 
 // Regex matching a string containing 32 base64url-encoded bytes
 const REGEX_32_BYTES_AS_BASE64URL = /^[A-Za-z0-9_-]{43}$/
@@ -11,6 +12,25 @@ module.exports = class Validator {
     this._peer = opts.peer
     this._account = opts.account
     this._prefix = opts.prefix
+  }
+
+  static validatePaymentChannelBackend (paymentChannelBackend) {
+    _assert.strictEqual(typeof paymentChannelBackend.pluginName, 'string',
+      'paymentChannelBackend.pluginName must be a string')
+
+    const message = (name) => `paymentChannelBackend.${name} must be a function`
+    _assert.strictEqual(typeof paymentChannelBackend.constructor, 'function', message('constructor'))
+    _assert.strictEqual(typeof paymentChannelBackend.getAccount, 'function', message('getAccount'))
+    _assert.strictEqual(typeof paymentChannelBackend.getPeerAccount, 'function', message('getPeerAccount'))
+    _assert.strictEqual(typeof paymentChannelBackend.getInfo, 'function', message('getInfo'))
+    _assert.strictEqual(typeof paymentChannelBackend.connect, 'function', message('connect'))
+    _assert.strictEqual(typeof paymentChannelBackend.disconnect, 'function', message('disconnect'))
+    _assert.strictEqual(typeof paymentChannelBackend.handleIncomingPrepare,
+      'function', message('handleIncomingPrepare'))
+    _assert.strictEqual(typeof paymentChannelBackend.createOutgoingClaim,
+      'function', message('createOutgoingClaim'))
+    _assert.strictEqual(typeof paymentChannelBackend.handleIncomingClaim,
+      'function', message('handleIncomingClaim'))
   }
 
   validateIncomingTransfer (t) {

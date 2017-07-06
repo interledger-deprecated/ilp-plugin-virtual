@@ -25,7 +25,7 @@ const assertOptionType = (opts, field, type) => {
 }
 
 const moduleName = (paymentChannelBackend) => {
-  const pluginName = paymentChannelBackend.pluginName || 'payment-channel'
+  const pluginName = paymentChannelBackend.pluginName
   return 'ilp-plugin-' + pluginName.toLowerCase()
 }
 
@@ -92,6 +92,8 @@ module.exports = class PluginPaymentChannel extends EventEmitter2 {
     this._rpc.addMethod('expire_transfer', this._handleExpireTransfer)
 
     if (this._stateful && paymentChannelBackend) {
+      Validator.validatePaymentChannelBackend(paymentChannelBackend)
+
       this._rpc.addMethod('get_limit', this._handleGetLimit)
       this._rpc.addMethod('get_balance', this._getLowestBalance)
       this._rpc.addMethod('get_info', () => Promise.resolve(this.getInfo))

@@ -7,6 +7,7 @@ const capitalize = (name) => {
 }
 
 module.exports = Plugin.bind(null, null)
+module.exports.errors = require('./src/util/errors')
 module.exports.makePaymentChannelPlugin = (channel) => {
   const channelPluginClass = Plugin.bind(null, channel)
 

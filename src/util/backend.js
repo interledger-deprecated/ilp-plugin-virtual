@@ -1,6 +1,13 @@
 const deepEqual = require('deep-equal')
 const BigNumber = require('bignumber.js')
 const KEY_REGEX = /^[A-Za-z0-9\-_]*$/
+const {
+  DuplicateIdError,
+  TransferNotFoundError,
+  AlreadyRolledBackError,
+  AlreadyFulfilledError,
+  NotAcceptedError
+} = require('./errors')
 
 class ObjTransferLog {
   constructor (store, opts) {
@@ -16,7 +23,6 @@ class ObjTransferLog {
     this.store = store
     this.writeQueue = Promise.resolve()
 
-    // TODO: disable balance? (not needed for client plugin)
     this.balanceIncomingFulfilled = new BigNumber(0)
     this.balanceIncomingFulfilledAndPrepared = new BigNumber(0)
     this.balanceOutgoingFulfilledAndPrepared = new BigNumber(0)
@@ -103,21 +109,18 @@ class ObjTransferLog {
 
   async get (id) {
     await this.connect()
-    // TODO: errors
-    // - what if the transfer doesn't exist?
-    return this.cache[id] ||
+    const transferWithInfo = this.cache[id] ||
       (this.store && (await this.store.get(this.key + ':tl:transfer:' + id)))
+
+    if (!transferWithInfo) {
+      throw new TransferNotFoundError('No transfer found with ID ' + id)
+    }
+
+    return transferWithInfo
   }
 
   async prepare (transfer, isIncoming) {
     await this.connect()
-    // TODO: should direction be a boolean isIncoming?
-    // TODO: errors
-    // - what if goes over balance?
-    // - what if id exists in DB already?
-    // - what if the id exists and the contents are different?
-    // TODO: should this auto-set the state field?
-
     const transferWithInfo = {
       transfer,
       isIncoming,
@@ -137,7 +140,7 @@ class ObjTransferLog {
 
     if (existing) {
       if (!deepEqual(existing.transfer, transferWithInfo.transfer)) {
-        throw new Error('transfer ' + JSON.stringify(transferWithInfo) +
+        throw new DuplicateIdError('transfer ' + JSON.stringify(transferWithInfo) +
           ' matches the id of ' + JSON.stringify(existing) +
           ' but not the contents.')
       }
@@ -153,7 +156,7 @@ class ObjTransferLog {
       : (n) => n.sub(otherBalance).gt(this.minimum.neg())
 
     if (isOver(this[balance].add(amount))) {
-      throw new Error(balance + ' exceeds greatest allowed value after: ' +
+      throw new NotAcceptedError(balance + ' exceeds greatest allowed value after: ' +
         JSON.stringify(transferWithInfo))
     }
 
@@ -173,12 +176,11 @@ class ObjTransferLog {
 
   async fulfill (transferId, fulfillment) {
     await this.connect()
-    // TODO: errors
-    // - what if a transfer is already fulfilled?
-    // - what if transfer doesn't exist?
-    // - should the fulfillment be validated?
-    // - what if the transfer is rejected?
     const transferWithInfo = this.cache[transferId]
+    if (!transferWithInfo) {
+      throw new TransferNotFoundError('No prepared transfer with ID ' + transferId)
+    }
+
     const isIncoming = transferWithInfo.isIncoming
     const balance = isIncoming ? 'balanceIncomingFulfilled' : 'balanceOutgoingFulfilled'
 
@@ -186,9 +188,8 @@ class ObjTransferLog {
       this[balance] = this[balance].add(transferWithInfo.transfer.amount)
     }
 
-    // TODO: should the failure state be rejected, like FBL API?
     if (transferWithInfo.state === 'cancelled') {
-      throw new Error(transferId + ' cannot be fulfilled because it is rejected: ' +
+      throw new AlreadyRolledBackError(transferId + ' cannot be fulfilled because it is rejected: ' +
         JSON.stringify(transferWithInfo))
     }
 
@@ -210,14 +211,13 @@ class ObjTransferLog {
     }
   }
 
-  // TODO: should there be some kind of rejectionReason field? it's useful in FBL.
   async cancel (transferId) {
     await this.connect()
-    // TODO: errors
-    // - what if a transfer is already cancelled?
-    // - what if transfer doesn't exist?
-    // - what if the transfer is fulfilled?
     const transferWithInfo = this.cache[transferId]
+    if (!transferWithInfo) {
+      throw new TransferNotFoundError('No prepared transfer with ID ' + transferId)
+    }
+
     const isIncoming = transferWithInfo.isIncoming
     const balance = isIncoming
       ? 'balanceIncomingFulfilledAndPrepared'
@@ -227,9 +227,8 @@ class ObjTransferLog {
       this[balance] = this[balance].sub(transferWithInfo.transfer.amount)
     }
 
-    // TODO: should the success state be executed, like FBL API?
     if (transferWithInfo.state === 'fulfilled') {
-      throw new Error(transferId + ' cannot be rejected because it is fulfilled: ' +
+      throw new AlreadyFulfilledError(transferId + ' cannot be rejected because it is fulfilled: ' +
         JSON.stringify(transferWithInfo))
     }
 

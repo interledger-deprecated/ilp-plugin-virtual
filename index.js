@@ -1,8 +1,10 @@
-const { MakePaymentChannelPlugin } = require('ilp-plugin-payment-channel-framework')
+const { makePaymentChannelPlugin } = require('ilp-plugin-payment-channel-framework')
 const Token = require('./src/token')
 const assert = require('assert')
 
-module.exports = MakePaymentChannelPlugin({
+module.exports = makePaymentChannelPlugin({
+  pluginName: 'virtual',
+
   constructor: function (ctx, opts) {
     assert.equal(typeof opts.secret, 'string', 'opts.secret must be a string')
     assert.equal(typeof opts.peerPublicKey, 'string', 'opts.peerPublicKey must be a string')

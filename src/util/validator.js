@@ -46,13 +46,12 @@ module.exports = class Validator {
     }
 
     if (t.account) {
-      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
+      util.deprecate(() => {}, 'switch from the "account" field to the "to" field!')()
       assertString(t.account, 'account')
       return
     }
 
     assert(t.to, 'must have a destination (.to)')
-    assert(t.from, 'must have a source (.from)')
     assertPrefix(t.ledger, this._prefix, 'ledger')
   }
 
@@ -76,13 +75,12 @@ module.exports = class Validator {
     }
 
     if (m.account) {
-      util.deprecate(() => {}, 'switch from the "account" field to the "to" and "from" fields!')()
+      util.deprecate(() => {}, 'switch from the "account" field to the "to" field!')()
       assertString(m.account, 'account')
       return
     }
 
     assert(m.to, 'must have a destination (.to)')
-    assert(m.from, 'must have a source (.from)')
     assertPrefix(m.ledger, this._prefix, 'ledger')
   }
 
@@ -93,12 +91,10 @@ module.exports = class Validator {
 
   assertIncoming (o) {
     assertAccount(o.to, this._account, 'to')
-    assertAccount(o.from, this._peer, 'from')
   }
 
   assertOutgoing (o) {
     assertAccount(o.to, this._peer, 'to')
-    assertAccount(o.from, this._account, 'from')
   }
 
 }
